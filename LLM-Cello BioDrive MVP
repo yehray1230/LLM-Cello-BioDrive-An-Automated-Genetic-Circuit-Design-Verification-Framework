@@ -1,0 +1,283 @@
+import streamlit as st
+import openai
+
+
+# =========================
+# 後端邏輯：核心轉譯函式
+# =========================
+def generate_verilog(user_intent: str, api_key: str) -> str:
+    """
+    使用指定的 OpenAI API Key，根據使用者的自然語言需求，
+    產生對應的 Cello Verilog 程式碼。
+
+    回傳：
+    - 成功：純 Verilog 程式碼字串。
+    - 失敗：以「錯誤：」開頭的錯誤訊息字串（方便前端識別）。
+    """
+    if not api_key or not api_key.strip():
+        return "錯誤：尚未提供 API Key。"
+
+    if not user_intent or not user_intent.strip():
+        return "錯誤：自然語言需求不可為空白。"
+
+    # 設定 OpenAI API Key（BYOK：由使用者在前端輸入）
+    openai.api_key = api_key.strip()
+
+    # Cello 專用 System Prompt：確保大模型輸出標準結構化/資料流 Verilog
+    system_prompt = """You are an expert biological circuit compiler for the Cello CAD software. Your ONLY job is to translate user requests into standard structural/dataflow Verilog code.
+
+STRICT RULES:
+
+Output ONLY raw, valid Verilog code.
+
+NO Markdown formatting (Do NOT use ```verilog or ```).
+
+NO conversational text, greetings, explanations, or comments outside the Verilog syntax.
+
+Use simple logic gates (and, or, not, nor, nand) or assign statements.
+
+EXAMPLE INPUT:
+設計一個基因迴路，當有 IPTG 且沒有 aTc 時，輸出 YFP。
+
+EXAMPLE OUTPUT:
+module circuit(input IPTG, input aTc, output YFP);
+wire not_aTc;
+not(not_aTc, aTc);
+and(YFP, IPTG, not_aTc);
+endmodule"""
+
+    try:
+        # 呼叫 ChatCompletion（模型名稱可依實際可用情況調整）
+        response = openai.ChatCompletion.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {
+                    "role": "user",
+                    "content": (
+                        "請根據以下自然語言描述，設計對應的 Cello Verilog 基因電路：\n"
+                        f"{user_intent}"
+                    ),
+                },
+            ],
+            temperature=0.2,  # 降低隨機性，讓輸出更穩定
+        )
+
+        verilog_code = response.choices[0].message["content"]
+
+        # 安全檢查：若模型仍輸出 Markdown code fence，進行簡單清洗
+        if "```" in verilog_code:
+            verilog_code = (
+                verilog_code.replace("```verilog", "")
+                .replace("```", "")
+                .strip()
+            )
+
+        return verilog_code
+
+    except openai.error.AuthenticationError:
+        # API Key 無效或權限問題
+        return "錯誤：OpenAI API 驗證失敗，請確認 API Key 是否正確與有效。"
+    except openai.error.RateLimitError:
+        # 請求過多或帳戶額度不足
+        return "錯誤：已達到 OpenAI API 使用上限或額度不足，請稍後再試或檢查帳戶狀態。"
+    except openai.error.OpenAIError as e:
+        # 其他 OpenAI 相關錯誤
+        return f"錯誤：呼叫 OpenAI API 時發生問題：{str(e)}"
+    except Exception as e:
+        # 非預期錯誤
+        return f"錯誤：系統發生未預期錯誤：{str(e)}"
+
+
+# =========================
+# 多機辯論區塊（Reflexion）：三輪迭代 設計→評估→修改
+# =========================
+def _call_llm(api_key: str, system_prompt: str, user_content: str) -> str:
+    """
+    共用的 LLM 呼叫與錯誤處理，供 call_builder / call_critic / call_summarizer 使用。
+    成功回傳助理回覆文字；失敗回傳以「錯誤：」開頭的字串。
+    """
+    if not api_key or not api_key.strip():
+        return "錯誤：尚未提供 API Key。"
+    openai.api_key = api_key.strip()
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content},
+            ],
+            temperature=0.3,
+        )
+        return response.choices[0].message["content"].strip()
+    except openai.error.AuthenticationError:
+        return "錯誤：OpenAI API 驗證失敗，請確認 API Key 是否正確與有效。"
+    except openai.error.RateLimitError:
+        return "錯誤：已達到 OpenAI API 使用上限或額度不足，請稍後再試或檢查帳戶狀態。"
+    except openai.error.OpenAIError as e:
+        return f"錯誤：呼叫 OpenAI API 時發生問題：{str(e)}"
+    except Exception as e:
+        return f"錯誤：系統發生未預期錯誤：{str(e)}"
+
+
+def call_builder(user_intent: str, previous_feedback: str, api_key: str) -> str:
+    """
+    專家一：合成生物學系統工程師（Reflexion 版）。
+    若無 previous_feedback 則提出 V1；若有則在「絕對不違反用戶最終目標」前提下提出修正版。
+    """
+    system_prompt = (
+        f"你是一位合成生物學系統工程師。用戶的最終目標是：{user_intent}。"
+        "如果沒有 previous_feedback，請直接提出 V1 基因電路設計（包含輸入、邏輯閘、輸出）。"
+        "如果收到 previous_feedback，請在**「絕對不能違反用戶最終目標」**的前提下，"
+        "提出修正後的版本來解決批評者提出的問題。"
+    )
+    if previous_feedback:
+        user_content = f"【批評者意見，請據此修正設計】\n{previous_feedback}"
+    else:
+        user_content = "請根據上述用戶最終目標，提出第一版（V1）基因電路設計。"
+    return _call_llm(api_key, system_prompt, user_content)
+
+
+def call_critic(current_design: str, api_key: str) -> str:
+    """
+    專家二：嚴苛的生物安全與可行性審查員。
+    只專注於：邏輯矛盾、生物學現實問題（代謝負擔、毒性）、生物安全風險。提出精確、致命的批評。
+    """
+    system_prompt = (
+        "你是一位嚴苛的生物安全與可行性審查員。請檢視當前的基因電路設計，只專注於尋找："
+        "1. 邏輯矛盾 2. 生物學現實問題（代謝負擔、毒性） 3. 生物安全風險。"
+        "提出精確、致命的批評，不說廢話。"
+    )
+    return _call_llm(api_key, system_prompt, current_design)
+
+
+def call_summarizer(final_design: str, api_key: str) -> str:
+    """
+    專家三：首席架構師。
+    將第三輪的最終設計濃縮成 Verilog 轉譯器需要的純邏輯自然語言（例如：「當有 A 且沒有 B 時，輸出 C。」）。
+    """
+    system_prompt = (
+        "你是一位首席架構師。請將以下基因電路設計（可能為多輪迭代後的完整描述）"
+        "濃縮成一段極度精煉的自然語言，只描述邏輯關係，因為你的輸出將直接送給 Verilog 編譯器。"
+        "例如：『當有 A 且沒有 B 時，輸出 C。』不要輸出其他解釋或標記。"
+    )
+    return _call_llm(api_key, system_prompt, final_design)
+
+
+# =========================
+# 結果區塊：顯示 Verilog 與下載（路線 A：手動介接 Cello）
+# =========================
+def render_verilog_result(verilog_content: str) -> None:
+    """顯示生成的 Verilog 程式碼，並提供 .v 檔案下載按鈕（路線 A）。"""
+    st.success("生成完成！以下為模型產生的 Verilog 程式碼：")
+    st.code(verilog_content, language="verilog")
+
+    # 路線 A：提供下載按鈕，讓使用者可將 .v 檔匯入 Cello CAD 網頁版
+    # 未來擴充點：此處可將 downloaded_file 替換為直接呼叫 Cello CLI / API 的函式 (路線 B)
+    st.download_button(
+        label="下載 Verilog 檔案 (.v) 供 Cello 使用",
+        data=verilog_content,
+        file_name="design_circuit.v",
+        mime="text/plain",
+    )
+
+
+# =========================
+# 前端介面：Streamlit App
+# =========================
+def main():
+    # 設定頁面基本資訊
+    st.set_page_config(
+        page_title="LLM-Cello BioDrive MVP",
+        page_icon="",
+        layout="wide",
+    )
+
+    # 側邊欄：輸入 OpenAI API Key（BYOK）
+    with st.sidebar:
+        st.header("API 設定")
+        api_key = st.text_input(
+            "請輸入你的 OpenAI API Key",
+            type="password",
+            help="此金鑰僅在本次瀏覽器工作階段中使用，不會儲存在伺服器端。",
+        )
+        st.markdown(
+            "若尚未申請，可以前往 OpenAI 平台取得 API Key。"
+        )
+
+    # 主畫面標題與說明
+    st.title("LLM-Cello BioDrive ")
+    st.subheader("從自然語言合成生物學需求，自動生成 Cello Verilog 基因電路")
+
+    # 多行文字輸入框：讓使用者輸入自然語言需求
+    user_intent = st.text_area(
+        "請輸入你的合成生物學設計需求（可以使用中文）：",
+        height=200,
+        placeholder="例：設計一個基因迴路：當環境中有 IPTG 且沒有 aTc 時，表現出 YFP 螢光蛋白。",
+    )
+
+    # 用來在重新執行後仍能顯示結果與下載按鈕（例如按下「下載」後畫面不丟失）
+    if "last_verilog" not in st.session_state:
+        st.session_state["last_verilog"] = None
+
+    # ---------- 多機辯論區塊（Reflexion）：三輪迭代 設計→評估→修改，再生成 Verilog ----------
+    if st.button("開始設計"):
+        if not api_key or not api_key.strip():
+            st.error("請先在左側輸入 OpenAI API Key。")
+        elif not user_intent or not user_intent.strip():
+            st.error("請先輸入合成生物學設計需求。")
+        else:
+            previous_feedback = ""
+            final_design_v3 = None
+            iteration_failed = False
+
+            for round_num in range(1, 4):
+                with st.expander(f"迭代設計 第 {round_num} 輪", expanded=True):
+                    # Builder：第 1 輪無批評則提 V1，第 2、3 輪依 previous_feedback 修正
+                    st.markdown("**Builder**")
+                    current_design = call_builder(user_intent, previous_feedback, api_key)
+                    if current_design.startswith("錯誤："):
+                        st.error(current_design)
+                        iteration_failed = True
+                        break
+                    st.text_area("builder_output", value=current_design, height=140, disabled=True, label_visibility="collapsed", key=f"builder_r{round_num}")
+
+                    # Critic：針對本輪設計提出批評，供下一輪 Builder 使用
+                    st.markdown("**Critic**")
+                    critic_feedback = call_critic(current_design, api_key)
+                    if critic_feedback.startswith("錯誤："):
+                        st.error(critic_feedback)
+                        iteration_failed = True
+                        break
+                    st.text_area("critic_output", value=critic_feedback, height=120, disabled=True, label_visibility="collapsed", key=f"critic_r{round_num}")
+
+                    previous_feedback = critic_feedback
+                    final_design_v3 = current_design  # 每輪更新，迴圈結束後即為第三輪設計（V3）
+
+            # 三輪結束後：將 V3 交給 Summarizer 濃縮，再送入 generate_verilog
+            if not iteration_failed and final_design_v3 is not None:
+                st.markdown("---")
+                st.markdown("**首席架構師：將最終設計濃縮為 Verilog 規格**")
+                with st.spinner("Summarizer 統整中…"):
+                    final_spec = call_summarizer(final_design_v3, api_key)
+                if final_spec.startswith("錯誤："):
+                    st.error(final_spec)
+                else:
+                    st.caption("送交 Verilog 編譯器的精煉規格：")
+                    st.text_area("final_spec", value=final_spec, height=60, disabled=True, label_visibility="collapsed")
+                    st.markdown("**正在編譯為 Verilog…**")
+                    with st.spinner("Verilog 編譯中…"):
+                        verilog_result = generate_verilog(final_spec, api_key)
+                    if verilog_result.startswith("錯誤："):
+                        st.error(verilog_result)
+                    else:
+                        st.session_state["last_verilog"] = verilog_result
+
+    # 顯示最近一次成功生成的 Verilog 與下載按鈕（路線 A：手動下載 .v 供 Cello 使用）
+    if st.session_state.get("last_verilog"):
+        st.markdown("---")
+        render_verilog_result(st.session_state["last_verilog"])
+
+
+if __name__ == "__main__":
+    main()
