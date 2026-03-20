@@ -257,7 +257,7 @@ def main():
             # 三輪結束後：將 V3 交給 Summarizer 濃縮，再送入 generate_verilog
             if not iteration_failed and final_design_v3 is not None:
                 st.markdown("---")
-                st.markdown("**首席架構師：將最終設計濃縮為 Verilog 規格**")
+                st.markdown("**正在將最終設計濃縮為 Verilog 規格**")
                 with st.spinner("Summarizer 統整中…"):
                     final_spec = call_summarizer(final_design_v3, api_key)
                 if final_spec.startswith("錯誤："):
