@@ -5,7 +5,739 @@ import openai
 # =========================
 # 後端邏輯：核心轉譯函式
 # =========================
-def generate_verilog(user_intent: str, api_key: str) -> str:import streamlit as st
+def generate_verilog(user_intent: str, api_key: str) -> str:import streamlit as stimport streamlit as st
+import litellm
+import litellm.exceptions
+
+from vector_db import search_parts
+
+
+# =========================
+# 後端邏輯：核心轉譯函式
+# =========================
+def _model_requires_api_key(model_name: str) -> bool:
+    # LiteLLM: ollama/* 走本地，不需要 API key；其他供應商通常需要
+    return not str(model_name or "").startswith("ollama/")
+
+
+def generate_verilog(user_intent: str, api_key: str | None, model_name: str) -> str:
+    """
+    使用指定的 OpenAI API Key，根據使用者的自然語言需求，
+    產生對應的 Cello Verilog 程式碼。
+
+    回傳：
+    - 成功：純 Verilog 程式碼字串。
+    - 失敗：以「錯誤：」開頭的錯誤訊息字串（方便前端識別）。
+    """
+    if _model_requires_api_key(model_name) and (not api_key or not api_key.strip()):
+        return "錯誤：尚未提供模型供應商 API Key。"
+
+    if not user_intent or not user_intent.strip():
+        return "錯誤：自然語言需求不可為空白。"
+
+    # Cello 專用 System Prompt：確保大模型輸出標準結構化/資料流 Verilog
+    system_prompt = """You are an expert biological circuit compiler for the Cello CAD software. Your ONLY job is to translate user requests into standard structural/dataflow Verilog code.
+
+STRICT RULES:
+
+Output ONLY raw, valid Verilog code.
+
+NO Markdown formatting (Do NOT use ```verilog or ```).
+
+NO conversational text, greetings, explanations, or comments outside the Verilog syntax.
+
+Use simple logic gates (and, or, not, nor, nand) or assign statements.
+
+EXAMPLE INPUT:
+設計一個基因迴路，當有 IPTG 且沒有 aTc 時，輸出 YFP。
+
+EXAMPLE OUTPUT:
+module circuit(input IPTG, input aTc, output YFP);
+wire not_aTc;
+not(not_aTc, aTc);
+and(YFP, IPTG, not_aTc);
+endmodule"""
+
+    try:
+        response = litellm.completion(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {
+                    "role": "user",
+                    "content": (
+                        "請根據以下自然語言描述，設計對應的 Cello Verilog 基因電路：\n"
+                        f"{user_intent}"
+                    ),
+                },
+            ],
+            temperature=0.2,  # 降低隨機性，讓輸出更穩定
+            api_key=api_key.strip() if api_key and api_key.strip() else None,
+        )
+
+        verilog_code = response.choices[0].message["content"]
+
+        # 安全檢查：若模型仍輸出 Markdown code fence，進行簡單清洗
+        if "```" in verilog_code:
+            verilog_code = (
+                verilog_code.replace("```verilog", "")
+                .replace("```", "")
+                .strip()
+            )
+
+        return verilog_code
+
+    except litellm.exceptions.AuthenticationError:
+        return "錯誤：模型供應商 API 驗證失敗，請確認 API Key 是否正確與有效。"
+    except litellm.exceptions.RateLimitError:
+        return "錯誤：已達到模型供應商使用上限或額度不足，請稍後再試或檢查帳戶狀態。"
+    except litellm.exceptions.BadRequestError as e:
+        return f"錯誤：請求參數不正確：{str(e)}"
+    except litellm.exceptions.APIError as e:
+        return f"錯誤：呼叫模型供應商 API 時發生問題：{str(e)}"
+    except Exception as e:
+        # 非預期錯誤
+        return f"錯誤：系統發生未預期錯誤：{str(e)}"
+
+
+# =========================
+# 多機辯論區塊（Reflexion）：三輪迭代 設計→評估→修改
+# =========================
+def _call_llm(api_key: str | None, model_name: str, system_prompt: str, user_content: str) -> str:
+    """
+    共用的 LLM 呼叫與錯誤處理，供 call_builder / call_critic / call_summarizer 使用。
+    成功回傳助理回覆文字；失敗回傳以「錯誤：」開頭的字串。
+    """
+    try:
+        response = litellm.completion(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content},
+            ],
+            temperature=0.3,
+            api_key=api_key.strip() if api_key and api_key.strip() else None,
+        )
+        return response.choices[0].message["content"].strip()
+    except litellm.exceptions.AuthenticationError:
+        return "錯誤：模型供應商 API 驗證失敗，請確認 API Key 是否正確與有效。"
+    except litellm.exceptions.RateLimitError:
+        return "錯誤：已達到模型供應商使用上限或額度不足，請稍後再試或檢查帳戶狀態。"
+    except litellm.exceptions.BadRequestError as e:
+        return f"錯誤：請求參數不正確：{str(e)}"
+    except litellm.exceptions.APIError as e:
+        return f"錯誤：呼叫模型供應商 API 時發生問題：{str(e)}"
+    except Exception as e:
+        return f"錯誤：系統發生未預期錯誤：{str(e)}"
+
+
+def call_builder(
+    user_intent: str,
+    previous_feedback: str,
+    api_key: str | None,
+    model_name: str,
+    *,
+    rag_context: str = "",
+    round1_debate_transcript: str | None = None,
+) -> str:
+    """
+    專家一：合成生物學系統工程師（Reflexion 版）。
+    若無 previous_feedback 則提出 V1；若有則在「絕對不違反用戶最終目標」前提下提出修正版。
+    round1_debate_transcript：僅在第一輪且無 previous_feedback 時使用，將此前完整辯論紀錄一併納入語境。
+    """
+    system_prompt = (
+        f"你是一位合成生物學系統工程師。用戶的最終目標是：{user_intent}。"
+        "如果沒有 previous_feedback，請直接提出 V1 基因電路設計（包含輸入、邏輯閘、輸出）。"
+        "如果收到 previous_feedback，請在**「絕對不能違反用戶最終目標」**的前提下，"
+        "提出修正後的版本來解決批評者提出的問題。"
+        f"【硬性約束】你只能使用以下 Cello 元件庫進行設計：\n{rag_context}\n絕對禁止使用清單外或捏造的元件。"
+    )
+    if previous_feedback:
+        user_content = f"【批評者意見，請據此修正設計】\n{previous_feedback}"
+    elif round1_debate_transcript:
+        user_content = (
+            "【此前完整辯論紀錄（請承接脈絡，不可忽略；並須完全符合下方「用戶最終目標」）】\n"
+            f"{round1_debate_transcript}\n\n"
+            "請綜合以上紀錄與用戶最終目標，提出本輪第一版（V1）基因電路設計。"
+        )
+    else:
+        user_content = "請根據上述用戶最終目標，提出第一版（V1）基因電路設計。"
+    return _call_llm(api_key, model_name, system_prompt, user_content)
+
+
+def call_critic(
+    current_design: str,
+    api_key: str | None,
+    model_name: str,
+    *,
+    rag_context: str = "",
+    debate_transcript: str | None = None,
+) -> str:
+    """
+    專家二：嚴苛的生物安全與可行性審查員。
+    只專注於：邏輯矛盾、生物學現實問題（代謝負擔、毒性）、生物安全風險。提出精確、致命的批評。
+    debate_transcript：若有，一併提供此前辯論紀錄供語境對齊（例如追加條件後的再辯論）。
+    """
+    system_prompt = (
+        "你是一位嚴苛的生物安全與可行性審查員。請檢視當前的基因電路設計，只專注於尋找："
+        "1. 邏輯矛盾 2. 生物學現實問題（代謝負擔、毒性） 3. 生物安全風險。"
+        "提出精確、致命的批評，不說廢話。"
+        f"【審查基準】請嚴格對照以下元件清單：\n{rag_context}\n若 Builder 捏造了清單外的元件，請給予嚴厲批評並要求修正。"
+    )
+    if debate_transcript:
+        user_content = (
+            "【此前完整辯論紀錄（供你對齊語境與使用者意圖）】\n"
+            f"{debate_transcript}\n\n"
+            "【當前待審查的設計】\n"
+            f"{current_design}"
+        )
+    else:
+        user_content = current_design
+    return _call_llm(api_key, model_name, system_prompt, user_content)
+
+
+def call_summarizer(final_design: str, api_key: str | None, model_name: str) -> str:
+    """
+    專家三：首席架構師。
+    將第三輪的最終設計濃縮成 Verilog 轉譯器需要的純邏輯自然語言（例如：「當有 A 且沒有 B 時，輸出 C。」）。
+    """
+    system_prompt = (
+        "你是一位首席架構師。請將以下基因電路設計（可能為多輪迭代後的完整描述）"
+        "濃縮成一段極度精煉的自然語言，只描述邏輯關係，因為你的輸出將直接送給 Verilog 編譯器。"
+        "例如：『當有 A 且沒有 B 時，輸出 C。』不要輸出其他解釋或標記。"
+    )
+    return _call_llm(api_key, model_name, system_prompt, final_design)
+
+
+def format_sessions_for_display(sessions: list[list[dict]]) -> str:
+    """將多段三輪辯論整理成給使用者閱讀的完整文字。"""
+    parts: list[str] = []
+    for si, session in enumerate(sessions, start=1):
+        parts.append(f"════════ 辯論段落 {si} ════════")
+        for round_num, turn in enumerate(session, start=1):
+            parts.append(f"\n── 第 {round_num} 輪 ──")
+            parts.append("\n【合成生物學系統工程師】\n")
+            parts.append(turn.get("builder", ""))
+            parts.append("\n\n【嚴苛的生物安全與可行性審查員】\n")
+            parts.append(turn.get("critic", ""))
+        parts.append("\n")
+    return "\n".join(parts).strip()
+
+
+def format_sessions_for_llm(sessions: list[list[dict]]) -> str:
+    """與 display 相同結構即可，供後續輪次餵給 LLM。"""
+    return format_sessions_for_display(sessions)
+
+
+def _compact_rag_context(
+    rag_results: list[str] | str,
+    *,
+    max_items: int = 8,
+    max_chars: int = 2400,
+) -> str:
+    """
+    將 RAG 檢索結果壓縮成較短的上下文，避免 Prompt 過長。
+
+    策略：
+    - 若是 list：優先保留看起來屬於 sensors / gates / output_devices 的描述
+    - 去除重複與空白
+    - 限制最多條目數與總字元數
+    """
+    if isinstance(rag_results, str):
+        text = rag_results.strip()
+        return text[:max_chars] if len(text) > max_chars else text
+
+    raw_items = [x.strip() for x in rag_results if isinstance(x, str) and x.strip()]
+    if not raw_items:
+        return ""
+
+    # 依描述字串常見關鍵字做輕量分類（不依賴固定 schema）
+    keys = (
+        "感測器",
+        "sensor",
+        "輸入",
+        "input",
+        "邏輯閘",
+        "gate",
+        "NOR",
+        "NOT",
+        "output device",
+        "output_device",
+        "output_devices",
+        "輸出元件",
+        "輸出",
+    )
+    filtered: list[str] = [x for x in raw_items if any(k.lower() in x.lower() for k in keys)]
+    if not filtered:
+        filtered = raw_items
+
+    # 去重但保持順序
+    seen: set[str] = set()
+    uniq: list[str] = []
+    for x in filtered:
+        if x not in seen:
+            seen.add(x)
+            uniq.append(x)
+
+    # 條目數限制
+    uniq = uniq[:max_items]
+
+    # 總長度限制（逐條累加，避免截斷到一半）
+    out_lines: list[str] = []
+    total = 0
+    for item in uniq:
+        line = f"- {item}"
+        if out_lines:
+            projected = total + 1 + len(line)
+        else:
+            projected = total + len(line)
+        if projected > max_chars:
+            break
+        out_lines.append(line)
+        total = projected
+
+    return "\n".join(out_lines).strip()
+
+
+def get_compressed_rag_context(query: str, api_key: str) -> str:
+    """
+    取得並壓縮 RAG 元件語境。
+    成功：回傳壓縮後字串；失敗：回傳以「錯誤：」開頭的訊息。
+    """
+    if not api_key or not api_key.strip():
+        return "錯誤：尚未提供 API Key。"
+    if not query or not query.strip():
+        return "錯誤：查詢內容不可為空白。"
+    try:
+        # Backward-compat shim (OpenAI embeddings only)
+        rag_results = search_parts(query, embedding_model="text-embedding-3-small", api_key=api_key)
+        if not rag_results:
+            return "錯誤：RAG 檢索失敗：未取得任何元件結果。"
+        rag_context = _compact_rag_context(rag_results)
+        if not rag_context.strip():
+            return "錯誤：RAG 檢索失敗：檢索結果為空白。"
+        return rag_context
+    except Exception as e:
+        return f"錯誤：RAG 檢索失敗：{str(e)}"
+
+
+def get_compressed_rag_context_v2(
+    query: str,
+    *,
+    embedding_model: str,
+    embedding_api_key: str | None = None,
+    embedding_api_base: str | None = None,
+) -> str:
+    """
+    取得並壓縮 RAG 元件語境（支援本地 embeddings，例如 Ollama）。
+    成功：回傳壓縮後字串；失敗：回傳以「錯誤：」開頭的訊息。
+    """
+    if not query or not query.strip():
+        return "錯誤：查詢內容不可為空白。"
+    if not embedding_model or not str(embedding_model).strip():
+        return "錯誤：尚未指定 Embedding Model。"
+    try:
+        rag_results = search_parts(
+            query,
+            embedding_model=embedding_model,
+            api_key=embedding_api_key,
+            api_base=embedding_api_base,
+        )
+        if not rag_results:
+            return "錯誤：RAG 檢索失敗：未取得任何元件結果。"
+        rag_context = _compact_rag_context(rag_results)
+        if not rag_context.strip():
+            return "錯誤：RAG 檢索失敗：檢索結果為空白。"
+        return rag_context
+    except Exception as e:
+        return f"錯誤：RAG 檢索失敗：{str(e)}"
+
+
+def run_three_round_reflexion(
+    api_key: str | None,
+    model_name: str,
+    user_intent: str,
+    *,
+    carry_transcript: str | None = None,
+    rag_context: str = "",
+    on_round_complete=None,
+) -> tuple[bool, list[dict], str | None, str | None]:
+    """
+    執行三輪 Builder↔Critic。
+    carry_transcript：若提供（例如使用者追加條件後），第一輪 Builder 與每一輪 Critic 都會帶入完整此前紀錄。
+    on_round_complete：可選，每輪結束時呼叫 callback(round_num, builder_text, critic_text)。
+    回傳：(success, 本段三輪的 [{builder, critic}, ...], 第三輪 Builder 產出即最終設計, 錯誤訊息或 None)
+    """
+    previous_feedback = ""
+    session_rounds: list[dict] = []
+    final_design: str | None = None
+    # 單次預先檢索：在開始三輪辯論前，把最相關的真實元件庫注入上下文
+    #（此版本要求呼叫端先取得 rag_context，以便 UI 可展示透明度）
+    if not rag_context.strip():
+        return False, session_rounds, None, "錯誤：尚未提供 RAG Context。"
+    if rag_context.startswith("錯誤："):
+        return False, session_rounds, None, rag_context
+
+    for round_num in range(1, 4):
+        r1_ctx = carry_transcript if round_num == 1 else None
+        current_design = call_builder(
+            user_intent,
+            previous_feedback,
+            api_key,
+            model_name,
+            rag_context=rag_context,
+            round1_debate_transcript=r1_ctx,
+        )
+        if current_design.startswith("錯誤："):
+            return False, session_rounds, None, current_design
+
+        critic_fb = call_critic(
+            current_design,
+            api_key,
+            model_name,
+            rag_context=rag_context,
+            debate_transcript=carry_transcript,
+        )
+        if critic_fb.startswith("錯誤："):
+            return False, session_rounds, None, critic_fb
+
+        session_rounds.append({"builder": current_design, "critic": critic_fb})
+        previous_feedback = critic_fb
+        final_design = current_design
+        if on_round_complete:
+            on_round_complete(round_num, current_design, critic_fb)
+
+    return True, session_rounds, final_design, None
+
+
+# =========================
+# 結果區塊：顯示 Verilog 與下載（路線 A：手動介接 Cello）
+# =========================
+def render_verilog_result(verilog_content: str) -> None:
+    """顯示生成的 Verilog 程式碼，並提供 .v 檔案下載按鈕（路線 A）。"""
+    st.success("生成完成！以下為模型產生的 Verilog 程式碼：")
+    st.code(verilog_content, language="verilog")
+
+    # 路線 A：提供下載按鈕，讓使用者可將 .v 檔匯入 Cello CAD 網頁版
+    # 未來擴充點：此處可將 downloaded_file 替換為直接呼叫 Cello CLI / API 的函式 (路線 B)
+    st.download_button(
+        label="下載 Verilog 檔案 (.v) 供 Cello 使用",
+        data=verilog_content,
+        file_name="design_circuit.v",
+        mime="text/plain",
+    )
+
+
+# =========================
+# 前端介面：Streamlit App
+# =========================
+def main():
+    # 設定頁面基本資訊
+    st.set_page_config(
+        page_title="LLM-Cello BioDrive MVP",
+        page_icon="",
+        layout="wide",
+    )
+
+    # 側邊欄：模型供應商與金鑰設定
+    with st.sidebar:
+        st.header("模型設定")
+
+        provider = st.selectbox(
+            "模型供應商 (Provider)",
+            options=["OpenAI", "Anthropic", "Google", "Local (Ollama)"],
+            index=0,
+        )
+
+        default_model_by_provider = {
+            "OpenAI": "gpt-4o-mini",
+            "Anthropic": "claude-3-5-sonnet-20240620",
+            "Google": "gemini-1.5-pro",
+            "Local (Ollama)": "ollama/llama3",
+        }
+
+        preset_models_by_provider = {
+            "OpenAI": ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4o"],
+            "Anthropic": ["claude-3-5-sonnet-20240620", "claude-3-5-haiku-20241022"],
+            "Google": ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash"],
+            "Local (Ollama)": ["ollama/llama3", "ollama/llama3.1", "ollama/mistral"],
+        }
+
+        model_name = st.selectbox(
+            "模型名稱 (Model)",
+            options=preset_models_by_provider.get(provider, [default_model_by_provider[provider]]),
+            index=0,
+        )
+
+        st.markdown("---")
+        st.subheader("Embeddings / RAG 設定")
+
+        embed_provider = st.selectbox(
+            "Embeddings 供應商",
+            options=["Local (Ollama)", "OpenAI", "Anthropic", "Google"],
+            index=0,
+        )
+
+        embed_model_presets = {
+            "Local (Ollama)": ["ollama/nomic-embed-text", "ollama/mxbai-embed-large"],
+            "OpenAI": ["text-embedding-3-small", "text-embedding-3-large"],
+            "Anthropic": ["claude-3-embedding-2024-10-22"],
+            "Google": ["text-embedding-004"],
+        }
+        embedding_model = st.selectbox(
+            "Embedding Model",
+            options=embed_model_presets.get(embed_provider, ["ollama/nomic-embed-text"]),
+            index=0,
+        )
+
+        embedding_api_base: str | None = None
+        embedding_api_key: str | None = None
+        if embed_provider == "Local (Ollama)":
+            embedding_api_base = st.text_input(
+                "Ollama API Base（預設 http://localhost:11434）",
+                value="http://localhost:11434",
+                help="若你的 Ollama 不是跑在預設位址，請在此調整。",
+            )
+            st.caption("Local embeddings 不需要 API Key。")
+        else:
+            embedding_api_key = st.text_input(
+                f"{embed_provider} API Key（用於 embeddings / RAG）",
+                type="password",
+            )
+            embedding_api_base = None
+
+        st.markdown("---")
+        st.subheader("LLM 金鑰設定")
+
+        llm_api_key: str | None = None
+        if provider != "Local (Ollama)":
+            llm_api_key = st.text_input(
+                f"{provider} API Key（用於 LLM 生成）",
+                type="password",
+                help="此金鑰僅在本次瀏覽器工作階段中使用，不會儲存在伺服器端。",
+            )
+        else:
+            st.info("你已選擇 Local (Ollama)。請確認本地端 Ollama 服務已啟動（例如 `ollama serve`），且模型已下載。")
+
+    # 主畫面標題與說明
+    st.title("LLM-Cello BioDrive ")
+    st.subheader("從自然語言合成生物學需求，自動生成 Cello Verilog 基因電路")
+
+    # 多行文字輸入框：讓使用者輸入自然語言需求
+    user_intent = st.text_area(
+        "請輸入你的合成生物學設計需求（可以使用中文）：",
+        height=200,
+        placeholder="例：設計一個基因迴路：當環境中有 IPTG 且沒有 aTc 時，表現出 YFP 螢光蛋白。",
+    )
+
+    # 用來在重新執行後仍能顯示結果與下載按鈕（例如按下「下載」後畫面不丟失）
+    if "last_verilog" not in st.session_state:
+        st.session_state["last_verilog"] = None
+    if "debate_review" not in st.session_state:
+        st.session_state["debate_review"] = None
+    if "debate_run_id" not in st.session_state:
+        st.session_state["debate_run_id"] = 0
+    if "debate_extra_widget_id" not in st.session_state:
+        st.session_state["debate_extra_widget_id"] = 0
+
+    def _finalize_and_generate_verilog(final_design_v3: str) -> bool:
+        """經使用者批准後：Summarizer → Verilog（第三方總結模型 + 編譯器）。成功回傳 True。"""
+        st.markdown("---")
+        st.markdown("**正在將最終設計濃縮為 Verilog 規格**")
+        with st.spinner("Summarizer 統整中…"):
+            final_spec = call_summarizer(final_design_v3, llm_api_key, model_name)
+        if final_spec.startswith("錯誤："):
+            st.error(final_spec)
+            return False
+        st.caption("送交 Verilog 編譯器的精煉規格：")
+        st.text_area(
+            "final_spec",
+            value=final_spec,
+            height=60,
+            disabled=True,
+            label_visibility="collapsed",
+        )
+        st.markdown("**正在編譯為 Verilog…**")
+        with st.spinner("Verilog 編譯中…"):
+            verilog_result = generate_verilog(final_spec, llm_api_key, model_name)
+        if verilog_result.startswith("錯誤："):
+            st.error(verilog_result)
+            return False
+        st.session_state["last_verilog"] = verilog_result
+        return True
+
+    # ---------- 多機辯論區塊（Reflexion）：三輪迭代 設計→評估→修改；通過人機審核後才呼叫 Summarizer ----------
+    if st.button("開始設計"):
+        if provider != "Local (Ollama)" and (not llm_api_key or not llm_api_key.strip()):
+            st.error("請先在左側輸入模型供應商的 API Key。")
+        elif not user_intent or not user_intent.strip():
+            st.error("請先輸入合成生物學設計需求。")
+        else:
+            st.session_state["debate_review"] = None
+            st.session_state["debate_run_id"] = int(st.session_state["debate_run_id"]) + 1
+            run_id = int(st.session_state["debate_run_id"])
+            intent_clean = user_intent.strip()
+            with st.spinner("正在檢索並壓縮 Cello 元件庫..."):
+                rag_context = get_compressed_rag_context_v2(
+                    intent_clean,
+                    embedding_model=embedding_model,
+                    embedding_api_key=embedding_api_key,
+                    embedding_api_base=embedding_api_base,
+                )
+            if rag_context.startswith("錯誤："):
+                st.error(rag_context)
+            else:
+                with st.expander("查看檢索到的可用元件 (RAG Context)", expanded=False):
+                    st.text_area(
+                        "rag_context_preview",
+                        value=rag_context,
+                        height=220,
+                        disabled=True,
+                        label_visibility="collapsed",
+                        key=f"rag_ctx_{run_id}",
+                    )
+
+                def on_round_complete(rn: int, btxt: str, ctxt: str) -> None:
+                    with st.expander(f"迭代設計 第 {rn} 輪", expanded=True):
+                        st.markdown("**合成生物學系統工程師（Builder）**")
+                        st.text_area(
+                            "builder_output",
+                            value=btxt,
+                            height=140,
+                            disabled=True,
+                            label_visibility="collapsed",
+                            key=f"builder_{run_id}_{rn}",
+                        )
+                        st.markdown("**嚴苛的生物安全與可行性審查員（Critic）**")
+                        st.text_area(
+                            "critic_output",
+                            value=ctxt,
+                            height=120,
+                            disabled=True,
+                            label_visibility="collapsed",
+                            key=f"critic_{run_id}_{rn}",
+                        )
+
+                ok, session_rounds, final_design_v3, err_msg = run_three_round_reflexion(
+                    llm_api_key,
+                    model_name,
+                    intent_clean,
+                    carry_transcript=None,
+                    rag_context=rag_context,
+                    on_round_complete=on_round_complete,
+                )
+                if not ok:
+                    st.error(err_msg or "辯論過程發生錯誤。")
+                elif final_design_v3 is not None:
+                    st.session_state["debate_review"] = {
+                        "sessions": [session_rounds],
+                        "effective_intent": intent_clean,
+                        "original_intent": intent_clean,
+                    }
+                    st.success("三輪辯論已完成。請於下方檢視完整對話並選擇下一步。")
+
+    # ---------- 辯論後人機審核：完整對話 + 三選一 ----------
+    dr = st.session_state.get("debate_review")
+    if dr:
+        st.markdown("---")
+        st.subheader("辯論完整紀錄（合成生物學系統工程師 ↔ 生物安全與可行性審查員）")
+        full_text = format_sessions_for_display(dr["sessions"])
+        st.text_area(
+            "辯論全文",
+            value=full_text,
+            height=420,
+            disabled=True,
+            label_visibility="collapsed",
+            key="debate_full_transcript_display",
+        )
+
+        st.subheader("請選擇下一步")
+        st.caption(
+            "（1）批准後才會呼叫首席架構師（Summarizer）與 Verilog 生成。"
+            "（2）在同一組「有效需求」下再跑三輪辯論，先前辯論仍保留於上方紀錄。"
+            "（3）追加條件會併入有效需求，並將**此前所有辯論段落**一併餵回 Builder／Critic。"
+        )
+
+        col_a, col_b = st.columns(2)
+        with col_a:
+            approve = st.button("(1) 批准並生成程式碼", key="debate_approve_gen")
+        with col_b:
+            redo = st.button("(2) 重新辯論", key="debate_redo")
+
+        st.markdown("**（3）追加新條件**（輸入後按下提交）")
+        extra_condition = st.text_area(
+            "追加條件說明",
+            height=100,
+            placeholder="例：須避免高拷貝載體；或須符合某實驗室生物安全等級…",
+            key=f"debate_extra_condition_{st.session_state['debate_extra_widget_id']}",
+        )
+        append_go = st.button("(3) 提交追加條件並重新辯論", key="debate_append_rerun")
+
+        if approve:
+            if provider != "Local (Ollama)" and (not llm_api_key or not llm_api_key.strip()):
+                st.error("請先在左側輸入模型供應商的 API Key。")
+            else:
+                last_session = dr["sessions"][-1]
+                final_v3 = last_session[-1]["builder"]
+                if _finalize_and_generate_verilog(final_v3):
+                    st.session_state["debate_review"] = None
+                    st.success("已批准：已完成規格濃縮與 Verilog 生成，見下方結果。")
+
+        elif redo:
+            if provider != "Local (Ollama)" and (not llm_api_key or not llm_api_key.strip()):
+                st.error("請先在左側輸入模型供應商的 API Key。")
+            else:
+                with st.spinner("重新辯論中（三輪 Builder ↔ Critic）…"):
+                    ok, new_sess, _final_d, err_msg = run_three_round_reflexion(
+                        llm_api_key,
+                        model_name,
+                        dr["effective_intent"],
+                        carry_transcript=None,
+                    )
+                if not ok:
+                    st.error(err_msg or "重新辯論失敗。")
+                else:
+                    dr["sessions"].append(new_sess)
+                    st.success("已追加一段新的三輪辯論，完整紀錄已更新於上方。")
+
+        elif append_go:
+            if provider != "Local (Ollama)" and (not llm_api_key or not llm_api_key.strip()):
+                st.error("請先在左側輸入模型供應商的 API Key。")
+            elif not extra_condition or not extra_condition.strip():
+                st.error("請先輸入要追加的條件內容。")
+            else:
+                carry = format_sessions_for_llm(dr["sessions"])
+                new_intent = (
+                    dr["effective_intent"].rstrip()
+                    + "\n\n【使用者追加條件】\n"
+                    + extra_condition.strip()
+                )
+                with st.spinner("已帶入完整歷史與新條件，進行三輪再辯論…"):
+                    ok, new_sess, _final_d, err_msg = run_three_round_reflexion(
+                        llm_api_key,
+                        model_name,
+                        new_intent,
+                        carry_transcript=carry,
+                    )
+                if not ok:
+                    st.error(err_msg or "追加條件後的辯論失敗。")
+                else:
+                    dr["effective_intent"] = new_intent
+                    dr["sessions"].append(new_sess)
+                    st.session_state["debate_extra_widget_id"] = (
+                        int(st.session_state["debate_extra_widget_id"]) + 1
+                    )
+                    st.success("已併入追加條件並完成新一輪三辯論；上方紀錄含完整歷史。")
+
+    # 顯示最近一次成功生成的 Verilog 與下載按鈕（路線 A：手動下載 .v 供 Cello 使用）
+    if st.session_state.get("last_verilog"):
+        st.markdown("---")
+        render_verilog_result(st.session_state["last_verilog"])
+
+
+if __name__ == "__main__":
+    main()
+
 import openai
 
 
