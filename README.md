@@ -1,7 +1,7 @@
 # A-Multi-Agent-Framework-for-Translating-Natural-Language-to-Genetic-Circuits
 本專案旨在降低合成生物學中基因電路設計的門檻。透過引入大型語言模型（LLMs），系統能將研究人員輸入的「自然語言描述」自動轉譯為 Cello 軟體可接受的硬體描述語言（Verilog）。 目前專案處於 MVP（最小可行性產品）階段，核心實作了多智能體對抗式設計 (Adversarial Multi-Agent Design) 機制，確保生成的基因電路邏輯嚴密且符合使用者預期。
 開發方法聲明 (Development Methodology)
-本專案的 MVP 原型採用了 AI 輔助編程工具（Cursor Vibe Coding）進行快速迭代開發。專案的核心學術與工程價值在於「系統工作流程架構設計」與「高約束性提示詞工程 (Prompt Engineering)」，基礎程式碼與介面橋接則藉助工具加速完成，以專注於驗證概念的可行性。
+本專案的 MVP 原型採用了 AI 輔助編程工具（Cursor Vibe Coding,Google Anigravity）進行快速迭代開發。專案的核心學術與工程價值在於「系統工作流程架構設計」與「高約束性提示詞工程 (Prompt Engineering)」，基礎程式碼與介面橋接則藉助工具加速完成，以專注於驗證概念的可行性。
 
 
 Core Features
