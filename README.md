@@ -26,7 +26,49 @@ Workflow
 Verilog 編譯: 根據最終確認的方案，嚴格產出 Cello 支援的 Verilog 程式碼。
 
 手動橋接 (MVP 限制): 系統輸出 .v 檔案，使用者需手動下載並上傳至 Cello 網頁版進行後續模擬。
+```mermaid
+graph TD
+    %% User Input Section
+    User((User)) -->|Natural Language Intent| UI[Streamlit Frontend]
+    UI -->|API Keys & Base URLs| Auth{BYOK Auth}
 
+    %% RAG & Database Section
+    subgraph Context Augmentation (RAG)
+        UI -->|Query| Retriever[Query Filter & Compressor]
+        Retriever --> DB[(Local ChromaDB)]
+        DB -.->|UCF Data Ingestion| CelloData[Cello UCF JSON]
+        DB -->|Top-K Valid Parts| Retriever
+        Retriever -->|Constrained Component List| DebateCore
+    end
+
+    %% Core Multi-Agent Section
+    subgraph Adversarial Multi-Agent Design
+        DebateCore[Reflexion Engine] --> Builder[Builder Agent<br>System Engineer]
+        Builder -->|Draft Verilog Design| Critic[Critic Agent<br>Biosafety Reviewer]
+        Critic -->|Logic & Toxicity Feedback| Builder
+        Builder -.->|3 Iterations| Critic
+    end
+
+    %% LLM Routing
+    subgraph LLM Routing via LiteLLM
+        Builder -.-> Route1((Cloud Models<br>OpenAI/Anthropic))
+        Critic -.-> Route1
+        Builder -.-> Route2((Local Models<br>Ollama/Llama3))
+        Critic -.-> Route2
+    end
+
+    %% Output Generation
+    DebateCore -->|Consensus Reached| Summarizer[Summarizer Agent]
+    Summarizer -->|Refined Logic Spec| Compiler[Verilog Compiler]
+    Compiler -->|output.v| UI
+    
+    %% Future Expansions
+    UI -.->|Future: API Integration| Cello[Cello CAD Endpoint]
+    Cello -.->|SBOL / GenBank| Automation[Future: Lab Automation]
+
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:1px;
+    classDef highlight fill:#e1f5fe,stroke:#0288d1,stroke-width:2px;
+    class UI,DB,Builder,Critic,Compiler highlight;
 
 Roadmap
 
