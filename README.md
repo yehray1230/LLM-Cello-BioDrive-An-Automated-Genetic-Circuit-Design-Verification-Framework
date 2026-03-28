@@ -44,13 +44,58 @@ Workflow
 5.Verilog 編譯: 根據最終確認的方案，嚴格產出 Cello 支援的 Verilog 程式碼。
 
 6.手動橋接 (MVP 限制): 系統輸出 .v 檔案，使用者需手動下載並上傳至 Cello 網頁版進行後續模擬。
+```mermaid
+graph TD
+    %% User Input Section
+    User((User)) -->|Natural Language Intent| UI[Streamlit Frontend]
+    UI -->|API Keys & Base URLs| Auth{BYOK Auth}
 
+    %% RAG & Database Section
+    subgraph RAG_Section ["Context Augmentation (RAG)"]
+        UI -->|Query| Retriever[Query Filter & Compressor]
+        Retriever --> DB[(Local ChromaDB)]
+        DB -.->|UCF Data Ingestion| CelloData[Cello UCF JSON]
+        DB -->|Top-K Valid Parts| Retriever
+        Retriever -->|Constrained Component List| DebateCore
+    end
 
+    %% Core Multi-Agent Section
+    subgraph MultiAgent_Section ["Adversarial Multi-Agent Design"]
+        DebateCore[Reflexion Engine] --> Builder[Builder Agent<br>System Engineer]
+        Builder -->|Draft Verilog Design| Critic[Critic Agent<br>Biosafety Reviewer]
+        Critic -->|Logic & Toxicity Feedback| Builder
+        Builder -.->|3 Iterations| Critic
+    end
+
+    %% LLM Routing
+    subgraph Routing_Section ["LLM Routing via LiteLLM"]
+        Builder -.-> Route1((Cloud Models<br>OpenAI/Anthropic))
+        Critic -.-> Route1
+        Builder -.-> Route2((Local Models<br>Ollama/Llama3))
+        Critic -.-> Route2
+    end
+
+    %% Output Generation
+    DebateCore -->|Consensus Reached| Summarizer[Summarizer Agent]
+    Summarizer -->|Refined Logic Spec| Compiler[Verilog Compiler]
+    Compiler -->|output.v| UI
+    
+    %% Future Expansions
+    UI -.->|Future: API Integration| Cello[Cello CAD Endpoint]
+    Cello -.->|SBOL / GenBank| Automation[Future: Lab Automation]
+
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:1px;
+    classDef highlight fill:#e1f5fe,stroke:#0288d1,stroke-width:2px;
+    class UI,DB,Builder,Critic,Compiler highlight;
+```
 Roadmap
 
 雖然目前的 MVP 已能驗證核心邏輯，但為了使本專案成為具備完整科學價值的工具，未來預計整合以下模組：
 
 1.生物安全審查機制 (Biosafety Review): 在最終程式碼生成前，加入生安審核閘門，確保設計的電路不具備潛在危險特徵（如毒素蛋白合成路徑）。
+
 2.Cello 元件庫檢索 (RAG Integration): 導入向量資料庫，讓 LLM 了解 Cello 當下實際可用的基因元件（Parts/Gates），確保生成的邏輯閘在生物實體上是可被實作的。
+
 3.Cello API 串接: 取代現有的手動下載/上傳步驟，實現從自然語言輸入到 Cello 基因電路圖輸出的「端到端 (End-to-End)」全自動化。
+
 4.實驗室自動化串接: 將生成的實驗設計與液體處理機器人（Liquid Handlers）等實驗室自動化設備結合。
