@@ -512,7 +512,7 @@ def main():
 
         provider = st.selectbox(
             "模型供應商 (Provider)",
-            options=["OpenAI", "Anthropic", "Google", "Local (Ollama)"],
+            options=["OpenAI", "Anthropic", "Google", "Local (Ollama)", "Groq"],
             index=0,
         )
 
@@ -521,6 +521,7 @@ def main():
             "Anthropic": "claude-sonnet-4-6",
             "Google": "gemini-3-flash-preview",
             "Local (Ollama)": "ollama/llama3.3",
+            "Groq": "groq/llama-3.3-70b-versatile",
         }
 
         preset_models_by_provider = {
@@ -528,6 +529,7 @@ def main():
             "Anthropic": ["claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5-20251001"],
             "Google": ["gemini-3-flash-preview", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite-preview"],
             "Local (Ollama)": ["ollama/llama3.3", "ollama/llama3.2", "ollama/llama3.1", "ollama/qwen2.5", "ollama/deepseek-r1"],
+            "Groq": ["groq/llama-3.3-70b-versatile", "groq/deepseek-r1-distill-llama-70b", "groq/mixtral-8x7b-32768", "groq/gemma2-9b-it"],
         }
 
         model_name = st.selectbox(
@@ -561,28 +563,37 @@ def main():
         embedding_api_key: str | None = None
         if embed_provider == "Local (Ollama)":
             embedding_api_base = st.text_input(
-                "Ollama API Base（預設 http://localhost:11434）",
+                "Ollama 伺服器連線網址 (API Base)",
                 value="http://localhost:11434",
-                help="若你的 Ollama 不是跑在預設位址，請在此調整。",
+                placeholder="http://localhost:11434",
+                help="請在此輸入 Ollama 的 API 伺服器網址，通常為 http://localhost:11434。**請勿在此輸入 API Key**。",
             )
-            st.caption("Local embeddings 不需要 API Key。")
+            st.caption("ℹ️ Local Ollama 模式通常不需要 API Key。")
         else:
             embedding_api_key = st.text_input(
-                f"{embed_provider} API Key（用於 embeddings / RAG）",
+                f"{embed_provider} API Key（用於 RAG 向量檢索）",
                 type="password",
+                placeholder=f"請貼入你的 {embed_provider} API Key",
             )
             embedding_api_base = None
 
         st.markdown("---")
         st.subheader("LLM 金鑰與伺服器設定")
 
-        default_base_url = "http://localhost:11434" if provider == "Local (Ollama)" else ""
-        help_text = "例如 http://localhost:11434 (Ollama) 或 http://localhost:1234/v1 (LM Studio)"
+        # 根據 Provider 設定預設 Base URL
+        if provider == "Local (Ollama)":
+            default_base_url = "http://localhost:11434"
+        elif provider == "Groq":
+            default_base_url = "https://api.groq.com/openai/v1"
+        else:
+            default_base_url = ""
+
+        help_text = "例如 http://localhost:11434 (Ollama) 或 https://api.groq.com/openai/v1 (Groq)"
 
         llm_api_base = st.text_input(
             "API Base URL (可選)",
             value=default_base_url,
-            placeholder="http://localhost:1234/v1 或留空使用預設",
+            placeholder="留空則使用 LiteLLM 預設",
             help=help_text,
         )
 
