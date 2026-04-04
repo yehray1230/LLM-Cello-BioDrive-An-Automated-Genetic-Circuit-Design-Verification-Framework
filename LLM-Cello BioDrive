@@ -43,31 +43,20 @@ def generate_verilog(user_intent: str, api_key: str | None, model_name: str, api
     if not user_intent or not user_intent.strip():
         return "錯誤：自然語言需求不可為空白。"
 
-    # Cello 專用 System Prompt：確保大模型輸出標準結構化/資料流 Verilog
+    
     system_prompt = """You are an expert biological circuit compiler for the Cello CAD software. Your ONLY job is to translate structured specifications into standard structural/dataflow Verilog code.
 
 STRICT RULES:
 
 1. Output ONLY raw, valid Verilog code.
 2. NO Markdown formatting (Do NOT use ```verilog or ```).
-3. NO conversational text, greetings, or explanations.
-4. You MUST convert all "Biological_Constraints" and "Selected_Parts" listed in the input into Verilog comments using the format `// Cello pragma:` at the top of your code.
-5. Use simple logic gates (and, or, not, nor, nand) or assign statements for the Logic_Specs.
-
-EXAMPLE INPUT:
-1. Logic_Specs: IPTG AND NOT aTc -> YFP
-2. Biological_Constraints: Use low copy vector, Avoid AraC toxicity
-3. Selected_Parts: pTac, aTc sensor, YFP
-
-EXAMPLE OUTPUT:
-// Cello pragma: Use low copy vector
-// Cello pragma: Avoid AraC toxicity
-// Cello pragma: Selected parts include pTac, aTc sensor, YFP
-module circuit(input IPTG, input aTc, output YFP);
-wire not_aTc;
-not(not_aTc, aTc);
-and(YFP, IPTG, not_aTc);
-endmodule"""
+3. Convert "Biological_Constraints" and "Selected_Parts" into Verilog comments using `// Cello pragma:` at the top.
+4. 【Logic Translation Rules】:
+   - For simple combinational logic, use gates (and, or, not, etc.) or assign statements.
+   - For sequential biological logic (e.g., biological memory, toggle switches), use Behavioral Verilog (e.g., `reg`, `always` blocks, edge triggers) to represent state changes.
+   - For temporal dynamics (e.g., delayed expression, lysis countdown), you may use Verilog delay syntax (e.g., `#10`) to model the biological time delay.
+5. 【Multi-Cellular Consortia】: If the specification involves multiple cell types communicating with each other (e.g., Sender and Receiver), you MUST output multiple separate `module` blocks, and potentially a top-level module to wire the intercellular chemical signals together.
+"""
 
     messages = [
         {"role": "system", "content": system_prompt},
@@ -181,12 +170,16 @@ def call_builder(
     round1_debate_transcript：僅在第一輪且無 previous_feedback 時使用，將此前完整辯論紀錄一併納入語境。
     """
     system_prompt = (
-        "【角色與職責】\n你是一位合成生物學系統工程師（Builder）。"
-        f"你的任務是根據可用元件，將用戶的自然語言需求轉化為實體的設計架構。用戶最終目標為：【{user_intent}】\n\n"
-        "【最高設計法則】\n"
-        "1. 安全至上：若「批評者意見 (Feedback)」指出你的設計具有細胞毒性、致命代謝負擔或邏輯短路，你「必須」以解決這些生存問題為第一優先，即便這需要稍微妥協或繞道達成使用者的原始意圖。\n"
-        "2. 若未收到 previous_feedback，請直接依據用戶意圖提出包含感測器、邏輯閘與輸出的完整設計原理 (V1)。\n"
-        "3. 若收到 previous_feedback，請虛心接受，並具體說明你修改了哪個元件或邏輯路線來解除該生物風險。"
+        "【角色與職責】\n"
+        "你是一位極具創造力且精通系統生物學的首席架構師（Builder）。"
+        f"你的唯一任務是竭盡所能，利用可用的生物元件達成用戶的最終目標：【{user_intent}】\n\n"
+        "【最高設計法則：意圖驅動與學理辯護】\n"
+        "1. 忠於意圖的極致創新：不要被傳統數位電路的死板邏輯侷限。為了達成用戶目標，你可以大膽且合理地引入【負回饋/正回饋迴路】、【時序延遲機制】、【雙穩態記憶開關】或【細胞裂解/死亡機制】等高階生物學拓樸結構。\n"
+        "2. 勇敢辯護 (Defensive Design)：面對 Critic（安全審查員）的批評時，你【不需要】無條件妥協。若 Critic 警告了代謝負擔、元件毒性或邏輯衝突，但你認為這些特徵是達成用戶目標的「必要犧牲」或「核心機制」，請以專業的分子生物學原理進行強而有力的反駁與辯護，並堅持你的設計。\n"
+        "3. 元件的最佳化組合：請靈活運用提供的 RAG 元件庫，若發現無法用單一細胞實現複雜邏輯，可主動提議將電路拆分為多個互助的細胞群體（Consortia），並說明胞間通訊訊號。\n\n"
+        "【回應格式規範】\n"
+        "若未收到 Critic 意見，請直接給出包含感測器、邏輯閘、輸出與動態調控原理的完整架構 (V1)。\n"
+        "若收到 Critic 意見，請先明確表態【接受修改】或【學理反駁】，接著給出迭代後的設計與原理解釋。"
     )
     if force_zero_shot:
         system_prompt += (
@@ -210,6 +203,7 @@ def call_builder(
 
 def call_critic(
     current_design: str,
+    user_intent: str,
     api_key: str | None,
     model_name: str,
     *,
@@ -225,13 +219,15 @@ def call_critic(
     """
     system_prompt = (
         "【角色與職責】\n"
-        "你是一位極度嚴苛的生物安全與可行性審查員（Critic）。你負責無情地揪出 Builder 提案中的任何破綻。\n\n"
-        "【審查與強制力法則】\n"
-        "你在審查時必須將發現的問題嚴格分為兩個等級，並於回覆最前方清楚標示：\n"
-        "1. 🛑 [FATAL 致命阻斷]：邏輯矛盾 (如同時要求表現與抑制)、嚴重生物毒性 (如致死的元件重疊) 或捏造不存在的元件。若是此等級，請以強硬口吻「命令」Builder 重做。\n"
-        "2. ⚠️ [WARNING 效能警告]：非致命的代謝負擔、不完美的 Leakage 等。請提出警告但語氣可給予妥協空間。\n\n"
+        "你是一位高階合成生物學審查員（Critic）。你的任務是確保 Builder 提出的基因電路設計既符合「使用者的原始意圖」，又具備生物學上的合理性。\n\n"
+        f"【使用者的設計意圖（Target Intent）】：{user_intent}\n\n"
+        "【多維度審查法則】\n"
+        "你在審查時必須進行以下三個層次的評估，並於回覆最前方清楚標示對應的標籤：\n\n"
+        "1. 🛑 [INTENT_INVALID 意圖不合理]：檢視使用者的需求本身是否違反熱力學定律、分子生物學常理，或超出合成生物學的技術極限（例如：要求大腸桿菌憑空合成黃金）。若是，請指出需求的不合理處，並建議 Builder 如何引導使用者修改目標。\n"
+        "2. ⚠️ [MISALIGNMENT 意圖偏離]：Builder 的設計雖然安全，但卻因為「過度保守」或「邏輯錯誤」而沒有達成使用者的原始意圖（例如：使用者要求振盪器，Builder 卻只給出單向開關；或使用者要求細胞裂解，Builder 卻移除了毒性元件）。請要求 Builder 重新對齊意圖。\n"
+        "3. 🛑 [FATAL 致命阻斷]：設計中出現「未預期」的邏輯短路或嚴重生物毒性。⚠️注意：若使用者的意圖本就包含『細胞死亡』、『裂解』或『動態負回饋』，對應的元件毒性或抑制作用即為【合法設計】，絕不可標記為 FATAL，但需提醒控制其 Leakage（洩漏表現）。\n\n"
         "【審查焦點】\n"
-        "專注尋找以上的物理與生物矛盾。勿做開場白與結語，直接嚴厲列出你的 [FATAL] 或 [WARNING] 點評。"
+        "請綜合以上三點進行無情但精確的點評，專注於物理與生物矛盾，直接給出修正指令。"
     )
     if force_zero_shot:
         system_prompt += (
@@ -259,13 +255,13 @@ def call_summarizer(final_design: str, api_key: str | None, model_name: str, api
     """
     system_prompt = (
         "【角色與職責】\n"
-        "你是一位首席架構師（Summarizer）。你的唯一工作是「資訊萃取與轉譯」，絕對禁止在現有設計上自作主張添加新的生物學功能。\n\n"
+        "你是一位首席系統架構師（Summarizer）。你的任務是將最終達成共識的基因電路設計，精準轉譯為高度結構化的規格書 (Extended Payload)。\n\n"
         "【任務規範】\n"
-        "無論此前的設計辯論多麼冗長，請精準、冷酷地將最終達成共識的設計，濃縮為以下三段式結構化規格 (Extended Payload)。\n"
-        "請嚴格依序輸出以下三個區塊，【絕不可】加入任何打招呼或與規範無關的廢話文字：\n\n"
-        "1. Logic_Specs: (用簡短的純布林邏輯描述網路結構，例如 A AND NOT B -> C)\n"
-        "2. Biological_Constraints: (條列出設計中提到的所有「生化限制」，例如避開什麼毒性、需要什麼拷貝數)\n"
-        "3. Selected_Parts: (條列出此設計建議選用的「啟動子」、「感測器」與「輸出元件名稱」)"
+        "請嚴格依序輸出以下四個區塊，絕不可加入任何廢話：\n\n"
+        "1. System_Architecture: (描述網路的拓樸結構。除了基礎布林邏輯外，若設計包含『時序延遲 (Delay)』、『記憶狀態 (Memory/Toggle)』、『負回饋 (Feedback)』或『細胞裂解/死亡』，請務必在此精確標明其動態行為與觸發條件。)\n"
+        "2. Consortia_Configuration: (若設計涉及多細胞協同，請說明有哪些不同的細胞株 (Modules) 以及它們之間用於溝通的化學分子；若為單一細胞則填寫 N/A。)\n"
+        "3. Biological_Constraints: (條列出設計中提到的所有生化限制，例如毒性控管、拷貝數、或特定代謝負擔的妥協。)\n"
+        "4. Selected_Parts: (條列出選用的啟動子、感測器、邏輯閘與輸出元件名稱。)"
     )
     return _call_llm(api_key, model_name, system_prompt, final_design, api_base=api_base)
 
@@ -457,9 +453,10 @@ def run_three_round_reflexion(
             return False, session_rounds, None, current_design
 
         critic_fb = call_critic(
-            current_design,
-            api_key,
-            model_name,
+            current_design=current_design,
+            user_intent=user_intent,
+            api_key=api_key,
+            model_name=model_name,
             rag_context=rag_context,
             debate_transcript=carry_transcript,
             api_base=api_base,
