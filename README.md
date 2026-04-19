@@ -109,8 +109,8 @@ flowchart TB
 請確保您的環境中已安裝 Python 3.10 以上版本。
 
 # 1. 複製專案
-git clone https://github.com/yourusername/A-Multi-Agent-Framework-for-Translating-Natural-Language-to-Genetic-Circuits.git
-cd A-Multi-Agent-Framework-for-Translating-Natural-Language-to-Genetic-Circuits
+git clone https://github.com/yehray1230/LLM-Cello-BioDrive-An-Automated-Genetic-Circuit-Design-Verification-Framework/tree/main
+cd LLM-Cello-BioDrive-An-Automated-Genetic-Circuit-Design-Verification-Framework
 
 # 2. 安裝依賴套件
 pip install -r requirements.txt
