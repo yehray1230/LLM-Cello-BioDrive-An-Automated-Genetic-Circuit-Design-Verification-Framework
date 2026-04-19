@@ -164,15 +164,15 @@ def call_builder(
     round1_debate_transcript: str | None = None,
     api_base: str | None = None,
     force_zero_shot: bool = False,
+    host_organism: str = "Escherichia coli (大腸桿菌)"
 ) -> str:
     """
     專家一：合成生物學系統工程師（Reflexion 版）。
     若無 previous_feedback 則提出 V1；若有則在「絕對不違反用戶最終目標」前提下提出修正版。
-    round1_debate_transcript：僅在第一輪且無 previous_feedback 時使用，將此前完整辯論紀錄一併納入語境。
     """
     system_prompt = (
         "【角色與職責】\n"
-        "你是一位極具創造力且精通系統生物學的首席架構師（Builder）。"
+        f"你是一位極具創造力且精通系統生物學的首席架構師（Builder）。你現在正在為【{host_organism}】設計基因電路，請確保所有元件的毒性、啟動子強度與代謝負擔評估皆符合該物種的生理限制，且使用正交於該物種的元件。\n"
         f"你的唯一任務是竭盡所能，利用可用的生物元件達成用戶的最終目標：【{user_intent}】\n\n"
         "【最高設計法則：意圖驅動與學理辯護】\n"
         "1. 忠於意圖的極致創新：不要被傳統數位電路的死板邏輯侷限。為了達成用戶目標，你可以大膽且合理地引入【負回饋/正回饋迴路】、【時序延遲機制】、【雙穩態記憶開關】或【細胞裂解/死亡機制】等高階生物學拓樸結構。\n"
@@ -212,23 +212,32 @@ def call_critic(
     debate_transcript: str | None = None,
     api_base: str | None = None,
     force_zero_shot: bool = False,
+    host_organism: str = "Escherichia coli (大腸桿菌)"
 ) -> str:
     """
     專家二：嚴苛的生物安全與可行性審查員。
     只專注於：邏輯矛盾、生物學現實問題（代謝負擔、毒性）、生物安全風險。提出精確、致命的批評。
-    debate_transcript：若有，一併提供此前辯論紀錄供語境對齊（例如追加條件後的再辯論）。
     """
     system_prompt = (
-        "【角色與職責】\n"
-        "你是一位高階合成生物學審查員（Critic）。你的任務是確保 Builder 提出的基因電路設計既符合「使用者的原始意圖」，又具備生物學上的合理性。\n\n"
+         "【角色與職責】\n"
+        f"你是一位高階合成生物學審查員（Critic）。你的任務是確保 Builder 提出的基因電路設計既符合「使用者的原始意圖」，又具備在標靶細胞【{host_organism}】上的生物物理學可行性與工程穩定性。\n\n"
         f"【使用者的設計意圖（Target Intent）】：{user_intent}\n\n"
         "【多維度審查法則】\n"
         "你在審查時必須進行以下三個層次的評估，並於回覆最前方清楚標示對應的標籤：\n\n"
-        "1. 🛑 [INTENT_INVALID 意圖不合理]：檢視使用者的需求本身是否違反熱力學定律、分子生物學常理，或超出合成生物學的技術極限（例如：要求大腸桿菌憑空合成黃金）。若是，請指出需求的不合理處，並建議 Builder 如何引導使用者修改目標。\n"
-        "2. ⚠️ [MISALIGNMENT 意圖偏離]：Builder 的設計雖然安全，但卻因為「過度保守」或「邏輯錯誤」而沒有達成使用者的原始意圖（例如：使用者要求振盪器，Builder 卻只給出單向開關；或使用者要求細胞裂解，Builder 卻移除了毒性元件）。請要求 Builder 重新對齊意圖。\n"
-        "3. 🛑 [FATAL 致命阻斷]：設計中出現「未預期」的邏輯短路或嚴重生物毒性。⚠️注意：若使用者的意圖本就包含『細胞死亡』、『裂解』或『動態負回饋』，對應的元件毒性或抑制作用即為【合法設計】，絕不可標記為 FATAL，但需提醒控制其 Leakage（洩漏表現）。\n\n"
-        "【審查焦點】\n"
-        "請綜合以上三點進行無情但精確的點評，專注於物理與生物矛盾，直接給出修正指令。"
+        "1. 🛑 [INTENT_INVALID 意圖不合理]：檢視使用者的需求本身是否違反分子生物學常理，或超出當前合成生物學技術極限。若是，請指出不合理處，並建議 Builder 如何引導使用者修改目標。\n"
+        "2. ⚠️ [MISALIGNMENT 意圖偏離]：Builder 的設計雖然安全，但卻因為「過度保守」或「邏輯錯誤」而沒有達成使用者的原始意圖（例如：要求振盪器卻給單向開關；或使用者要求細胞裂解，Builder 卻移除了毒性元件）。請要求 Builder 重新對齊意圖。\n"
+        "3. 🛑 [FATAL 致命阻斷]：設計中出現「未預期」的邏輯短路或嚴重的生物工程缺失。⚠️注意：若使用者的意圖本就包含『細胞死亡』、『裂解』或『動態負回饋』，對應的元件毒性即為【合法設計】，絕不可標記為 FATAL，但需嚴格審查其洩漏表現（Leakage）。\n\n"
+        "【重點審查清單 (Checklist)】\n"
+        "在評估是否給出 [FATAL] 或修改建議時，請逐一檢查下列真實工程限制。除了邏輯正確性外，你必須以【實體零件】的角度來批判：\n\n"
+        "4-1 代謝負擔與資源競爭：設計中是否同時開啟過多強啟動子？這在當前的【宿主細胞背景】下，是否會耗盡 ATP 或核糖體導致生長停滯？\n"
+        "4-2 啟動子漏電 (Leakage)：在 OFF 狀態下，系統是否會有微量的基礎表現？對於毒性蛋白質或高敏感度邏輯閘，這是否會導致系統崩潰？\n"
+        "4-3 零件干擾與正交性：系統中多個阻遏蛋白或 RNA 零件的結合位點是否足夠專一？會不會發生交互干擾（Cross-talk）？\n"
+        "4-4 產物毒性：大量表現的中間代謝物對當前宿主是否具備非預期的毒性？（若使用者核心意圖為殺死細胞則忽略此點）。\n"
+        "4-5 訊號匹配與動態範圍：上游邏輯閘輸出的蛋白質濃度，是否足以跨越下游啟動子的感應閾值？（例如：弱啟動子無法驅動需要高濃度阻遏蛋白的開關）。\n"
+        "4-6 時序延遲與競爭危害 (Race Condition)：設計是否忽略了蛋白質轉錄、轉譯與摺疊的時間差？若系統依賴兩個訊號同時到達，是否會因為延遲而產生錯誤的短暫輸出（Glitch）？\n"
+        "4-7 演化穩定性：設計是否包含過多重複序列，導致細胞容易透過同源重組破壞迴路？\n\n"
+        "【審查輸出格式】\n"
+        "請綜合以上條件進行無情但精確的點評。專注於物理與生物矛盾，直接給出修正指令。並在結尾給出明確的【審查結論：通過 (PASS) / 需修改 (REVISE) / 駁回 (REJECT)】。"
     )
     if force_zero_shot:
         system_prompt += (
@@ -249,22 +258,118 @@ def call_critic(
     return _call_llm(api_key, model_name, system_prompt, user_content, api_base=api_base)
 
 
-def call_design_consolidator(final_design: str, api_key: str | None, model_name: str, api_base: str | None = None) -> str:
+def call_design_consolidator(final_builder_design: str, final_critic_feedback: str, api_key: str | None, model_name: str, api_base: str | None = None) -> str:
     """
     專家三：設計整合者 (Design Consolidator)。
     將第三輪的最終設計濃縮成 Verilog 轉譯器需要的純邏輯自然語言規格書（例如：「當有 A 且沒有 B 時，輸出 C。」）。
     """
     system_prompt = (
-        "【角色與職責】\n"
-        "你是一位設計整合者（Design Consolidator）。你的任務是將最終達成共識的基因電路設計，精準轉譯為高度結構化的規格書 (Extended Payload)。\n\n"
-        "【任務規範】\n"
-        "請嚴格依序輸出以下四個區塊，絕不可加入任何廢話：\n\n"
-        "1. System_Architecture: (描述網路的拓樸結構。除了基礎布林邏輯外，若設計包含『時序延遲 (Delay)』、『記憶狀態 (Memory/Toggle)』、『負回饋 (Feedback)』或『細胞裂解/死亡』，請務必在此精確標明其動態行為與觸發條件。)\n"
-        "2. Consortia_Configuration: (若設計涉及多細胞協同，請說明有哪些不同的細胞株 (Modules) 以及它們之間用於溝通的化學分子；若為單一細胞則填寫 N/A。)\n"
-        "3. Biological_Constraints: (條列出設計中提到的所有生化限制，例如毒性控管、拷貝數、或特定代謝負擔的妥協。)\n"
-        "4. Selected_Parts: (條列出選用的啟動子、感測器、邏輯閘與輸出元件名稱。)"
+    "【角色與職責】\n"
+    "你是一位首席系統架構師（Design Consolidator）。"
+    "你的任務是將 Builder 的最終設計與 Critic 的最終審查意見整合，"
+    "產出一份清晰且人類可讀的基因電路設計規格書，供使用者確認。\n\n"
+    
+    "【整合規則】\n"
+    "1. 以 Builder 的最終版本為主體。\n"
+    "2. 若 Critic 的最終意見中仍有【未被 Builder 回應】的 FATAL 或 MISALIGNMENT 警告，"
+    "請在 Biological_Constraints 區塊中明確標註，讓使用者知悉風險。\n"
+    "3. 若 Critic 的最終意見為認可或無重大異議，則不需要特別說明辯論過程。\n\n"
+    
+    "【輸出格式】\n"
+    "請嚴格依序輸出以下五個區塊，使用清晰的中文說明，絕不可加入廢話：\n\n"
+    "1. System_Architecture: (描述電路的整體拓樸與動態行為，"
+    "包含時序延遲、記憶狀態、回饋迴路或裂解機制等。)\n"
+    "2. Consortia_Configuration: (若涉及多細胞協同，說明各細胞株與胞間通訊分子；"
+    "單一細胞則填 N/A。)\n"
+    "3. Biological_Constraints: (條列所有生化限制與風險提示，"
+    "包含 Critic 未解決的警告，若無則填 None。)\n"
+    "4. Selected_Parts: (條列選用的啟動子、感測器、邏輯閘與輸出元件名稱。)\n"
+    "5. Pending_Risks: (條列 Critic 提出但 Builder 選擇保留的設計特徵，"
+    "並說明 Builder 的辯護理由；若無爭議則填 NONE。)\n"
     )
-    return _call_llm(api_key, model_name, system_prompt, final_design, api_base=api_base)
+
+    user_content = (
+    "【Builder 最終設計】\n"
+    f"{final_builder_design}\n\n"
+    "【Critic 最終審查意見】\n"
+    f"{final_critic_feedback}"
+    )   
+    return _call_llm(api_key, model_name, system_prompt, user_content, api_base=api_base)
+
+
+import itertools
+import ast
+
+def generate_test_vectors(consolidated_design: str, api_key: str | None, model_name: str, api_base: str | None = None) -> dict | tuple[bool, str]:
+    """
+    Test Vector Generation 模組
+    從 consolidated_design 萃取環境感測器/輸入元件清單，並動態產生 2^n 布林真值表組合。
+    """
+    system_prompt = (
+        "【角色與職責】\n"
+        "你是一個資料萃取助理。請檢視下方 consolidated_design 中「4. Selected_Parts」與「1. System_Architecture」區塊，"
+        "精準萃取出所有扮演「輸入元件 / 環境感測器 / Inducers」的化學物質或物理訊號名稱（例如：IPTG, aTc, Arabinose, Salicylate 等）。\n\n"
+        "【輸出格式】\n"
+        "請只輸出一個 Python List 格式的字串，包含所有找出的感測器名稱。如果沒有發現任何外部輸入，請回傳空的 List []。\n"
+        "絕不要包含 markdown 標籤（如 ```json 等）或任何其他文字解釋。\n"
+        "範例輸出：\n"
+        "['IPTG', 'aTc']"
+    )
+    
+    user_content = f"【Consolidated Design】\n{consolidated_design}"
+    
+    try:
+        response = litellm.completion(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content},
+            ],
+            temperature=0.1,
+            api_key=api_key.strip() if api_key and api_key.strip() else None,
+            api_base=api_base.strip() if api_base and api_base.strip() else None,
+        )
+        
+        raw_output = response.choices[0].message["content"].strip()
+        
+        if raw_output.startswith("```"):
+            raw_output = "\n".join(raw_output.split("\n")[1:])
+        if raw_output.endswith("```"):
+            raw_output = raw_output[:-3]
+        raw_output = raw_output.strip()
+        
+        try:
+            inputs = ast.literal_eval(raw_output)
+            if not isinstance(inputs, list):
+                return False, "解析出的感測器清單不是 List 格式。"
+        except Exception:
+            return False, f"LLM 輸出的感測器清單無法解析為 Python List：{raw_output}"
+            
+        if not inputs:
+            return {"inputs": [], "test_vectors": [{"state_name": "default_state"}]}
+            
+        test_vectors = []
+        combinations = list(itertools.product([0.0, 1.0], repeat=len(inputs)))
+        
+        for combo in combinations:
+            vec = {}
+            state_str = ""
+            for idx, input_name in enumerate(inputs):
+                vec[input_name] = combo[idx]
+                state_str += str(int(combo[idx]))
+            vec["state_name"] = f"{state_str}_state"
+            test_vectors.append(vec)
+            
+        return {
+            "inputs": inputs,
+            "test_vectors": test_vectors
+        }
+        
+    except litellm.exceptions.AuthenticationError:
+        return False, "錯誤：模型供應商 API 驗證失敗，請確認 API Key 是否正確與有效。"
+    except Exception as e:
+        return False, f"未預期錯誤：{str(e)}"
+
 
 
 def format_sessions_for_display(sessions: list[list[dict]]) -> str:
@@ -421,6 +526,7 @@ def run_three_round_reflexion(
     on_round_complete=None,
     api_base: str | None = None,
     force_zero_shot: bool = False,
+    host_organism: str = "Escherichia coli (大腸桿菌)"
 ) -> tuple[bool, list[dict], str | None, str | None]:
     """
     執行三輪 Builder↔Critic。
@@ -449,6 +555,7 @@ def run_three_round_reflexion(
             round1_debate_transcript=r1_ctx,
             api_base=api_base,
             force_zero_shot=force_zero_shot,
+            host_organism=host_organism
         )
         if current_design.startswith("錯誤："):
             return False, session_rounds, None, current_design
@@ -462,6 +569,7 @@ def run_three_round_reflexion(
             debate_transcript=carry_transcript,
             api_base=api_base,
             force_zero_shot=force_zero_shot,
+            host_organism=host_organism
         )
         if critic_fb.startswith("錯誤："):
             return False, session_rounds, None, critic_fb
@@ -609,6 +717,14 @@ def main():
     st.title("LLM-Cello BioDrive: 基於大型語言模型之基因電路自動化轉譯框架")
     st.subheader("由自然語言需求自動化生成基因電路網表 (Netlist)")
 
+    host_options = ["Escherichia coli (大腸桿菌)", "Bacillus subtilis (枯草桿菌)", "Saccharomyces cerevisiae (釀酒酵母)"]
+    host_organism = st.selectbox(
+        "請選擇預計使用的寄主物種 (Host Organism)：",
+        options=host_options,
+        index=0,
+        help="選擇底盤細胞將強制約束後續的轉譯、多智能體除錯範圍與 ODE 解算基底參數。"
+    )
+
     # 多行文字輸入框：讓使用者輸入自然語言需求
     user_intent = st.text_area(
         "請輸入你的合成生物學設計需求（可以使用中文）：",
@@ -652,6 +768,7 @@ def main():
             st.session_state["debate_run_id"] = int(st.session_state["debate_run_id"]) + 1
             run_id = int(st.session_state["debate_run_id"])
             intent_clean = user_intent.strip()
+                
             with st.spinner("動態檢索與特徵萃取元件庫中 (Retrieving Component Features)..."):
                 rag_context = get_compressed_rag_context_v2(
                     intent_clean,
@@ -711,6 +828,7 @@ def main():
                     on_round_complete=on_round_complete,
                     api_base=llm_api_base,
                     force_zero_shot=force_zero_shot,
+                    host_organism=host_organism
                 )
                 if not ok:
                     st.error(err_msg or "辯論過程發生錯誤。")
@@ -766,9 +884,10 @@ def main():
                     st.error("請先在左側輸入模型供應商的 API Key。")
                 else:
                     last_session = dr["sessions"][-1]
-                    final_v3 = last_session[-1]["builder"]
+                    final_v3_builder = last_session[-1]["builder"]
+                    final_v3_critic = last_session[-1]["critic"]
                     with st.spinner("特徵矩陣萃取中 (Extracting Specification Matrix)…"):
-                        final_spec = call_design_consolidator(final_v3, llm_api_key, model_name, api_base=llm_api_base)
+                        final_spec = call_design_consolidator(final_v3_builder, final_v3_critic, llm_api_key, model_name, api_base=llm_api_base)
                     if final_spec.startswith("錯誤："):
                         st.error(final_spec)
                     else:
@@ -785,11 +904,102 @@ def main():
                 key="edited_consolidated_design"
             )
             
-            with col_a:
-                compile_btn = st.button("(1) 確認總結無誤，交由 Verilog Compiler 生成 Verilog", key="debate_compile_gen")
-            with col_b:
-                redo = st.button("(2) 不滿意總結，重新執行對抗式迭代", key="debate_redo_post")
+            st.markdown("#### 自動化效能評估器 (Automated Oracle Verification)")
+            col_target1, col_target2 = st.columns(2)
+            with col_target1:
+                target_spec_str = st.text_input("預期真值表 (Target Spec JSON)", value='{"0_state": 0, "1_state": 1}')
+            with col_target2:
+                target_species = st.text_input("評分基準輸出物種 (Output Species)", value='GFP')
                 
+            with st.expander("進階動態模擬設定 (Advanced Simulation Settings)", expanded=False):
+                noise_level = st.slider("參數噪音擾動範圍 (Noise Level)", min_value=0.0, max_value=0.3, value=0.05, step=0.01)
+                mc_iterations = st.slider("蒙地卡羅抽樣次數 (Monte Carlo Iterations)", min_value=1, max_value=100, value=10, step=1)
+                pass_threshold = st.slider("穩健度及格門檻 (Pass Threshold %)", min_value=50, max_value=100, value=90, step=5)
+                
+            col_a, col_b = st.columns(2)
+            with col_a:
+                verify_btn = st.button("執行 Test Vector 萃取與 ODE 自動驗證", key="debate_oracle_verify")
+            with col_b:
+                compile_btn = st.button("(1) 忽略/確認總結無誤，交由 Verilog Compiler", key="debate_compile_gen")
+                
+            if verify_btn:
+                if provider != "Local (Ollama)" and (not llm_api_key or not llm_api_key.strip()):
+                    st.error("請先在左側輸入模型供應商的 API Key。")
+                else:
+                    import json
+                    from oracle_evaluator import CircuitEvaluator
+                    from ode_simulation_agent import run_ode_simulation
+                    
+                    try:
+                        target_spec = json.loads(target_spec_str)
+                    except Exception as e:
+                        st.error(f"真值表解析失敗: {e}")
+                        st.stop()
+                        
+                    with st.spinner("環境基準解析中 (Test Vector Generation)..."):
+                        tv_result = generate_test_vectors(edited_spec, llm_api_key, model_name, api_base=llm_api_base)
+                    
+                    if isinstance(tv_result, tuple) and tv_result[0] is False:
+                        st.error(f"Test Vector 產生錯誤: {tv_result[1]}")
+                    else:
+                        st.success("Test Vector 產生成功：")
+                        st.json(tv_result)
+                        
+                        # 擷取 UI 下方的預設 Topology (簡化版處理) 作為驗證目標
+                        test_topology = {
+                            "species": ["LacI", "TetR", "GFP"],
+                            "interactions": [
+                                {"source": "TetR", "target": "LacI", "type": "repression"},
+                                {"source": "LacI", "target": "TetR", "type": "repression"},
+                                {"source": "TetR", "target": "GFP", "type": "repression"} 
+                            ],
+                            "inducers": {
+                                "IPTG": {"target": "LacI"},
+                                "aTc": {"target": "TetR"}
+                            }
+                        }
+                        
+                        NUM_SAMPLES = mc_iterations
+                        mc_ode_results = [{} for _ in range(NUM_SAMPLES)]
+                        with st.spinner(f"正在執行蒙地卡羅多狀態批次 ODE 模擬 ({NUM_SAMPLES} 組變異)..." if NUM_SAMPLES > 1 and noise_level > 0.0 else "正在執行單次確定性 ODE 模擬..."):
+                            for vec in tv_result["test_vectors"]:
+                                state_name = vec.pop("state_name")
+                                # 組裝 stimulus_curves (使用恆定大數值 5000 模擬 1, 0 模擬 0)
+                                stim_dict = {}
+                                for ind_name, bool_val in vec.items():
+                                    stim_dict[ind_name] = {"type": "pulse", "start": 0, "duration": 100000, "amp": 50000.0 if bool_val > 0 else 0.0}
+                                
+                                # 使用預設空參數即可 (會 fall back 到通用設定)
+                                from ode_simulation_agent import run_monte_carlo_ode_simulation
+                                dfs = run_monte_carlo_ode_simulation({}, topology=test_topology, stimulus_curves=stim_dict, num_samples=NUM_SAMPLES, noise_level=noise_level)
+                                
+                                for i, df in enumerate(dfs):
+                                    mc_ode_results[i][state_name] = df
+                        
+                        evaluator = CircuitEvaluator()
+                        # 向下傳遞 user_intent 作為意圖判斷 (抓取使用者字串)
+                        result = evaluator.evaluate_monte_carlo_results(mc_ode_results, target_spec, target_species, user_intent, noise_level=noise_level, mc_iterations=mc_iterations, pass_threshold=pass_threshold)
+                        
+                        st.session_state["last_oracle_feedback"] = result["feedback_string"]
+                        st.session_state["last_oracle_pass"] = result["pass"]
+                        
+                        if result["pass"]:
+                            st.success(result["feedback_string"])
+                            st.write(f"**判定 Score (Pass Rate):** {result['score']:.2f}%")
+                            if result.get("toxicity_failures", 0) > 0:
+                                st.warning(f"注意：有 {result['toxicity_failures']} 組出現潛在毒性負荷。")
+                        else:
+                            st.error(result["feedback_string"])
+                            st.write(f"**判定 Score (Pass Rate):** {result['score']:.2f}% (未達標或毒性過高)")
+                            with st.expander("查看蒙地卡羅樣本錯誤分佈"):
+                                for msg in result.get("mc_feedbacks", [])[:30]:
+                                    st.write(msg)
+                            
+            # 處理失敗後的按鈕：因為 Streamlit 的渲染特性，獨立放在按鈕邏輯外或使用 session
+            back_to_critic = False
+            if st.session_state.get("last_oracle_feedback") and not st.session_state.get("last_oracle_pass"):
+                back_to_critic = st.button("將此 ODE 失敗報告送回 Critic 智能體並重啟辯論", key="debate_oracle_reject")
+
             if compile_btn:
                 if provider != "Local (Ollama)" and (not llm_api_key or not llm_api_key.strip()):
                     st.error("請先在左側輸入模型供應商的 API Key。")
@@ -798,6 +1008,7 @@ def main():
                     if _compile_to_verilog(edited_spec):
                         st.session_state["debate_review"] = None
                         st.session_state["consolidated_design"] = None
+                        st.session_state["last_oracle_feedback"] = None
                         st.success("已核准任務：HDL 生成作業已完成，請檢視下方匯出的硬體描述網表。")
 
         st.markdown("**（3）引入額外生物學約束**（輸入後按下提交）")
@@ -823,6 +1034,7 @@ def main():
                         rag_context=dr.get("rag_context", ""),
                         api_base=llm_api_base,
                         force_zero_shot=dr.get("force_zero_shot", False),
+                        host_organism=host_organism
                     )
                 if not ok:
                     st.error(err_msg or "執行迭代過程發生異常。")
@@ -831,28 +1043,36 @@ def main():
                     st.success("已成功重新啟動並完成新一輪對抗迭代，完整事件日誌已更新於上方。")
                     st.rerun()
 
-        elif append_go:
+        elif append_go or back_to_critic:
             if provider != "Local (Ollama)" and (not llm_api_key or not llm_api_key.strip()):
                 st.error("請先在左側輸入模型供應商的 API Key。")
-            elif not extra_condition or not extra_condition.strip():
-                st.error("請先輸入要追加的條件內容。")
             else:
-                carry = format_sessions_for_llm(dr["sessions"])
-                new_intent = (
-                    dr["effective_intent"].rstrip()
-                    + "\n\n【使用者追加條件】\n"
-                    + extra_condition.strip()
-                )
-                with st.spinner("已帶入完整歷史與新條件，進行三輪再辯論…"):
-                    ok, new_sess, _final_d, err_msg = run_three_round_reflexion(
-                        llm_api_key,
-                        model_name,
-                        new_intent,
-                        carry_transcript=carry,
-                        rag_context=dr.get("rag_context", ""),
-                        api_base=llm_api_base,
-                        force_zero_shot=dr.get("force_zero_shot", False),
+                if back_to_critic:
+                    actual_condition = st.session_state.get("last_oracle_feedback", "")
+                else:
+                    actual_condition = extra_condition.strip() if extra_condition else ""
+                    
+                if not actual_condition:
+                    st.error("請先輸入要追加的條件內容或確保已有 Oracle 失敗報告。")
+                else:
+                    carry = format_sessions_for_llm(dr["sessions"])
+                    prefix_str = "\n\n【Automated Oracle 反饋】\n" if back_to_critic else "\n\n【使用者追加條件】\n"
+                    new_intent = (
+                        dr["effective_intent"].rstrip()
+                        + prefix_str
+                        + actual_condition
                     )
+                    with st.spinner("已帶入完整歷史與新條件，進行三輪再辯論…"):
+                        ok, new_sess, _final_d, err_msg = run_three_round_reflexion(
+                            llm_api_key,
+                            model_name,
+                            new_intent,
+                            carry_transcript=carry,
+                            rag_context=dr.get("rag_context", ""),
+                            api_base=llm_api_base,
+                            force_zero_shot=dr.get("force_zero_shot", False),
+                            host_organism=host_organism
+                        )
                 if not ok:
                     st.error(err_msg or "追加條件後的辯論失敗。")
                 else:
@@ -869,6 +1089,121 @@ def main():
     if st.session_state.get("last_verilog"):
         st.markdown("---")
         render_verilog_result(st.session_state["last_verilog"])
+        
+        st.markdown("---")
+        st.subheader("動力學模擬 (ODE Simulation - `solve_ivp` with Radau)")
+        st.info("可自行定義電路拓樸與外部動態訊號 (JSON 格式)，支援剛性方程的自動微分求解與非同步參數補全。")
+        
+        default_topology = {
+            "species": ["Lacl", "TetR", "cI"],
+            "interactions": [
+                {"source": "Lacl", "target": "TetR", "type": "repression"},
+                {"source": "TetR", "target": "cI", "type": "repression"},
+                {"source": "cI", "target": "Lacl", "type": "repression"} 
+            ],
+            "inducers": {
+                "IPTG": {"target": "Lacl"}
+            }
+        }
+        default_stimulus = {
+            "IPTG": {"type": "pulse", "start": 10000, "duration": 50000, "amp": 50000.0}
+        }
+        
+        import json
+        col_t, col_s = st.columns(2)
+        with col_t:
+            topology_str = st.text_area("Topology JSON", value=json.dumps(default_topology, indent=2), height=250)
+        with col_s:
+            stimulus_str = st.text_area("Stimulus Curves JSON", value=json.dumps(default_stimulus, indent=2), height=250)
+        
+        if st.button("執行 ODE 模擬 (非同步參數補全 + 剛性求解)"):
+            try:
+                topo_dict = json.loads(topology_str)
+                stim_dict = json.loads(stimulus_str)
+            except Exception as e:
+                st.error(f"JSON 格式解析錯誤：{e}")
+                st.stop()
+                
+            from ode_simulation_agent import run_ode_simulation, resolve_missing_parameters
+            import asyncio
+            
+            with st.spinner(f"Data Miner 正在非同步獲取缺失的生化參數..."):
+                missing_keys = ["kd", "protein_deg_rate", "transcription_rate", "mrna_deg_rate", "translation_rate"]
+                
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    
+                resolved_params = loop.run_until_complete(
+                    resolve_missing_parameters(missing_keys, topo_dict.get("species", []), llm_api_key, model_name, llm_api_base, host_organism)
+                )
+                
+            st.success("成功利用 Data Miner Agent 補全缺失的動力學參數：")
+            st.json(resolved_params)
+            
+            from ode_simulation_agent import run_monte_carlo_ode_simulation
+            with st.spinner("正在呼叫 scipy.integrate.solve_ivp 解算蒙地卡羅非線性模型 (50 Samples)..."):
+                dfs = run_monte_carlo_ode_simulation(resolved_params, topology=topo_dict, stimulus_curves=stim_dict, num_samples=50)
+                
+            st.success("✅ 蒙地卡羅 ODE 陣列積分完成！")
+            
+            st.markdown("### 動態時序軌跡與分佈通道 (Monte Carlo Trajectories)")
+            use_log_scale = st.toggle("啟用對數座標 (Log Scale)", value=True)
+            
+            import plotly.graph_objects as go
+            import numpy as np
+            
+            fig = go.Figure()
+            if dfs and not dfs[0].empty:
+                time_arr = dfs[0]["Time"].values
+                species_cols = [c for c in dfs[0].columns if c != "Time"]
+                
+                colors = ['#636EFA', '#EF553B', '#00CC96', '#AB63FA', '#FFA15A', '#19D3F3', '#FF6692', '#B6E880', '#FF97FF', '#FECB52']
+                
+                # 平均值軌跡矩陣
+                sum_dfs = {col: np.zeros(len(time_arr)) for col in species_cols}
+                
+                for df_run in dfs:
+                    if df_run.empty:
+                        continue
+                    df_safe = df_run.copy()
+                    for c in species_cols:
+                        # 箝位防止 log(0)
+                        df_safe[c] = np.maximum(df_safe[c], 1e-3)
+                        if len(df_safe[c]) == len(time_arr):
+                            sum_dfs[c] += df_safe[c].values
+                            
+                        c_idx = species_cols.index(c) % len(colors)
+                        fig.add_trace(go.Scatter(
+                            x=time_arr[:len(df_safe[c])], y=df_safe[c], mode='lines', 
+                            line=dict(color=colors[c_idx], width=1), 
+                            opacity=0.1, showlegend=False, hoverinfo='skip'
+                        ))
+                
+                # 繪製粗體平均線
+                active_dfs_count = len([d for d in dfs if not d.empty])
+                if active_dfs_count > 0:
+                    for c in species_cols:
+                        mean_val = sum_dfs[c] / active_dfs_count
+                        c_idx = species_cols.index(c) % len(colors)
+                        fig.add_trace(go.Scatter(
+                            x=time_arr, y=mean_val, mode='lines', 
+                            name=f"{c} (Mean)",
+                            line=dict(color=colors[c_idx], width=3)
+                        ))
+                    
+                if use_log_scale:
+                    fig.update_yaxes(type="log", title_text="Concentration (nM)")
+                else:
+                    fig.update_yaxes(title_text="Concentration (nM)")
+                    
+                fig.update_xaxes(title_text="Time (s)")
+                
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.error("所有模擬皆失敗。請檢查參數。")
 
 
 if __name__ == "__main__":
