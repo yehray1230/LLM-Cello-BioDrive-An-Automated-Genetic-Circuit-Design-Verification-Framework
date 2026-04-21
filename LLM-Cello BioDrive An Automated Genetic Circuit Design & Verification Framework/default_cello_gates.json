@@ -1,5 +1,0 @@
-[
-  "【基礎感測器 Sensor】可使用 IPTG 感測器 (Tac promoter), aTc 感測器 (Tet promoter), L-Arabinose 感測器 (pBAD promoter) 作為系統輸入。",
-  "【邏輯閘 Gate】系統具備完整的組合邏輯能力，包含 NOT Gate 與 NOR Gate 功能。可用阻遏蛋白家族包含：PhlF, AmtR, BetI, HlyIIR, BM3R1, LmrA, LitR, IcaA 等。",
-  "【輸出元件 Output Device】預設輸出模組為螢光蛋白（如 YFP Yellow Fluorescent Protein 或 RFP Red Fluorescent Protein）。"
-]
