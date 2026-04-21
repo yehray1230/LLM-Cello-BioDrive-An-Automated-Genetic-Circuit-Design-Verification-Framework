@@ -3,7 +3,8 @@ import streamlit as st
 import litellm
 import litellm.exceptions
 
-from vector_db import search_parts
+from tools.vector_retriever import get_compressed_rag_context_v2
+from schemas.state import CircuitState
 
 
 # =========================
@@ -125,176 +126,7 @@ STRICT RULES:
 # =========================
 # 多機辯論區塊（Reflexion）：三輪迭代 設計→評估→修改
 # =========================
-def _call_llm(api_key: str | None, model_name: str, system_prompt: str, user_content: str, api_base: str | None = None) -> str:
-    """
-    共用的 LLM 呼叫與錯誤處理，供 call_builder / call_critic / call_summarizer 使用。
-    成功回傳助理回覆文字；失敗回傳以「錯誤：」開頭的字串。
-    """
-    try:
-        response = litellm.completion(
-            model=model_name,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_content},
-            ],
-            temperature=0.3,
-            api_key=api_key.strip() if api_key and api_key.strip() else None,
-            api_base=api_base.strip() if api_base and api_base.strip() else None,
-        )
-        return response.choices[0].message["content"].strip()
-    except litellm.exceptions.AuthenticationError:
-        return "錯誤：模型供應商 API 驗證失敗，請確認 API Key 是否正確與有效。"
-    except litellm.exceptions.RateLimitError:
-        return "錯誤：已達到模型供應商使用上限或額度不足，請稍後再試或檢查帳戶狀態。"
-    except litellm.exceptions.BadRequestError as e:
-        return f"錯誤：請求參數不正確：{str(e)}"
-    except litellm.exceptions.APIError as e:
-        return f"錯誤：呼叫模型供應商 API 時發生問題：{str(e)}"
-    except Exception as e:
-        return f"錯誤：系統發生未預期錯誤：{str(e)}"
-
-
-def call_builder(
-    user_intent: str,
-    previous_feedback: str,
-    api_key: str | None,
-    model_name: str,
-    *,
-    rag_context: str = "",
-    round1_debate_transcript: str | None = None,
-    api_base: str | None = None,
-    force_zero_shot: bool = False,
-    host_organism: str = "Escherichia coli (大腸桿菌)"
-) -> str:
-    """
-    專家一：合成生物學系統工程師（Reflexion 版）。
-    若無 previous_feedback 則提出 V1；若有則在「絕對不違反用戶最終目標」前提下提出修正版。
-    """
-    system_prompt = (
-        "【角色與職責】\n"
-        f"你是一位極具創造力且精通系統生物學的首席架構師（Builder）。你現在正在為【{host_organism}】設計基因電路，請確保所有元件的毒性、啟動子強度與代謝負擔評估皆符合該物種的生理限制，且使用正交於該物種的元件。\n"
-        f"你的唯一任務是竭盡所能，利用可用的生物元件達成用戶的最終目標：【{user_intent}】\n\n"
-        "【最高設計法則：意圖驅動與學理辯護】\n"
-        "1. 忠於意圖的極致創新：不要被傳統數位電路的死板邏輯侷限。為了達成用戶目標，你可以大膽且合理地引入【負回饋/正回饋迴路】、【時序延遲機制】、【雙穩態記憶開關】或【細胞裂解/死亡機制】等高階生物學拓樸結構。\n"
-        "2. 勇敢辯護 (Defensive Design)：面對 Critic（安全審查員）的批評時，你【不需要】無條件妥協。若 Critic 警告了代謝負擔、元件毒性或邏輯衝突，但你認為這些特徵是達成用戶目標的「必要犧牲」或「核心機制」，請以專業的分子生物學原理進行強而有力的反駁與辯護，並堅持你的設計。\n"
-        "3. 元件的最佳化組合：請靈活運用提供的 RAG 元件庫，若發現無法用單一細胞實現複雜邏輯，可主動提議將電路拆分為多個互助的細胞群體（Consortia），並說明胞間通訊訊號。\n\n"
-        "【回應格式規範】\n"
-        "若未收到 Critic 意見，請直接給出包含感測器、邏輯閘、輸出與動態調控原理的完整架構 (V1)。\n"
-        "若收到 Critic 意見，請先明確表態【接受修改】或【學理反駁】，接著給出迭代後的設計與原理解釋。"
-    )
-    if force_zero_shot:
-        system_prompt += (
-            f"【優雅降級模式】目前系統 RAG 無法提供完整的外部資料。你必須動用自身學習過的基礎合成生物學知識來完成草圖。"
-            f"請以以下基礎元件作為主要參考：\n{rag_context}\n"
-        )
-    else:
-        system_prompt += f"【硬性約束】你只能使用以下 Cello 元件庫進行設計：\n{rag_context}\n絕對禁止使用清單外或捏造的元件。"
-    if previous_feedback:
-        user_content = f"【批評者意見，請據此修正設計】\n{previous_feedback}"
-    elif round1_debate_transcript:
-        user_content = (
-            "【此前完整辯論紀錄（請承接脈絡，不可忽略；並須完全符合下方「用戶最終目標」）】\n"
-            f"{round1_debate_transcript}\n\n"
-            "請綜合以上紀錄與用戶最終目標，提出本輪第一版（V1）基因電路設計。"
-        )
-    else:
-        user_content = "請根據上述用戶最終目標，提出第一版（V1）基因電路設計。"
-    return _call_llm(api_key, model_name, system_prompt, user_content, api_base=api_base)
-
-
-def call_critic(
-    current_design: str,
-    user_intent: str,
-    api_key: str | None,
-    model_name: str,
-    *,
-    rag_context: str = "",
-    debate_transcript: str | None = None,
-    api_base: str | None = None,
-    force_zero_shot: bool = False,
-    host_organism: str = "Escherichia coli (大腸桿菌)"
-) -> str:
-    """
-    專家二：嚴苛的生物安全與可行性審查員。
-    只專注於：邏輯矛盾、生物學現實問題（代謝負擔、毒性）、生物安全風險。提出精確、致命的批評。
-    """
-    system_prompt = (
-         "【角色與職責】\n"
-        f"你是一位高階合成生物學審查員（Critic）。你的任務是確保 Builder 提出的基因電路設計既符合「使用者的原始意圖」，又具備在標靶細胞【{host_organism}】上的生物物理學可行性與工程穩定性。\n\n"
-        f"【使用者的設計意圖（Target Intent）】：{user_intent}\n\n"
-        "【多維度審查法則】\n"
-        "你在審查時必須進行以下三個層次的評估，並於回覆最前方清楚標示對應的標籤：\n\n"
-        "1. 🛑 [INTENT_INVALID 意圖不合理]：檢視使用者的需求本身是否違反分子生物學常理，或超出當前合成生物學技術極限。若是，請指出不合理處，並建議 Builder 如何引導使用者修改目標。\n"
-        "2. ⚠️ [MISALIGNMENT 意圖偏離]：Builder 的設計雖然安全，但卻因為「過度保守」或「邏輯錯誤」而沒有達成使用者的原始意圖（例如：要求振盪器卻給單向開關；或使用者要求細胞裂解，Builder 卻移除了毒性元件）。請要求 Builder 重新對齊意圖。\n"
-        "3. 🛑 [FATAL 致命阻斷]：設計中出現「未預期」的邏輯短路或嚴重的生物工程缺失。⚠️注意：若使用者的意圖本就包含『細胞死亡』、『裂解』或『動態負回饋』，對應的元件毒性即為【合法設計】，絕不可標記為 FATAL，但需嚴格審查其洩漏表現（Leakage）。\n\n"
-        "【重點審查清單 (Checklist)】\n"
-        "在評估是否給出 [FATAL] 或修改建議時，請逐一檢查下列真實工程限制。除了邏輯正確性外，你必須以【實體零件】的角度來批判：\n\n"
-        "4-1 代謝負擔與資源競爭：設計中是否同時開啟過多強啟動子？這在當前的【宿主細胞背景】下，是否會耗盡 ATP 或核糖體導致生長停滯？\n"
-        "4-2 啟動子漏電 (Leakage)：在 OFF 狀態下，系統是否會有微量的基礎表現？對於毒性蛋白質或高敏感度邏輯閘，這是否會導致系統崩潰？\n"
-        "4-3 零件干擾與正交性：系統中多個阻遏蛋白或 RNA 零件的結合位點是否足夠專一？會不會發生交互干擾（Cross-talk）？\n"
-        "4-4 產物毒性：大量表現的中間代謝物對當前宿主是否具備非預期的毒性？（若使用者核心意圖為殺死細胞則忽略此點）。\n"
-        "4-5 訊號匹配與動態範圍：上游邏輯閘輸出的蛋白質濃度，是否足以跨越下游啟動子的感應閾值？（例如：弱啟動子無法驅動需要高濃度阻遏蛋白的開關）。\n"
-        "4-6 時序延遲與競爭危害 (Race Condition)：設計是否忽略了蛋白質轉錄、轉譯與摺疊的時間差？若系統依賴兩個訊號同時到達，是否會因為延遲而產生錯誤的短暫輸出（Glitch）？\n"
-        "4-7 演化穩定性：設計是否包含過多重複序列，導致細胞容易透過同源重組破壞迴路？\n\n"
-        "【審查輸出格式】\n"
-        "請綜合以上條件進行無情但精確的點評。專注於物理與生物矛盾，直接給出修正指令。並在結尾給出明確的【審查結論：通過 (PASS) / 需修改 (REVISE) / 駁回 (REJECT)】。"
-    )
-    if force_zero_shot:
-        system_prompt += (
-            f"【審查基準】現在處於優雅降級模式，Builder 會動用自身知識與基礎元件（如：\n{rag_context}\n）。"
-            "只要元件存在於真實合成生物學中且具體合理，請勿視為捏造而批評，著重於邏輯與生物毒性即可。"
-        )
-    else:
-        system_prompt += f"【審查基準】請嚴格對照以下元件清單：\n{rag_context}\n若 Builder 捏造了清單外的元件，請給予嚴厲批評並要求修正。"
-    if debate_transcript:
-        user_content = (
-            "【此前完整辯論紀錄（供你對齊語境與使用者意圖）】\n"
-            f"{debate_transcript}\n\n"
-            "【當前待審查的設計】\n"
-            f"{current_design}"
-        )
-    else:
-        user_content = current_design
-    return _call_llm(api_key, model_name, system_prompt, user_content, api_base=api_base)
-
-
-def call_design_consolidator(final_builder_design: str, final_critic_feedback: str, api_key: str | None, model_name: str, api_base: str | None = None) -> str:
-    """
-    專家三：設計整合者 (Design Consolidator)。
-    將第三輪的最終設計濃縮成 Verilog 轉譯器需要的純邏輯自然語言規格書（例如：「當有 A 且沒有 B 時，輸出 C。」）。
-    """
-    system_prompt = (
-    "【角色與職責】\n"
-    "你是一位首席系統架構師（Design Consolidator）。"
-    "你的任務是將 Builder 的最終設計與 Critic 的最終審查意見整合，"
-    "產出一份清晰且人類可讀的基因電路設計規格書，供使用者確認。\n\n"
-    
-    "【整合規則】\n"
-    "1. 以 Builder 的最終版本為主體。\n"
-    "2. 若 Critic 的最終意見中仍有【未被 Builder 回應】的 FATAL 或 MISALIGNMENT 警告，"
-    "請在 Biological_Constraints 區塊中明確標註，讓使用者知悉風險。\n"
-    "3. 若 Critic 的最終意見為認可或無重大異議，則不需要特別說明辯論過程。\n\n"
-    
-    "【輸出格式】\n"
-    "請嚴格依序輸出以下五個區塊，使用清晰的中文說明，絕不可加入廢話：\n\n"
-    "1. System_Architecture: (描述電路的整體拓樸與動態行為，"
-    "包含時序延遲、記憶狀態、回饋迴路或裂解機制等。)\n"
-    "2. Consortia_Configuration: (若涉及多細胞協同，說明各細胞株與胞間通訊分子；"
-    "單一細胞則填 N/A。)\n"
-    "3. Biological_Constraints: (條列所有生化限制與風險提示，"
-    "包含 Critic 未解決的警告，若無則填 None。)\n"
-    "4. Selected_Parts: (條列選用的啟動子、感測器、邏輯閘與輸出元件名稱。)\n"
-    "5. Pending_Risks: (條列 Critic 提出但 Builder 選擇保留的設計特徵，"
-    "並說明 Builder 的辯護理由；若無爭議則填 NONE。)\n"
-    )
-
-    user_content = (
-    "【Builder 最終設計】\n"
-    f"{final_builder_design}\n\n"
-    "【Critic 最終審查意見】\n"
-    f"{final_critic_feedback}"
-    )   
-    return _call_llm(api_key, model_name, system_prompt, user_content, api_base=api_base)
+from agents.consolidator_agent import call_design_consolidator
 
 
 import itertools
@@ -392,197 +224,7 @@ def format_sessions_for_llm(sessions: list[list[dict]]) -> str:
     return format_sessions_for_display(sessions)
 
 
-def _compact_rag_context(
-    rag_results: list[str] | str,
-    *,
-    max_items: int = 8,
-    max_chars: int = 2400,
-) -> str:
-    """
-    將 RAG 檢索結果壓縮成較短的上下文，避免 Prompt 過長。
-
-    策略：
-    - 若是 list：優先保留看起來屬於 sensors / gates / output_devices 的描述
-    - 去除重複與空白
-    - 限制最多條目數與總字元數
-    """
-    if isinstance(rag_results, str):
-        text = rag_results.strip()
-        return text[:max_chars] if len(text) > max_chars else text
-
-    raw_items = [x.strip() for x in rag_results if isinstance(x, str) and x.strip()]
-    if not raw_items:
-        return ""
-
-    # 依描述字串常見關鍵字做輕量分類（不依賴固定 schema）
-    keys = (
-        "感測器",
-        "sensor",
-        "輸入",
-        "input",
-        "邏輯閘",
-        "gate",
-        "NOR",
-        "NOT",
-        "output device",
-        "output_device",
-        "output_devices",
-        "輸出元件",
-        "輸出",
-    )
-    filtered: list[str] = [x for x in raw_items if any(k.lower() in x.lower() for k in keys)]
-    if not filtered:
-        filtered = raw_items
-
-    # 去重但保持順序
-    seen: set[str] = set()
-    uniq: list[str] = []
-    for x in filtered:
-        if x not in seen:
-            seen.add(x)
-            uniq.append(x)
-
-    # 條目數限制
-    uniq = uniq[:max_items]
-
-    # 總長度限制（逐條累加，避免截斷到一半）
-    out_lines: list[str] = []
-    total = 0
-    for item in uniq:
-        line = f"- {item}"
-        if out_lines:
-            projected = total + 1 + len(line)
-        else:
-            projected = total + len(line)
-        if projected > max_chars:
-            break
-        out_lines.append(line)
-        total = projected
-
-    return "\n".join(out_lines).strip()
-
-
-def get_compressed_rag_context(query: str, api_key: str) -> str:
-    """
-    取得並壓縮 RAG 元件語境。
-    成功：回傳壓縮後字串；失敗：回傳以「錯誤：」開頭的訊息。
-    """
-    if not api_key or not api_key.strip():
-        return "錯誤：尚未提供 API Key。"
-    if not query or not query.strip():
-        return "錯誤：查詢內容不可為空白。"
-    try:
-        # Backward-compat shim (OpenAI embeddings only)
-        rag_results = search_parts(query, embedding_model="text-embedding-3-small", api_key=api_key)
-        if not rag_results:
-            return "錯誤：RAG 檢索失敗：未取得任何元件結果。"
-        rag_context = _compact_rag_context(rag_results)
-        if not rag_context.strip():
-            return "錯誤：RAG 檢索失敗：檢索結果為空白。"
-        return rag_context
-    except Exception as e:
-        return f"錯誤：RAG 檢索失敗：{str(e)}"
-
-
-def get_compressed_rag_context_v2(
-    query: str,
-    *,
-    embedding_model: str,
-    embedding_api_key: str | None = None,
-    embedding_api_base: str | None = None,
-) -> str:
-    """
-    取得並壓縮 RAG 元件語境（支援本地 embeddings，例如 Ollama）。
-    成功：回傳壓縮後字串；失敗：回傳以「錯誤：」開頭的訊息。
-    """
-    if not query or not query.strip():
-        return "錯誤：查詢內容不可為空白。"
-    if not embedding_model or not str(embedding_model).strip():
-        return "錯誤：尚未指定 Embedding Model。"
-    try:
-        rag_results = search_parts(
-            query,
-            embedding_model=embedding_model,
-            api_key=embedding_api_key,
-            api_base=embedding_api_base,
-        )
-        if not rag_results:
-            return "錯誤：RAG 檢索失敗：未取得任何元件結果。"
-        rag_context = _compact_rag_context(rag_results)
-        if not rag_context.strip():
-            return "錯誤：RAG 檢索失敗：檢索結果為空白。"
-        return rag_context
-    except Exception as e:
-        return f"錯誤：RAG 檢索失敗：{str(e)}"
-
-
-def run_three_round_reflexion(
-    api_key: str | None,
-    model_name: str,
-    user_intent: str,
-    *,
-    carry_transcript: str | None = None,
-    rag_context: str = "",
-    on_round_complete=None,
-    api_base: str | None = None,
-    force_zero_shot: bool = False,
-    host_organism: str = "Escherichia coli (大腸桿菌)"
-) -> tuple[bool, list[dict], str | None, str | None]:
-    """
-    執行三輪 Builder↔Critic。
-    carry_transcript：若提供（例如使用者追加條件後），第一輪 Builder 與每一輪 Critic 都會帶入完整此前紀錄。
-    on_round_complete：可選，每輪結束時呼叫 callback(round_num, builder_text, critic_text)。
-    回傳：(success, 本段三輪的 [{builder, critic}, ...], 第三輪 Builder 產出即最終設計, 錯誤訊息或 None)
-    """
-    previous_feedback = ""
-    session_rounds: list[dict] = []
-    final_design: str | None = None
-    # 單次預先檢索：在開始三輪辯論前，把最相關的真實元件庫注入上下文
-    #（此版本要求呼叫端先取得 rag_context，以便 UI 可展示透明度）
-    if not rag_context.strip():
-        return False, session_rounds, None, "錯誤：尚未提供 RAG Context。"
-    if rag_context.startswith("錯誤："):
-        return False, session_rounds, None, rag_context
-
-    for round_num in range(1, 4):
-        r1_ctx = carry_transcript if round_num == 1 else None
-        current_design = call_builder(
-            user_intent,
-            previous_feedback,
-            api_key,
-            model_name,
-            rag_context=rag_context,
-            round1_debate_transcript=r1_ctx,
-            api_base=api_base,
-            force_zero_shot=force_zero_shot,
-            host_organism=host_organism
-        )
-        if current_design.startswith("錯誤："):
-            return False, session_rounds, None, current_design
-
-        critic_fb = call_critic(
-            current_design=current_design,
-            user_intent=user_intent,
-            api_key=api_key,
-            model_name=model_name,
-            rag_context=rag_context,
-            debate_transcript=carry_transcript,
-            api_base=api_base,
-            force_zero_shot=force_zero_shot,
-            host_organism=host_organism
-        )
-        if critic_fb.startswith("錯誤："):
-            return False, session_rounds, None, critic_fb
-
-        session_rounds.append({"builder": current_design, "critic": critic_fb})
-        previous_feedback = critic_fb
-        final_design = current_design
-        if on_round_complete:
-            on_round_complete(round_num, current_design, critic_fb)
-
-    return True, session_rounds, final_design, None
-
-
+from workflows.reflexion_controller import run_reflexion_workflow
 # =========================
 # 結果區塊：顯示 Verilog 與下載（路線 A：手動介接 Cello）
 # =========================
@@ -819,17 +461,26 @@ def main():
                             key=f"critic_{run_id}_{rn}",
                         )
 
-                ok, session_rounds, final_design_v3, err_msg = run_three_round_reflexion(
+                initial_state = CircuitState(
+                    user_intent=intent_clean,
+                    host_organism=host_organism,
+                    rag_context=rag_context,
+                )
+                ok, final_state = run_reflexion_workflow(
                     llm_api_key,
                     model_name,
-                    intent_clean,
-                    carry_transcript=None,
-                    rag_context=rag_context,
+                    initial_state,
                     on_round_complete=on_round_complete,
                     api_base=llm_api_base,
                     force_zero_shot=force_zero_shot,
                     host_organism=host_organism
                 )
+                session_rounds = [
+                    {"builder": record.builder_output, "critic": record.critic_output}
+                    for record in final_state.round_history
+                ]
+                final_design_v3 = final_state.current_topology
+                err_msg = final_state.last_error
                 if not ok:
                     st.error(err_msg or "辯論過程發生錯誤。")
                 elif final_design_v3 is not None:
@@ -887,7 +538,19 @@ def main():
                     final_v3_builder = last_session[-1]["builder"]
                     final_v3_critic = last_session[-1]["critic"]
                     with st.spinner("特徵矩陣萃取中 (Extracting Specification Matrix)…"):
-                        final_spec = call_design_consolidator(final_v3_builder, final_v3_critic, llm_api_key, model_name, api_base=llm_api_base)
+                        consolidation_state = CircuitState(
+                            user_intent=dr["effective_intent"],
+                            host_organism=host_organism,
+                            current_topology=final_v3_builder,
+                            critic_feedbacks=[final_v3_critic],
+                        )
+                        consolidation_state = call_design_consolidator(
+                            consolidation_state,
+                            llm_api_key,
+                            model_name,
+                            api_base=llm_api_base,
+                        )
+                        final_spec = consolidation_state.formal_specification or ""
                     if final_spec.startswith("錯誤："):
                         st.error(final_spec)
                     else:
@@ -928,7 +591,7 @@ def main():
                 else:
                     import json
                     from oracle_evaluator import CircuitEvaluator
-                    from ode_simulation_agent import run_ode_simulation
+                    from tools.ode_simulator import run_ode_simulation
                     
                     try:
                         target_spec = json.loads(target_spec_str)
@@ -970,7 +633,7 @@ def main():
                                     stim_dict[ind_name] = {"type": "pulse", "start": 0, "duration": 100000, "amp": 50000.0 if bool_val > 0 else 0.0}
                                 
                                 # 使用預設空參數即可 (會 fall back 到通用設定)
-                                from ode_simulation_agent import run_monte_carlo_ode_simulation
+                                from tools.ode_simulator import run_monte_carlo_ode_simulation
                                 dfs = run_monte_carlo_ode_simulation({}, topology=test_topology, stimulus_curves=stim_dict, num_samples=NUM_SAMPLES, noise_level=noise_level)
                                 
                                 for i, df in enumerate(dfs):
@@ -1026,16 +689,24 @@ def main():
             else:
                 st.session_state["consolidated_design"] = None
                 with st.spinner("重新辯論中（三輪 Builder ↔ Critic）…"):
-                    ok, new_sess, _final_d, err_msg = run_three_round_reflexion(
+                    rerun_state = CircuitState(
+                        user_intent=dr["effective_intent"],
+                        host_organism=host_organism,
+                        rag_context=dr.get("rag_context", ""),
+                    )
+                    ok, rerun_result_state = run_reflexion_workflow(
                         llm_api_key,
                         model_name,
-                        dr["effective_intent"],
-                        carry_transcript=None,
-                        rag_context=dr.get("rag_context", ""),
+                        rerun_state,
                         api_base=llm_api_base,
                         force_zero_shot=dr.get("force_zero_shot", False),
                         host_organism=host_organism
                     )
+                    new_sess = [
+                        {"builder": record.builder_output, "critic": record.critic_output}
+                        for record in rerun_result_state.round_history
+                    ]
+                    err_msg = rerun_result_state.last_error
                 if not ok:
                     st.error(err_msg or "執行迭代過程發生異常。")
                 else:
@@ -1063,16 +734,25 @@ def main():
                         + actual_condition
                     )
                     with st.spinner("已帶入完整歷史與新條件，進行三輪再辯論…"):
-                        ok, new_sess, _final_d, err_msg = run_three_round_reflexion(
+                        appended_state = CircuitState(
+                            user_intent=new_intent,
+                            host_organism=host_organism,
+                            rag_context=dr.get("rag_context", ""),
+                            seed_debate_transcript=carry,
+                        )
+                        ok, appended_result_state = run_reflexion_workflow(
                             llm_api_key,
                             model_name,
-                            new_intent,
-                            carry_transcript=carry,
-                            rag_context=dr.get("rag_context", ""),
+                            appended_state,
                             api_base=llm_api_base,
                             force_zero_shot=dr.get("force_zero_shot", False),
                             host_organism=host_organism
                         )
+                        new_sess = [
+                            {"builder": record.builder_output, "critic": record.critic_output}
+                            for record in appended_result_state.round_history
+                        ]
+                        err_msg = appended_result_state.last_error
                 if not ok:
                     st.error(err_msg or "追加條件後的辯論失敗。")
                 else:
@@ -1124,7 +804,7 @@ def main():
                 st.error(f"JSON 格式解析錯誤：{e}")
                 st.stop()
                 
-            from ode_simulation_agent import run_ode_simulation, resolve_missing_parameters
+            from tools.ode_simulator import run_ode_simulation, resolve_missing_parameters
             import asyncio
             
             with st.spinner(f"Data Miner 正在非同步獲取缺失的生化參數..."):
@@ -1143,7 +823,7 @@ def main():
             st.success("成功利用 Data Miner Agent 補全缺失的動力學參數：")
             st.json(resolved_params)
             
-            from ode_simulation_agent import run_monte_carlo_ode_simulation
+            from tools.ode_simulator import run_monte_carlo_ode_simulation
             with st.spinner("正在呼叫 scipy.integrate.solve_ivp 解算蒙地卡羅非線性模型 (50 Samples)..."):
                 dfs = run_monte_carlo_ode_simulation(resolved_params, topology=topo_dict, stimulus_curves=stim_dict, num_samples=50)
                 
