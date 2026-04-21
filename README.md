@@ -7,18 +7,18 @@
 
 
 ## 專案簡介 (Introduction)
-
 LLM-Cello BioDrive 是一個次世代的合成生物學生成式框架。本專案旨在橋接「自然語言需求」與「底層基因實體」，提供一個端到端（End-to-End）的自動化設計與驗證平台。
 
-有別於傳統依賴靜態邏輯閘的基因電路輔助設計（CAD）軟體，本框架結合了 大型語言模型多智能體架構 (Multi-Agent Reflexion)、檢索增強生成 (RAG) 與 常微分方程 (ODE) 統計動力學模擬。系統不僅能自動編譯對應的 Verilog 硬體描述語言，更能針對生物學中不可避免的細胞代謝負擔（Metabolic Burden）、零件漏電（Leakage）與基因表現雜訊（Noise），進行工業級的蒙地卡羅穩健度壓力測試，確保設計在真實活體細胞中的可行性。
-
+在最新版本中，系統全面升級為狀態機驅動的多智能體架構（State-Driven Multi-Agent Workflow）。有別於傳統依賴靜態邏輯閘的基因電路輔助設計軟體，本框架讓 AI 智能體（Builder, Critic, Consolidator）能自主調用工具（Autonomous Tool Calling），並結合檢索增強生成 (RAG)、常微分方程 (ODE) 統計動力學模擬，以及人機協作審核機制（Human-in-the-Loop）。系統不僅能自動編譯對應的 Verilog 網表，更能針對活體細胞不可避免的代謝負擔與基因表現雜訊，進行工業級的蒙地卡羅穩健度壓力測試。
 ## 核心功能 (Key Features)
 
-### 多智能體對抗式設計 (Multi-Agent Reflexion Architecture)
+### 狀態驅動的智能體架構 (State-Driven Agentic Workflow)
 
-防禦性設計 (Defensive Design)：模擬「系統架構師 (Builder)」與「安全審查員 (Critic)」的內部辯論。自動修復邏輯矛盾，並檢視資源競爭與生化干擾（Cross-talk）。
+拋棄單純的對話歷史拼接，系統內部採用嚴謹的 CircuitState 狀態機結構，精確追蹤每一輪的拓樸草案、審查意見、模擬結果與錯誤日誌，確保多智能體協作過程中的上下文穩定性。
 
-意圖驅動審查：靈活處理非傳統拓樸（如動態負回饋）與預期性細胞死亡（Engineered Cell Death），不盲目套用傳統數位電路規則。
+### 人機協作與動態約束 (Human-in-the-Loop & Dynamic Constraints)
+
+系統不會盲目黑箱作業。在智能體完成初步對抗設計後，工作流會暫停並進入人機協核階段。研究人員可以檢視完整的辯論邏輯，並能隨時注入額外的生物學限制（例如：指定生物安全等級、避免高拷貝載體），系統將帶著完整的歷史記憶重啟迭代。
 
 ### 真實元件檢索增強 (RAG-based Component Grounding)
 
@@ -40,6 +40,10 @@ Stiff ODE Solver：採用 scipy.integrate.solve_ivp 的 Radau 演算法，精確
 
 設立總蛋白質代謝負荷閾值，動態攔截因資源耗盡引發的非預期細胞毒性崩潰。
 
+### 全端本地化與隱私防護 (Local LLM & Embedding Support)
+
+全面支援 Ollama 等本地端模型運行。從 RAG 的向量嵌入（Embeddings）到多智能體的邏輯推理，皆可在無網際網路連線的情況下於本地伺服器執行，確保敏感基因序列與專利設計的絕對隱私。
+
 ## 系統架構與工作流程 (Workflow)
 
 需求輸入：使用者輸入自然語言描述的生物學意圖與目標底盤細胞（如 E. coli 或 B. subtilis）。
@@ -50,7 +54,6 @@ Stiff ODE Solver：採用 scipy.integrate.solve_ivp 的 Radau 演算法，精確
 
 壓力測試：Oracle Evaluator 自動生成 Test Vectors，調用 ODE 引擎執行 50 次蒙地卡羅抽樣，並計算穩健度通過率 (Robustness Score)。
 
-
 ```mermaid
 flowchart TB
     %% 定義全局樣式
@@ -58,43 +61,41 @@ flowchart TB
     classDef engine fill:#fff3e0,stroke:#e65100,stroke-width:2px;
     classDef data fill:#f1f8e9,stroke:#33691e,stroke-width:2px;
     classDef output fill:#fce4ec,stroke:#880e4f,stroke-width:2px;
+    classDef human fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
 
-    %% 外部輸入
-    U([使用者自然語言意圖]) --> Reflexion_Loop
+    U([使用者自然語言意圖]) --> State[狀態機初始化 CircuitState]
+    State --> Reflexion_Loop
 
-    %% 模組 1：多智能體對抗迴圈
-    subgraph Reflexion_Loop [1. Multi-Agent Reflexion Loop]
+    %% 模組 1：多智能體工具調用與對抗
+    subgraph Reflexion_Loop [1. Agentic Reflexion Workflow]
         direction LR
-        RAG[(ChromaDB: 真實元件庫)] -.-> B
-        RAG -.-> C
-        B[Builder Agent] -->|提出草案| C[Critic Agent]
-        C -->|毒性/邏輯批評| B
+        B[Builder Agent] <-->|狀態傳遞與邏輯辯論| C[Critic Agent]
+        B -.->|自主調用 Tool| RAG[(ChromaDB: 真實元件庫)]
+        C -.->|自主調用 Tool| Light_ODE[(輕量級 ODE 探測)]
     end
     class B,C agent
-    class RAG data
+    class RAG,Light_ODE data
 
-    %% 模組 2：規格形式化
-    subgraph Formalization [2. Formal Specification]
-        DC[Design Consolidator] -->|萃取真值表| TV[Test Vector Generator]
-    end
-    class DC,TV agent
+    %% 人機協作節點
+    Reflexion_Loop --> HITL{2. 人機協作審核 \n Human-in-the-Loop}
+    class HITL human
+    
+    HITL -->|追加生物學約束 / 駁回重試| Reflexion_Loop
+    HITL -->|專家核准通過| Formalization
 
-    Reflexion_Loop -->|達成共識| Formalization
-
-    %% 模組 3：動力學模擬與驗證
-    subgraph Verification [3. Automated Oracle Verification]
+    %% 模組 2：規格形式化與全域驗證
+    subgraph Formalization [3. Formal Specification & Verification]
         direction TB
-        DM[Data Miner Agent] -.->|爬取 Kd, 降解率| ODE
+        DC[Design Consolidator] --> TV[Test Vector Generator]
+        DM[Data Miner Agent] -.->|異步爬取生化參數| ODE
         TV --> ODE[Stiff ODE / Monte Carlo Engine]
-        ODE -->|時序軌跡| OE[Oracle Evaluator]
+        ODE -->|時序軌跡與代謝負荷| OE[Oracle Evaluator]
     end
-    class DM,OE agent
+    class DC,TV,DM,OE agent
     class ODE engine
 
-    Formalization --> Verification
-
     %% 決策與輸出
-    OE -->|Fail: 毒性崩潰 / 邏輯短路| Reflexion_Loop
+    OE -.->|自動反饋失敗報告| HITL
     OE -->|Pass: 穩健度達標| VC[Verilog Compiler]
     
     VC --> Netlist([Verilog Netlist .v 檔案])
