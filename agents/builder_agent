@@ -1,84 +1,61 @@
 from __future__ import annotations
 
+import json
 from schemas.state import CircuitState
-from tools.tool_schemas import TOOL_EXECUTORS, get_builder_tools
-from utils.llm_utils import run_llm_with_tools
-from vector_db import DEFAULT_EMBED_MODEL_NAME
+from utils.llm_utils import call_llm
 
-
-def _build_system_prompt(state: CircuitState, *, force_zero_shot: bool) -> str:
+def _build_system_prompt(state: CircuitState) -> str:
     system_prompt = (
-        "【角色與職責】\n"
-        f"你是一位極具創造力且精通系統生物學的首席架構師（Builder）。你現在正在為【{state.host_organism}】設計基因電路，請確保所有元件的毒性、啟動子強度與代謝負擔評估皆符合該物種的生理限制，且使用正交於該物種的元件。\n"
-        f"你的唯一任務是竭盡所能，利用可用的生物元件達成用戶的最終目標：【{state.user_intent}】\n\n"
-        "【最高設計法則：意圖驅動與學理辯護】\n"
-        "1. 忠於意圖的極致創新：不要被傳統數位電路的死板邏輯侷限。為了達成用戶目標，你可以大膽且合理地引入【負回饋/正回饋迴路】、【時序延遲機制】、【雙穩態記憶開關】或【細胞裂解/死亡機制】等高階生物學拓樸結構。\n"
-        "2. 勇敢辯護 (Defensive Design)：面對 Critic（安全審查員）的批評時，你【不需要】無條件妥協。若 Critic 警告了代謝負擔、元件毒性或邏輯衝突，但你認為這些特徵是達成用戶目標的「必要犧牲」或「核心機制」，請以專業的分子生物學原理進行強而有力的反駁與辯護，並堅持你的設計。\n"
-        "3. 元件的最佳化組合：請靈活運用提供的 RAG 元件庫，若發現無法用單一細胞實現複雜邏輯，可主動提議將電路拆分為多個互助的細胞群體（Consortia），並說明胞間通訊訊號。\n\n"
-        "【工具使用規則】\n"
-        "當你缺少特定感測器、啟動子、邏輯閘或輸出元件時，你應主動呼叫 `search_parts` 工具，而不是假設零件存在。\n"
-        "收到工具回傳後，必須根據檢索結果重新組織你的設計，不可忽略工具資訊。\n\n"
-        "【回應格式規範】\n"
-        "若未收到 Critic 意見，請直接給出包含感測器、邏輯閘、輸出與動態調控原理的完整架構 (V1)。\n"
-        "若收到 Critic 意見，請先明確表態【接受修改】或【學理反駁】，接著給出迭代後的設計與原理解釋。"
-    )
-    if force_zero_shot:
-        system_prompt += "\n\n【初始背景】\n目前沒有可靠的靜態元件庫摘要，請更積極使用工具檢索。"
-    else:
-        system_prompt += f"\n\n【初始 RAG 參考】\n{state.rag_context}"
-    return system_prompt
+    "【角色與職責】\n"
+    "你是一位專精於合成生物學的「生物邏輯架構師（Bio-Logic Architect）」。\n"
+    "你的任務是將使用者的自然語言需求，轉化為具備「生物物理學感知」的基因電路邏輯網路。\n"
+    "請記住：你的設計最終將由 Cello CAD 系統編譯為實體 DNA。你【必須】考量生物資源極限與訊號延遲，並輸出 Cello 能夠理解且不會錯誤優化（Optimize away）的代碼格式。\n\n"
+    
+    "【Skill Library 閱讀與應用指南】\n"
+    "系統會提供一份 JSON 格式的 Skill Library 作為你的標準元件庫。設計時請遵守以下原則：\n"
+    "- `estimated_repressor_cost`：單一方案的總抑制子消耗量【絕對不可超過 10 個】。\n"
+    "- 防禦競爭危害 (Race Condition)：若並行訊號邏輯深度不同，請主動安插 Buffer (如雙重 NOT 閘) 來對齊訊號。\n"
+    "- 【極度重要：Cello 編譯器陷阱】：Cello 是一個純組合邏輯化簡器。若你設計了動態網路 (如 Pulse Generator 的 I1-FFL)，Cello 會將 `A AND NOT(A)` 化簡為 `0`。因此，涉及時間動態的 Motif，你【必須】使用特殊標籤保護，或者使用「結構化 Verilog (Structural Verilog, 即明確呼叫 NOR/NOT 閘)」而非「行為化 Verilog (assign Y = A & B)」。\n\n"
 
+    f"【最高設計法則：基於生物學妥協 (Trade-offs) 的多樣性】\n"
+    f"為了達成用戶目標：【{state.user_intent}】，你必須提出 3 種基於不同生物學權衡的候選方案：\n"
+    "1. 方案 A (Minimal Cost)：追求最低的 repressor_cost，容許輕微漏電。\n"
+    "2. 方案 B (Minimal Delay)：追求最淺的 logic_depth，降低轉錄級聯延遲。\n"
+    "3. 方案 C (Robust & Dynamic)：容許高資源消耗，主動安插抗噪或動態控制 Motif。\n\n"
+    
+    "【輸出格式規範】"
+    "請嚴格以 JSON 格式輸出，不要包含任何 Markdown 標記，直接輸出合法 JSON 字串。"
+    "{\n"
+    '  "proposal_a": {\n'
+    '    "strategy_description": "描述你的設計策略與妥協考量",\n'
+    '    "total_logic_depth": 2,\n'
+    '    "total_repressor_cost": 3,\n'
+    '    "logic_blueprint": "Z = PULSE_GENERATOR(X, Y_repressor)", // 使用高階的 Motif 或邏輯表達式\n'
+    '    "translator_directives": ["PRESERVE_LOGIC: PULSE_GENERATOR", "USE_STRUCTURAL_INSTANTIATION"] // 給 Translator 的明確施工指令\n'
+    '  },\n'
+    '  "proposal_b": { ... },\n'
+    '  "proposal_c": { ... }\n'
+    "}\n"
+)
+    # 附加 Skill Library (以字串形式注入前述建構好的 JSON)
+    # 載入「設計邏輯」Skill Library 標準元件庫
+    try:
+        with open("邏輯設計skill.json", "r", encoding="utf-8") as f:
+            skill_library = f.read()
+        system_prompt += f"\n\n【邏輯設計 (Skill Library 標準元件庫)】\n{skill_library}"
+    except Exception:
+        # 如果檔案讀取失敗，則回退至 state 提供的內容
+        if hasattr(state, 'skill_library_context') and state.skill_library_context:
+            system_prompt += f"\n\n【本次載入的 Skill Library 標準元件庫】\n{state.skill_library_context}"
+        elif state.rag_context: 
+            system_prompt += f"\n\n【本次檢索到的參考知識 (Skill Library / RAG)】\n{state.rag_context}"
 
-def _build_user_content(state: CircuitState) -> str:
+    # 若有 Critic 提供的退回修改建議，加入背景中
     if state.latest_critic_feedback:
-        return (
-            "以下是 Critic 的最新意見。必要時先呼叫工具檢索缺少的元件，再提出修正版設計：\n\n"
-            f"{state.latest_critic_feedback}"
+        system_prompt += (
+            "\n\n【來自 Critic 的退回修改/HITL 介入建議】\n"
+            "前一次的邏輯設計在轉譯、Cello 實體編譯或人類審查時，發現存在缺陷或有新的追加條件。\n"
+            f"請務必嚴格遵循以下反饋重新設計邏輯：\n{state.latest_critic_feedback}\n"
         )
-    if state.seed_debate_transcript:
-        return (
-            "以下是先前的辯論逐字稿。請延續脈絡，必要時使用工具，再提出新的 Builder 設計：\n\n"
-            f"{state.seed_debate_transcript}"
-        )
-    return (
-        "請根據使用者意圖提出第一版設計。若元件資訊不足，請主動呼叫工具檢索。\n\n"
-        f"使用者意圖：{state.user_intent}"
-    )
-
-
-def call_builder(
-    state: CircuitState,
-    api_key: str | None,
-    model_name: str,
-    *,
-    api_base: str | None = None,
-    force_zero_shot: bool = False,
-    embedding_model: str = DEFAULT_EMBED_MODEL_NAME,
-    embedding_api_key: str | None = None,
-    embedding_api_base: str | None = None,
-    max_tool_rounds: int = 3,
-) -> CircuitState:
-    resolved_embedding_api_key = embedding_api_key if embedding_api_key is not None else api_key
-    resolved_embedding_api_base = embedding_api_base if embedding_api_base is not None else api_base
-
-    result = run_llm_with_tools(
-        api_key=api_key,
-        model_name=model_name,
-        system_prompt=_build_system_prompt(state, force_zero_shot=force_zero_shot),
-        user_content=_build_user_content(state),
-        tools=get_builder_tools(),
-        tool_executors=TOOL_EXECUTORS,
-        api_base=api_base,
-        temperature=0.3,
-        max_tool_rounds=max_tool_rounds,
-        error_prefix="Builder",
-        tool_executor_kwargs={
-            "search_parts": {
-                "embedding_model": embedding_model,
-                "embedding_api_key": resolved_embedding_api_key,
-                "embedding_api_base": resolved_embedding_api_base,
-            }
-        },
-    )
-    state.current_topology = result["final_content"] if result["ok"] else result["error"]
-    return state
+        
+    return system_prompt
