@@ -1,0 +1,72 @@
+import numpy as np
+from typing import Dict, List
+from .base_evaluator import BaseEvaluator
+
+class StaticPlausibilityEvaluator(BaseEvaluator):
+    """
+    模組一：靜態合理性評估器
+    負責評估基因電路拓樸與元件選擇的合理性，輸出 C_Plausibility (0.0 ~ 1.0)。
+    """
+    
+    def __init__(self):
+        super().__init__()
+
+    def calculate_ockham_penalty(self, nodes: int, edges: int) -> float:
+        """
+        計算奧卡姆剃刀懲罰 (Ockham Penalty)。
+        複雜度超過 5.5 時開始指數衰減。
+        
+        Args:
+            nodes (int): 電路中的節點數量
+            edges (int): 電路中的邊數量
+            
+        Returns:
+            float: 懲罰係數 (0.0 ~ 1.0)
+        """
+        # 公式: exp(-0.1 * max(0, (nodes + 0.5 * edges) - 5.5))
+        complexity = (nodes + 0.5 * edges) - 5.5
+        penalty = np.exp(-0.1 * max(0.0, complexity))
+        return float(penalty)
+
+    def calculate_repeat_penalty(self, repeat_count: int) -> float:
+        """
+        計算元件重複使用懲罰 (Repeat Penalty)。
+        
+        Args:
+            repeat_count (int): 重複使用的元件次數
+            
+        Returns:
+            float: 懲罰係數 (0.0 ~ 1.0)
+        """
+        # 公式: 0.6 ^ repeat_count
+        penalty = 0.6 ** repeat_count
+        return float(penalty)
+
+    def evaluate(self, topology: Dict, components: List) -> float:
+        """
+        執行靜態合理性評估。
+        
+        Args:
+            topology (Dict): 電路拓樸字典，應至少包含 'nodes' 與 'edges' 的數量資訊。
+                             例如: {'nodes': 5, 'edges': 6}
+            components (List): 選擇的元件清單。用於計算重複使用的元件次數。
+                             
+        Returns:
+            float: C_Plausibility (0.0 ~ 1.0)，為 Ockham 懲罰與 Repeat 懲罰的乘積。
+        """
+        # 1. 取得拓樸的節點與邊數，預設為 0
+        nodes = topology.get("nodes", 0)
+        edges = topology.get("edges", 0)
+        
+        # 2. 計算元件重複次數
+        # 此處邏輯為: 總元件數 - 唯一元件數 = 重複的次數
+        unique_components = set(components)
+        repeat_count = len(components) - len(unique_components)
+        
+        # 3. 計算各項懲罰分數
+        ockham_score = self.calculate_ockham_penalty(nodes, edges)
+        repeat_score = self.calculate_repeat_penalty(repeat_count)
+        
+        # 4. 回傳最終 C_Plausibility
+        c_plausibility = ockham_score * repeat_score
+        return float(c_plausibility)
