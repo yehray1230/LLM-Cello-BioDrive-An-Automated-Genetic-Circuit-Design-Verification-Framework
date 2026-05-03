@@ -1,51 +1,57 @@
 from __future__ import annotations
 
 import json
-
 from schemas.state import CircuitState
-from tools.tool_schemas import TOOL_EXECUTORS, get_critic_tools
-from utils.llm_utils import run_llm_with_tools
+from utils.llm_utils import call_llm
 
 
-def _build_system_prompt(state: CircuitState, *, force_zero_shot: bool) -> str:
+def _build_critic_prompt(state: CircuitState, *, force_zero_shot: bool) -> str:
     system_prompt = (
         "【角色與職責】\n"
-        f"你是一位高階合成生物學審查員（Critic）。你的任務是確保 Builder 提出的基因電路設計既符合「使用者的原始意圖」，又具備在標靶細胞【{state.host_organism}】上的生物物理學可行性與工程穩定性。\n\n"
+        f"你是一位首席合成生物學決策者（Chief Synthetic Biology Decision Maker）。你的任務是確保 Builder 提出的基因電路設計既符合「使用者的原始意圖」，又具備在標靶細胞【{state.host_organism}】上的生物物理學可行性與工程穩定性。\n\n"
         f"【使用者的設計意圖（Target Intent）】：{state.user_intent}\n\n"
-        "【多維度審查法則】\n"
-        "你在審查時必須進行以下三個層次的評估，並於回覆最前方清楚標示對應的標籤：\n\n"
-        "1. 🛑 [INTENT_INVALID 意圖不合理]：檢視使用者的需求本身是否違反分子生物學常理，或超出當前合成生物學技術極限。若是，請指出不合理處，並建議 Builder 如何引導使用者修改目標。\n"
-        "2. ⚠️ [MISALIGNMENT 意圖偏離]：Builder 的設計雖然安全，但卻因為「過度保守」或「邏輯錯誤」而沒有達成使用者的原始意圖（例如：要求振盪器卻給單向開關；或使用者要求細胞裂解，Builder 卻移除了毒性元件）。請要求 Builder 重新對齊意圖。\n"
-        "3. 🛑 [FATAL 致命阻斷]：設計中出現「未預期」的邏輯短路或嚴重的生物工程缺失。⚠️注意：若使用者的意圖本就包含『細胞死亡』、『裂解』或『動態負回饋』，對應的元件毒性即為【合法設計】，絕不可標記為 FATAL，但需嚴格審查其洩漏表現（Leakage）。\n\n"
-        "【重點審查清單 (Checklist)】\n"
-        "在評估是否給出 [FATAL] 或修改建議時，請逐一檢查下列真實工程限制。除了邏輯正確性外，你必須以【實體零件】的角度來批判：\n\n"
-        "4-1 代謝負擔與資源競爭：設計中是否同時開啟過多強啟動子？這在當前的【宿主細胞背景】下，是否會耗盡 ATP 或核糖體導致生長停滯？\n"
-        "4-2 啟動子漏電 (Leakage)：在 OFF 狀態下，系統是否會有微量的基礎表現？對於毒性蛋白質或高敏感度邏輯閘，這是否會導致系統崩潰？\n"
-        "4-3 零件干擾與正交性：系統中多個阻遏蛋白或 RNA 零件的結合位點是否足夠專一？會不會發生交互干擾（Cross-talk）？\n"
-        "4-4 產物毒性：大量表現的中間代謝物對當前宿主是否具備非預期的毒性？（若使用者核心意圖為殺死細胞則忽略此點）。\n"
-        "4-5 訊號匹配與動態範圍：上游邏輯閘輸出的蛋白質濃度，是否足以跨越下游啟動子的感應閾值？（例如：弱啟動子無法驅動需要高濃度阻遏蛋白的開關）。\n"
-        "4-6 時序延遲與競爭危害 (Race Condition)：設計是否忽略了蛋白質轉錄、轉譯與摺疊的時間差？若系統依賴兩個訊號同時到達，是否會因為延遲而產生錯誤的短暫輸出（Glitch）？\n"
-        "4-7 演化穩定性：設計是否包含過多重複序列，導致細胞容易透過同源重組破壞迴路？\n\n"
-        "【工具使用規則】\n"
-        "若你懷疑存在 leakage、毒性、動態不穩定或 race condition，可以主動呼叫 `run_ode_simulation` 工具取得輕量動力學證據，再據此下結論。\n\n"
-        "【審查輸出格式】\n"
-        "請綜合以上條件進行無情但精確的點評。專注於物理與生物矛盾，直接給出修正指令。並在結尾給出明確的【審查結論：通過 (PASS) / 需修改 (REVISE) / 駁回 (REJECT)】。"
+        "【決策邏輯與多維度審查】\n"
+        "你將接收到 3 組候選基因電路的 ODE 評估數據（包含拓樸結構與模擬分數）。請依據以下邏輯進行決策：\n"
+        "1. 如果有表現達標的方案：挑選綜合分數（如 Fold Change 與穩健度）最高的一組，並核准通過。\n"
+        "2. 如果所有方案都失敗，必須進行「根因分析 (Root-cause Analysis)」並退回，且明確標註錯誤類型 (error_type)：\n"
+        "   - 若失敗主因是訊號延遲過長、層級過深、或真值表邏輯本身不符：判定為邏輯錯誤 (LOGIC_ERROR)。\n"
+        "   - 若失敗主因是特定元件毒性過高、表現量不足、RBS 匹配不佳（但邏輯層數合理）：判定為元件錯誤 (PART_ERROR)。\n"
+        "   - 若兩者皆有，或是邏輯過於龐大導致必定選用高毒性元件：判定為混合錯誤 (BOTH)。\n"
+        "   - (備註：原本的 UCF 更換機制保留，若需全盤更換宿主零件庫，可在 recommended_ucf 註明。)\n\n"
+        "【強制輸出格式】\n"
+        "你必須且只能輸出以下 JSON 格式（不可包含 Markdown 標籤，不可有額外文字）：\n"
+        "{\n"
+        '  "decision": "PASS", // 可選值: "PASS", "REVISE"\n'
+        '  "error_type": "NONE", // 可選值: "LOGIC_ERROR", "PART_ERROR", "BOTH", "NONE"\n'
+        '  "selected_index": 0, // 若 PASS，填入選中的陣列索引 (0, 1, 或 2)；若 REVISE 則填 null\n'
+        '  "recommended_ucf": "Eco1C1G1T1", // 若決定全盤更換 UCF 則填入推薦名稱，否則填 null\n'
+        '  "feedback": "詳細決策理由。若是 PART_ERROR，請在此說明哪些元件需替換，以便 Translator 套用約束..."\n'
+        "}\n"
     )
+    
     if force_zero_shot:
-        system_prompt += "\n\n【初始背景】\n目前沒有可靠的靜態元件庫摘要，若需要動態證據請主動使用工具。"
+        system_prompt += "\n\n【初始背景】\n目前沒有可靠的靜態元件庫摘要，請直接依據模擬數據與學理進行審查。"
     else:
         system_prompt += f"\n\n【初始 RAG 參考】\n{state.rag_context}"
+        
     return system_prompt
 
 
 def _build_user_content(state: CircuitState) -> str:
-    if state.seed_debate_transcript:
-        return (
-            "以下是先前辯論逐字稿與 Builder 最新方案。若你需要動力學證據，可先呼叫工具。\n\n"
-            f"{state.seed_debate_transcript}\n\n"
-            f"{state.current_topology or ''}"
-        )
-    return state.current_topology or ""
+    content = "以下是各候選方案的拓樸結構與對應的自動化 ODE 模擬結果：\n\n"
+    
+    candidate_topologies = state.candidate_topologies
+    batch_simulation_results = state.batch_simulation_results
+    
+    if not candidate_topologies or not batch_simulation_results:
+        return "ERROR: 找不到候選方案拓樸結構或模擬數據。"
+        
+    for i, (topo, sim) in enumerate(zip(candidate_topologies, batch_simulation_results)):
+        content += f"=== 候選方案 Index: {i} ===\n"
+        content += f"【拓樸結構】\n{topo}\n\n"
+        content += f"【ODE 模擬分數/結果】\n{json.dumps(sim, ensure_ascii=False, indent=2)}\n\n"
+        
+    return content
 
 
 def call_critic(
@@ -57,32 +63,87 @@ def call_critic(
     force_zero_shot: bool = False,
     max_tool_rounds: int = 3,
 ) -> CircuitState:
-    result = run_llm_with_tools(
-        api_key=api_key,
-        model_name=model_name,
-        system_prompt=_build_system_prompt(state, force_zero_shot=force_zero_shot),
-        user_content=_build_user_content(state),
-        tools=get_critic_tools(),
-        tool_executors=TOOL_EXECUTORS,
-        api_base=api_base,
-        temperature=0.2,
-        max_tool_rounds=max_tool_rounds,
-        error_prefix="Critic",
-    )
+    
+    batch_simulation_results = state.batch_simulation_results
+    candidate_topologies = state.candidate_topologies
+    
+    # 檢查是否為空
+    if not batch_simulation_results:
+        error_msg = "ERROR: No batch_simulation_results available for Critic to evaluate."
+        state.critic_feedbacks.append(error_msg)
+        state.is_approved = False
+        state.last_error = error_msg
+        return state
 
-    latest_simulation_payload: dict | None = None
-    for tool_output in result["tool_outputs"]:
-        if tool_output["tool_name"] == "run_ode_simulation" and not str(tool_output["content"]).startswith("TOOL_ERROR:"):
-            try:
-                latest_simulation_payload = json.loads(tool_output["content"])
-            except Exception:
-                latest_simulation_payload = {"raw_tool_output": tool_output["content"]}
+    system_prompt = _build_critic_prompt(state, force_zero_shot=force_zero_shot)
+    user_content = _build_user_content(state)
 
-    if latest_simulation_payload is not None:
-        state.simulation_results = latest_simulation_payload
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            raw_response = call_llm(
+                api_key=api_key,
+                model_name=model_name,
+                system_prompt=system_prompt,
+                user_content=user_content,
+                api_base=api_base,
+            )
+            
+            # 清理可能的 Markdown 標籤，確保可以解析為 JSON
+            cleaned_response = raw_response.strip()
+            if cleaned_response.startswith("```json"):
+                cleaned_response = cleaned_response[7:]
+            if cleaned_response.startswith("```"):
+                cleaned_response = cleaned_response[3:]
+            if cleaned_response.endswith("```"):
+                cleaned_response = cleaned_response[:-3]
+            cleaned_response = cleaned_response.strip()
+            
+            parsed_json = json.loads(cleaned_response)
+            
+            # --- 解析新增的 error_type ---
+            decision = parsed_json.get("decision", "REVISE")
+            error_type = parsed_json.get("error_type", "NONE")
+            selected_index = parsed_json.get("selected_index")
+            recommended_ucf = parsed_json.get("recommended_ucf")
+            feedback = parsed_json.get("feedback", "No feedback provided.")
+            
+            # 將分類結果寫入 State
+            state.error_type = error_type
+            
+            if decision == "PASS" and selected_index is not None:
+                state.is_approved = True
+                try:
+                    # 將選中的拓樸寫入 state.best_topology
+                    state.best_topology = candidate_topologies[int(selected_index)]
+                except (IndexError, ValueError, TypeError):
+                    state.best_topology = None
+                    feedback = f"Warning: Valid PASS but invalid selected_index {selected_index}. {feedback}"
+                state.critic_feedbacks.append(feedback)
+            else:
+                state.is_approved = False
+                # 將路由意圖與錯誤類型一併存入 state 供後續追蹤
+                if recommended_ucf:
+                    state.critic_feedbacks.append(f"[ROUTE: {decision}] [ERROR: {error_type}] [UCF: {recommended_ucf}] {feedback}")
+                else:
+                    state.critic_feedbacks.append(f"[ROUTE: {decision}] [ERROR: {error_type}] {feedback}")
+                
+            # 成功解析則跳出重試迴圈
+            break
+            
+        except json.JSONDecodeError as e:
+            if attempt == max_retries - 1:
+                error_msg = f"ERROR: Critic failed to output valid JSON after {max_retries} attempts."
+                state.critic_feedbacks.append(error_msg)
+                state.is_approved = False
+                state.last_error = error_msg
+            else:
+                user_content += f"\n\nSystem Error: Failed to parse your response as JSON ({str(e)}). Please output ONLY valid JSON without Markdown tags."
+        except Exception as e:
+            error_msg = f"ERROR: critic execution failed: {str(e)}"
+            state.critic_feedbacks.append(error_msg)
+            state.is_approved = False
+            state.last_error = error_msg
+            break
 
-    critic_feedback = result["final_content"] if result["ok"] else result["error"]
-    state.critic_feedbacks.append(critic_feedback)
-    if result["ok"]:
-        state.is_approved = "FATAL" not in critic_feedback.upper()
     return state
