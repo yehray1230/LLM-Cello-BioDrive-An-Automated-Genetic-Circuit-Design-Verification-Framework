@@ -10,6 +10,9 @@ from scipy.integrate import solve_ivp
 import sympy as sp
 import asyncio
 import urllib.parse
+from joblib import Memory
+
+memory = Memory(location='./.ode_cache', verbose=0)
 
 HOST_BASELINES = {
     "Escherichia coli (大腸桿菌)": {
@@ -18,7 +21,9 @@ HOST_BASELINES = {
         "mrna_deg_rate": 0.00167,
         "protein_deg_rate": 0.00083,
         "kd": 1000.0,
-        "n": 2.0
+        "n": 2.0,
+        "total_rnap": 50.0,
+        "total_ribosomes": 500.0
     },
     "Bacillus subtilis (枯草桿菌)": {
         "transcription_rate": 6.5,
@@ -26,7 +31,9 @@ HOST_BASELINES = {
         "mrna_deg_rate": 0.002,
         "protein_deg_rate": 0.0005,
         "kd": 1200.0,
-        "n": 2.0
+        "n": 2.0,
+        "total_rnap": 40.0,
+        "total_ribosomes": 400.0
     },
     "Saccharomyces cerevisiae (釀酒酵母)": {
         "transcription_rate": 0.5,
@@ -34,7 +41,9 @@ HOST_BASELINES = {
         "mrna_deg_rate": 0.0005,
         "protein_deg_rate": 0.0001,
         "kd": 500.0,
-        "n": 2.0
+        "n": 2.0,
+        "total_rnap": 150.0,
+        "total_ribosomes": 2000.0
     }
 }
 
@@ -79,7 +88,7 @@ def normalize_parameter(raw_value: float, raw_unit: str, param_type: str) -> flo
         return float(raw_value) / TIME_CONVERSION[time_unit]
         
     # Check simple concentration for kd
-    if param_type == "kd":
+    if param_type in ["kd", "km_rnap", "km_ribo"]:
         if unit_str not in CONC_CONVERSION:
             raise ValueError(f"Unknown concentration unit: {raw_unit}")
         return float(raw_value) * CONC_CONVERSION[unit_str]
@@ -157,6 +166,7 @@ def mine_biochemical_data(parts: list[str], api_key: str | None = None, model_na
     system_prompt = f"""You are a Biochemical Data Miner Agent.
 Your task is to extract ODE simulation parameters for the provided genetic parts based on the web scraping context.
 If the exact parameter is NOT found, you MUST provide a reasonable empirical default value for the host organism {host_organism} and mark `is_empirical` as true.
+You must also extract or estimate the promoter's affinity for RNA polymerase (km_rnap) and the RBS's affinity for ribosomes (km_ribo). If exact values are not found in the context, provide empirical defaults (e.g., km_rnap ≈ 100 nM, km_ribo ≈ 500 nM) and mark `is_empirical` as true.
 
 CRITICAL INSTRUCTION:
 - You must extract the EXACT textual unit found in the context (e.g. `uM/min`, `1/hr`, `nM`, etc.) into `raw_unit` and its numeric amount into `raw_value`.
@@ -193,6 +203,12 @@ Please extract or estimate the following parameters. Output ONLY a JSON dictiona
   }},
   "n": {{
     "raw_value": 2.0, "raw_unit": "dimensionless", "is_empirical": true
+  }},
+  "km_rnap": {{
+    "raw_value": 100.0, "raw_unit": "nM", "is_empirical": true
+  }},
+  "km_ribo": {{
+    "raw_value": 500.0, "raw_unit": "nM", "is_empirical": true
   }}
 }}
 """
@@ -239,13 +255,17 @@ Please extract or estimate the following parameters. Output ONLY a JSON dictiona
             "mrna_deg_rate": get_norm_val("mrna_deg_rate"),
             "protein_deg_rate": get_norm_val("protein_deg_rate"),
             "kd": get_norm_val("kd"),
-            "n": get_norm_val("n")
+            "n": get_norm_val("n"),
+            "km_rnap": get_norm_val("km_rnap"),
+            "km_ribo": get_norm_val("km_ribo")
         }
         
     except Exception as e:
         # LLM 解析失敗或 API 錯誤時的保險機制 (Fallback)
         baseline = HOST_BASELINES.get(host_organism, HOST_BASELINES["Escherichia coli (大腸桿菌)"])
         params = baseline.copy()
+        params["km_rnap"] = 100.0
+        params["km_ribo"] = 500.0
         data = {
             "error": str(e),
             "notes": f"Data Miner Agent encountered an error. Falling back to safe hardcoded defaults for {host_organism} to prevent unhandled exceptions."
@@ -358,6 +378,16 @@ def circuit_dynamics(t, y, params, stimulus_funcs, topology):
             repressions[interaction["target"]].append(interaction["source"])
         elif interaction.get("type", "").lower() in ["activation", "activate"]:
             activations[interaction["target"]].append(interaction["source"])
+            
+    # 1. 取得總體資源與設定
+    total_rnap = params.get("total_rnap", 50.0)
+    total_ribosomes = params.get("total_ribosomes", 500.0)
+    plasmid_conc = 20.0
+    
+    # 2. 第一階段迴圈 (結算啟動子活性與資源佔用分母)
+    stored_promoter_activity = []
+    rnap_binding_sum = 0.0
+    ribo_binding_sum = 0.0
     
     for i, target_species in enumerate(species):
         promoter_activity = 1.0
@@ -389,18 +419,38 @@ def circuit_dynamics(t, y, params, stimulus_funcs, topology):
             n_act = params.get(f"n_{activator}", params.get("n", 2.0))
             act_term = (act_conc / Kd_act)**n_act
             promoter_activity *= act_term / (1.0 + act_term)
+            
+        stored_promoter_activity.append(promoter_activity)
         
-        # 支援針對不同物種獨立取得參數，若無則 fallback 到通用參數
+        # 取得該 species 的競爭力參數
+        km_rnap = params.get(f"km_rnap_{target_species}", params.get("km_rnap", 100.0))
+        km_ribo = params.get(f"km_ribo_{target_species}", params.get("km_ribo", 500.0))
+        
+        # 累加資源佔用項
+        rnap_binding_sum += (plasmid_conc * promoter_activity) / km_rnap
+        ribo_binding_sum += mRNAs[i] / km_ribo
+        
+    # 3. 計算游離資源 (Free Resources)
+    free_rnap = total_rnap / (1.0 + rnap_binding_sum)
+    free_ribo = total_ribosomes / (1.0 + ribo_binding_sum)
+    
+    # 4. 第二階段迴圈 (計算速率與 dy_dt)
+    for i, target_species in enumerate(species):
         leakage = params.get(f"leakage_{target_species}", params.get("leakage", 0.005))
         tx_rate = params.get(f"transcription_rate_{target_species}", params.get("transcription_rate", 8.33))
         mrna_deg = params.get(f"mrna_deg_rate_{target_species}", params.get("mrna_deg_rate", 0.00167))
         tl_rate = params.get(f"translation_rate_{target_species}", params.get("translation_rate", 0.033))
         prot_deg = params.get(f"protein_deg_rate_{target_species}", params.get("protein_deg_rate", 0.00083))
         
-        effective_tx_rate = tx_rate * (leakage + (1.0 - leakage) * promoter_activity)
+        km_rnap = params.get(f"km_rnap_{target_species}", params.get("km_rnap", 100.0))
+        km_ribo = params.get(f"km_ribo_{target_species}", params.get("km_ribo", 500.0))
+        
+        # 套用 Michaelis-Menten 動力學修正實際速率
+        effective_tx_rate = tx_rate * (leakage + (1.0 - leakage) * stored_promoter_activity[i]) * (free_rnap / (km_rnap + free_rnap))
+        actual_tl_rate = tl_rate * mRNAs[i] * (free_ribo / (km_ribo + free_ribo))
         
         dy_dt[i] = effective_tx_rate - mrna_deg * mRNAs[i]
-        dy_dt[num_species + i] = tl_rate * mRNAs[i] - prot_deg * proteins[i]
+        dy_dt[num_species + i] = actual_tl_rate - prot_deg * proteins[i]
         
     return dy_dt
 
@@ -423,7 +473,7 @@ def create_stimulus_func(curve_config):
             return lambda t: 0.0
     return lambda t: 0.0
 
-def run_ode_simulation(params: dict, topology: dict = None, stimulus_curves: dict = None):
+def run_ode_simulation(params: dict, topology: dict = None, stimulus_curves: dict = None, output_image_path: str = None):
     """
     動態 ODE 模擬引擎主函數：
     1. 接收自訂或預設的電路拓樸。
@@ -496,6 +546,27 @@ def run_ode_simulation(params: dict, topology: dict = None, stimulus_curves: dic
            
     df = pd.DataFrame(df_dict)
     
+    if output_image_path:
+        plt.figure(figsize=(10, 6))
+        for sp_name in topology["species"]:
+            if sp_name in df.columns:
+                plt.plot(df["Time"], df[sp_name], label=f"{sp_name} Protein")
+            if f"{sp_name}_mRNA" in df.columns:
+                plt.plot(df["Time"], df[f"{sp_name}_mRNA"], '--', alpha=0.5, label=f"{sp_name} mRNA")
+                
+        for ind_name in stimulus_funcs.keys():
+            if f"Input_{ind_name}" in df.columns:
+                plt.plot(df["Time"], df[f"Input_{ind_name}"], 'k:', label=f"Input: {ind_name}")
+                
+        plt.title("Circuit Dynamics")
+        plt.xlabel("Time (s)")
+        plt.ylabel("Concentration (nM)")
+        plt.legend(loc='upper right', bbox_to_anchor=(1.25, 1.0))
+        plt.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.savefig(output_image_path, dpi=300, bbox_inches='tight')
+        plt.close() # 關閉畫布避免記憶體洩漏
+    
     return df
 
 import concurrent.futures
@@ -520,8 +591,7 @@ def generate_noisy_parameters(base_params: dict, variance: float = 0.15, num_sam
         samples.append(noisy_param)
     return samples
 
-def run_monte_carlo_ode_simulation(base_params: dict, topology: dict = None, stimulus_curves: dict = None, num_samples: int = 50, noise_level: float = 0.15) -> list[pd.DataFrame]:
-    """平行執行多次不同微噪音參數的 ODE 模擬"""
+def _core_run_monte_carlo_ode_simulation(base_params: dict, topology: dict, stimulus_curves: dict, num_samples: int, noise_level: float) -> list[pd.DataFrame]:
     noisy_params_list = generate_noisy_parameters(base_params, variance=noise_level, num_samples=num_samples)
     
     results = []
@@ -541,3 +611,24 @@ def run_monte_carlo_ode_simulation(base_params: dict, topology: dict = None, sti
                 results.append(res_df)
                 
     return results
+
+@memory.cache
+def _cached_run_monte_carlo_ode_simulation(base_params_json: str, topology_json: str, stimulus_curves_json: str, num_samples: int, noise_level: float) -> list[pd.DataFrame]:
+    base_params = json.loads(base_params_json)
+    topology = json.loads(topology_json) if topology_json != "null" else None
+    stimulus_curves = json.loads(stimulus_curves_json) if stimulus_curves_json != "null" else None
+    return _core_run_monte_carlo_ode_simulation(base_params, topology, stimulus_curves, num_samples, noise_level)
+
+def run_monte_carlo_ode_simulation(base_params: dict, topology: dict = None, stimulus_curves: dict = None, num_samples: int = 50, noise_level: float = 0.15, use_cache: bool = True) -> list[pd.DataFrame]:
+    """平行執行多次不同微噪音參數的 ODE 模擬 (含 Disk Cache 支援開關)"""
+    if use_cache:
+        base_params_json = json.dumps(base_params, sort_keys=True)
+        topology_json = json.dumps(topology, sort_keys=True) if topology is not None else "null"
+        stimulus_curves_json = json.dumps(stimulus_curves, sort_keys=True) if stimulus_curves is not None else "null"
+        return _cached_run_monte_carlo_ode_simulation(base_params_json, topology_json, stimulus_curves_json, num_samples, noise_level)
+    else:
+        return _core_run_monte_carlo_ode_simulation(base_params, topology, stimulus_curves, num_samples, noise_level)
+
+def clear_ode_cache():
+    """清除 ODE 模擬的快取"""
+    memory.clear(warn=False)
