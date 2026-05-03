@@ -22,6 +22,18 @@ class CircuitState(BaseModel):
         description="Retrieved RAG context",
     )
     current_round: int = Field(default=0, description="Current iteration round")
+
+    current_ucf: str = Field(
+        default="Eco1C1G1T1", 
+        description="Current UCF used for Cello mapping"
+    )
+
+    logic_proposals: List[str] = Field(default_factory=list)
+    verilog_codes: List[str] = Field(default_factory=list)
+    candidate_topologies: List[Dict[str, Any]] = Field(default_factory=list)
+    batch_simulation_results: List[Dict[str, Any]] = Field(default_factory=list)
+    best_topology: Optional[Dict[str, Any]] = Field(default=None)
+
     current_topology: Optional[str] = Field(
         default=None,
         description="Latest Builder design draft",
@@ -53,6 +65,15 @@ class CircuitState(BaseModel):
     last_error: Optional[str] = Field(
         default=None,
         description="Last workflow error message",
+    )
+    # === 新增：HITL 與錯誤路由控制欄位 ===
+    human_feedback: Optional[str] = Field(
+        default=None,
+        description="Human-in-the-loop (HITL) 介入時輸入的追加條件或拒絕理由，若有值則優先導回 Builder。",
+    )
+    error_type: Optional[str] = Field(
+        default=None,
+        description="Critic 判定的錯誤分類：'LOGIC_ERROR', 'PART_ERROR', 'BOTH' 或 'NONE'。",
     )
 
     @property
