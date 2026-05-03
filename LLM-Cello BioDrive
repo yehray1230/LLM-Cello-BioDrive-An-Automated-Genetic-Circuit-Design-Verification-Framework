@@ -2,6 +2,7 @@ import re
 import streamlit as st
 import litellm
 import litellm.exceptions
+import utils.llm_utils as llm_utils
 
 from tools.vector_retriever import get_compressed_rag_context_v2
 from schemas.state import CircuitState
@@ -13,114 +14,6 @@ from schemas.state import CircuitState
 def _model_requires_api_key(model_name: str) -> bool:
     # LiteLLM: ollama/* 走本地，不需要 API key；其他供應商通常需要
     return not str(model_name or "").startswith("ollama/")
-
-def _validate_verilog_ast(code: str) -> tuple[bool, str]:
-    """輕量級正則語意校驗，確保具備 Cello Verilog 所需基本要素。"""
-    if "module " not in code or "endmodule" not in code:
-        return False, "缺乏 `module` 或 `endmodule` 宣告。"
-    if "input " not in code:
-        return False, "缺乏 `input` 腳位宣告。"
-    if "output " not in code:
-        return False, "缺乏 `output` 腳位宣告。"
-    # 簡易邏輯運算字眼檢查
-    has_logic = any(kw in code for kw in ["and(", "or(", "not(", "nor(", "nand(", "assign "])
-    if not has_logic:
-        return False, "缺乏具體邏輯運算 (如 and, or, not) 或 assign 語句。"
-    return True, ""
-
-
-def generate_verilog(user_intent: str, api_key: str | None, model_name: str, api_base: str | None = None) -> str:
-    """
-    專家四：Verilog 編譯器 (Verilog Compiler)
-    使用指定的 OpenAI API Key，根據使用者的自然語言需求（通常為設計整合者所產出的規格），
-    產生對應的 Cello Verilog 程式碼。
-
-    回傳：
-    - 成功：純 Verilog 程式碼字串。
-    - 失敗：以「錯誤：」開頭的錯誤訊息字串（方便前端識別）。
-    """
-    if _model_requires_api_key(model_name) and (not api_key or not api_key.strip()):
-        return "錯誤：尚未提供模型供應商 API Key。"
-
-    if not user_intent or not user_intent.strip():
-        return "錯誤：自然語言需求不可為空白。"
-
-    
-    system_prompt = """You are an expert biological circuit compiler for the Cello CAD software. Your ONLY job is to translate structured specifications into standard structural/dataflow Verilog code.
-
-STRICT RULES:
-
-1. Output ONLY raw, valid Verilog code.
-2. NO Markdown formatting (Do NOT use ```verilog or ```).
-3. Convert "Biological_Constraints" and "Selected_Parts" into Verilog comments using `// Cello pragma:` at the top.
-4. 【Logic Translation Rules】:
-   - For simple combinational logic, use gates (and, or, not, etc.) or assign statements.
-   - For sequential biological logic (e.g., biological memory, toggle switches), use Behavioral Verilog (e.g., `reg`, `always` blocks, edge triggers) to represent state changes.
-   - For temporal dynamics (e.g., delayed expression, lysis countdown), you may use Verilog delay syntax (e.g., `#10`) to model the biological time delay.
-5. 【Multi-Cellular Consortia】: If the specification involves multiple cell types communicating with each other (e.g., Sender and Receiver), you MUST output multiple separate `module` blocks, and potentially a top-level module to wire the intercellular chemical signals together.
-"""
-
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {
-            "role": "user",
-            "content": (
-                "請根據以下自然語言描述，設計對應的 Cello Verilog 基因電路：\n"
-                f"{user_intent}"
-            ),
-        },
-    ]
-
-    max_retries = 3
-
-    for attempt in range(max_retries):
-        try:
-            response = litellm.completion(
-                model=model_name,
-                messages=messages,
-                temperature=0.2,  # 降低隨機性，讓輸出更穩定
-                api_key=api_key.strip() if api_key and api_key.strip() else None,
-                api_base=api_base.strip() if api_base and api_base.strip() else None,
-            )
-
-            raw_output = response.choices[0].message["content"]
-
-            # 正規表達式區塊萃取：只捕捉 // Cello pragma 註解以及 module ... endmodule 內容
-            match = re.search(r"(?s)(?:^\s*//.*?\n)*module\s+\w+\s*\(.*?\);.*?endmodule", raw_output, re.MULTILINE)
-            if not match:
-                err_msg = "無法從輸出中萃取完整的 Verilog 區塊 (module ... endmodule)。"
-                if attempt < max_retries - 1:
-                    messages.append({"role": "assistant", "content": raw_output})
-                    messages.append({"role": "user", "content": f"【格式校驗失敗】{err_msg} 請務必只產出純 Verilog 程式碼，移除其餘非語法宣告的對白與 Markdown。"})
-                    continue
-                return f"錯誤：{err_msg}\n模型輸出原文：\n{raw_output}"
-
-            extracted_code = match.group(0).strip()
-
-            # 輕量級語法與語意校驗
-            is_valid, val_err = _validate_verilog_ast(extracted_code)
-            if not is_valid:
-                if attempt < max_retries - 1:
-                    messages.append({"role": "assistant", "content": extracted_code})
-                    messages.append({"role": "user", "content": f"【語意校驗失敗】{val_err} 請修正後重新產出。"})
-                    continue
-                return f"錯誤：多次重試後語法校驗依然失敗：{val_err}"
-
-            # 若通過校驗，立即返回
-            return extracted_code
-
-        except litellm.exceptions.AuthenticationError:
-            return "錯誤：模型供應商 API 驗證失敗，請確認 API Key 是否正確與有效。"
-        except litellm.exceptions.RateLimitError:
-            return "錯誤：已達到模型供應商使用上限或額度不足，請稍後再試或檢查帳戶狀態。"
-        except litellm.exceptions.BadRequestError as e:
-            return f"錯誤：請求參數不正確：{str(e)}"
-        except litellm.exceptions.APIError as e:
-            return f"錯誤：呼叫模型供應商 API 時發生問題：{str(e)}"
-        except Exception as e:
-            return f"錯誤：系統發生未預期錯誤：{str(e)}"
-
-    return "錯誤：產生 Verilog 失敗，超過最大重試次數。"
 
 
 # =========================
@@ -287,6 +180,14 @@ def main():
         )
 
         st.markdown("---")
+        st.subheader("LLM 快取設定")
+        enable_llm_cache_checkbox = st.checkbox("啟用 LLM 快取 (Enable LLM Cache)", value=True)
+        llm_utils.ENABLE_LLM_CACHE = enable_llm_cache_checkbox
+        if st.button("🧹 清除 LLM 快取"):
+            llm_utils.clear_llm_cache()
+            st.success("LLM 快取已成功清除！")
+
+        st.markdown("---")
         st.subheader("Embeddings / RAG 設定")
 
         embed_provider = st.selectbox(
@@ -354,6 +255,14 @@ def main():
             )
         else:
             st.info("你已選擇 Local (Ollama)。請確認本地端 Ollama 服務已啟動（例如 `ollama serve`），且模型已下載。")
+            
+        st.markdown("---")
+        st.subheader("ODE 模擬快取設定")
+        enable_ode_cache = st.checkbox("啟用 ODE 模擬快取 (Enable ODE Cache)", value=True)
+        if st.button("清除模擬快取 (Clear ODE Cache)"):
+            from tools.ode_simulator import clear_ode_cache
+            clear_ode_cache()
+            st.success("模擬快取已成功清除！")
 
     # 主畫面標題與說明
     st.title("LLM-Cello BioDrive: 基於大型語言模型之基因電路自動化轉譯框架")
@@ -366,6 +275,14 @@ def main():
         index=0,
         help="選擇底盤細胞將強制約束後續的轉譯、多智能體除錯範圍與 ODE 解算基底參數。"
     )
+
+    col_ctrl1, col_ctrl2, col_ctrl3 = st.columns(3)
+    with col_ctrl1:
+        enable_rag = st.checkbox("啟用 RAG (檢索增強生成)", value=True, help="開啟時將會從元件庫檢索相關資料；關閉時將使用模型內部知識 (Zero-shot)。")
+    with col_ctrl2:
+        enable_ode = st.checkbox("啟用自動化 ODE 模擬", value=True, help="開啟時會在 Builder 產出設計後自動進行 ODE 模擬，並提供給 Critic 參考。")
+    with col_ctrl3:
+        use_multi_agent = st.checkbox("啟用 Multi-Agent 架構", value=True, help="開啟時使用 Builder/Critic 迭代審查。關閉時直接將 Builder 輸出視為最終設計。")
 
     # 多行文字輸入框：讓使用者輸入自然語言需求
     user_intent = st.text_area(
@@ -391,8 +308,10 @@ def main():
         st.markdown("---")
         st.markdown("**合成生物學硬體描述語言生成中 (Generating HDL)…**")
         with st.spinner("HDL 生成中 (Generating HDL)…"):
-            verilog_result = generate_verilog(final_spec, llm_api_key, model_name, api_base=llm_api_base)
+            # verilog_result = generate_verilog(final_spec, llm_api_key, model_name, api_base=llm_api_base)
+            verilog_result = "錯誤：generate_verilog 函式已停用。此段轉譯流程將由 reflexion_controller.py 全權接管。"
         if verilog_result.startswith("錯誤："):
+
             st.error(verilog_result)
             return False
         st.session_state["last_verilog"] = verilog_result
@@ -411,23 +330,27 @@ def main():
             run_id = int(st.session_state["debate_run_id"])
             intent_clean = user_intent.strip()
                 
-            with st.spinner("動態檢索與特徵萃取元件庫中 (Retrieving Component Features)..."):
-                rag_context = get_compressed_rag_context_v2(
-                    intent_clean,
-                    embedding_model=embedding_model,
-                    embedding_api_key=embedding_api_key,
-                    embedding_api_base=embedding_api_base,
-                )
-            force_zero_shot = False
-            if rag_context.startswith("錯誤："):
-                st.warning(f"{rag_context} 將切換為「無依賴備援生成模式 (Fallback Generation Mode)」，使用離線基礎元件庫進行推論。")
-                try:
-                    import json
-                    with open("default_cello_gates.json", "r", encoding="utf-8") as f:
-                        fallback_data = json.load(f)
-                        rag_context = "\n".join(fallback_data)
-                except Exception:
-                    rag_context = "【基礎感測器 Sensor】IPTG 感測器 (Tac), aTc 感測器 (Tet)\n【邏輯閘 Gate】NOT Gate, NOR Gate\n【輸出元件】YFP"
+            if enable_rag:
+                with st.spinner("動態檢索與特徵萃取元件庫中 (Retrieving Component Features)..."):
+                    rag_context = get_compressed_rag_context_v2(
+                        intent_clean,
+                        embedding_model=embedding_model,
+                        embedding_api_key=embedding_api_key,
+                        embedding_api_base=embedding_api_base,
+                    )
+                force_zero_shot = False
+                if rag_context.startswith("錯誤："):
+                    st.warning(f"{rag_context} 將切換為「無依賴備援生成模式 (Fallback Generation Mode)」，使用離線基礎元件庫進行推論。")
+                    try:
+                        import json
+                        with open("default_cello_gates.json", "r", encoding="utf-8") as f:
+                            fallback_data = json.load(f)
+                            rag_context = "\n".join(fallback_data)
+                    except Exception:
+                        rag_context = "【基礎感測器 Sensor】IPTG 感測器 (Tac), aTc 感測器 (Tet)\n【邏輯閘 Gate】NOT Gate, NOR Gate\n【輸出元件】YFP"
+                        force_zero_shot = True
+            else:
+                rag_context = "（使用者已手動停用 RAG，請直接依據內部知識庫與學理設計）"
                 force_zero_shot = True
 
             with st.expander("查看檢索到的可用元件 (RAG Context)", expanded=False):
@@ -473,7 +396,9 @@ def main():
                     on_round_complete=on_round_complete,
                     api_base=llm_api_base,
                     force_zero_shot=force_zero_shot,
-                    host_organism=host_organism
+                    host_organism=host_organism,
+                    enable_ode=enable_ode,
+                    use_multi_agent=use_multi_agent
                 )
                 session_rounds = [
                     {"builder": record.builder_output, "critic": record.critic_output}
@@ -482,7 +407,7 @@ def main():
                 final_design_v3 = final_state.current_topology
                 err_msg = final_state.last_error
                 if not ok:
-                    st.error(err_msg or "辯論過程發生錯誤。")
+                    st.error(err_msg or "設計過程發生錯誤。")
                 elif final_design_v3 is not None:
                     st.session_state["debate_review"] = {
                         "sessions": [session_rounds],
@@ -491,7 +416,11 @@ def main():
                         "rag_context": rag_context,
                         "force_zero_shot": force_zero_shot,
                     }
-                    st.success("已完成三輪對抗式迭代。請檢視模擬結果並指定後續排程。")
+                    if not use_multi_agent:
+                        st.session_state["consolidated_design"] = final_design_v3
+                        st.success("已完成單一 Agent 設計。請檢視結果並指定後續排程。")
+                    else:
+                        st.success("已完成三輪對抗式迭代。請檢視模擬結果並指定後續排程。")
 
     # ---------- 辯論後人機審核：完整對話 + 三選一 ----------
     dr = st.session_state.get("debate_review")
@@ -634,7 +563,7 @@ def main():
                                 
                                 # 使用預設空參數即可 (會 fall back 到通用設定)
                                 from tools.ode_simulator import run_monte_carlo_ode_simulation
-                                dfs = run_monte_carlo_ode_simulation({}, topology=test_topology, stimulus_curves=stim_dict, num_samples=NUM_SAMPLES, noise_level=noise_level)
+                                dfs = run_monte_carlo_ode_simulation({}, topology=test_topology, stimulus_curves=stim_dict, num_samples=NUM_SAMPLES, noise_level=noise_level, use_cache=enable_ode_cache)
                                 
                                 for i, df in enumerate(dfs):
                                     mc_ode_results[i][state_name] = df
@@ -700,7 +629,9 @@ def main():
                         rerun_state,
                         api_base=llm_api_base,
                         force_zero_shot=dr.get("force_zero_shot", False),
-                        host_organism=host_organism
+                        host_organism=host_organism,
+                        enable_ode=enable_ode,
+                        use_multi_agent=use_multi_agent
                     )
                     new_sess = [
                         {"builder": record.builder_output, "critic": record.critic_output}
@@ -746,7 +677,9 @@ def main():
                             appended_state,
                             api_base=llm_api_base,
                             force_zero_shot=dr.get("force_zero_shot", False),
-                            host_organism=host_organism
+                            host_organism=host_organism,
+                            enable_ode=enable_ode,
+                            use_multi_agent=use_multi_agent
                         )
                         new_sess = [
                             {"builder": record.builder_output, "critic": record.critic_output}
@@ -825,7 +758,7 @@ def main():
             
             from tools.ode_simulator import run_monte_carlo_ode_simulation
             with st.spinner("正在呼叫 scipy.integrate.solve_ivp 解算蒙地卡羅非線性模型 (50 Samples)..."):
-                dfs = run_monte_carlo_ode_simulation(resolved_params, topology=topo_dict, stimulus_curves=stim_dict, num_samples=50)
+                dfs = run_monte_carlo_ode_simulation(resolved_params, topology=topo_dict, stimulus_curves=stim_dict, num_samples=50, use_cache=enable_ode_cache)
                 
             st.success("✅ 蒙地卡羅 ODE 陣列積分完成！")
             
