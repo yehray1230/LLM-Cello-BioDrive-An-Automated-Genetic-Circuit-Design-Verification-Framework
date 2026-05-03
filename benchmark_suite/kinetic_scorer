@@ -1,0 +1,137 @@
+import numpy as np
+import pandas as pd
+from typing import Dict, List, Any
+from .base_evaluator import BaseEvaluator
+
+class KineticScorer(BaseEvaluator):
+    """
+    模組三：動力學穩健度評估器
+    接收帶有參數噪音的多組蒙地卡羅 ODE 模擬結果（DataFrame 列表），
+    輸出穩健度保留係數、時序得分與毒性懲罰係數。
+    這三個係數皆嚴格介於 0.0 到 1.0 之間。
+    """
+    
+    def __init__(self, 
+                 thresh_on: float = 1000.0, 
+                 limit_soft: float = 45000.0, 
+                 k_burden: float = 0.001, 
+                 k_cv: float = 2.0):
+        super().__init__()
+        self.thresh_on = thresh_on
+        self.limit_soft = limit_soft
+        self.k_burden = k_burden
+        self.k_cv = k_cv
+        
+        # 用於暫存內部度量數據，供 evaluate 方法打包輸出
+        self._raw_metrics: Dict[str, float] = {}
+
+    def _compute_robustness_retention(self, mc_results: List[Dict[str, pd.DataFrame]], target_spec: Dict[str, int], target_species: str, fc_ideal: float) -> float:
+        """
+        計算雜訊環境下的 Fold Change 變異與衰減。
+        """
+        fc_list = []
+        for sample in mc_results:
+            on_vals = [df[target_species].iloc[-1] for state, df in sample.items() if target_spec.get(state) == 1]
+            off_vals = [df[target_species].iloc[-1] for state, df in sample.items() if target_spec.get(state) == 0]
+            
+            # 若全為 OFF 或全為 ON，FC 設為 1.0
+            if not on_vals or not off_vals:
+                fc = 1.0
+            else:
+                fc = min(on_vals) / (max(off_vals) + 1e-6)
+            fc_list.append(fc)
+            
+        fc_mean = float(np.mean(fc_list)) if fc_list else 0.0
+        fc_std = float(np.std(fc_list, ddof=0)) if fc_list else 0.0
+        
+        cv = (fc_std / fc_mean) if fc_mean > 0 else 0.0
+        retention = min(1.0, fc_mean / fc_ideal)
+        
+        score = np.exp(-self.k_cv * cv) * retention
+        
+        self._raw_metrics["fc_mean"] = fc_mean
+        self._raw_metrics["cv"] = cv
+        
+        return float(score)
+
+    def _compute_temporal_efficiency(self, mc_results: List[Dict[str, pd.DataFrame]], target_spec: Dict[str, int], target_species: str, t_target: float) -> float:
+        """
+        計算目標產物跨越 Thresh_ON 所需的上升時間 (Rise Time)。
+        """
+        rise_times = []
+        for sample in mc_results:
+            for state, df in sample.items():
+                if target_spec.get(state) == 1:
+                    # 嘗試找出時間欄位
+                    t_col = 'Time' if 'Time' in df.columns else ('time' if 'time' in df.columns else df.columns[0])
+                    
+                    crossed = df[df[target_species] >= self.thresh_on]
+                    if not crossed.empty:
+                        rise_time = crossed[t_col].iloc[0]
+                    else:
+                        rise_time = df[t_col].iloc[-1] # 未跨越則紀錄該次模擬最大時間
+                        
+                    rise_times.append(float(rise_time))
+                    
+        t_rise_avg = float(np.mean(rise_times)) if rise_times else 0.0
+        
+        # 避免 t_target 為 0 導致除以 0
+        lambda_const = np.log(2) / max(t_target, 1e-6)
+        score = np.exp(-lambda_const * t_rise_avg)
+        
+        self._raw_metrics["t_rise_avg"] = t_rise_avg
+        
+        return float(score)
+
+    def _compute_burden_penalty(self, mc_results: List[Dict[str, pd.DataFrame]], target_species: str) -> float:
+        """
+        掃描非目標蛋白質（輔助阻遏蛋白）的最大濃度累積量。
+        """
+        max_burden = 0.0
+        for sample in mc_results:
+            for state, df in sample.items():
+                # 過濾出所有非目標蛋白質的欄位
+                burden_cols = [
+                    c for c in df.columns 
+                    if c not in ('Time', 'time') 
+                    and not c.endswith('_mRNA') 
+                    and not c.startswith('Input_') 
+                    and c != target_species
+                ]
+                
+                if burden_cols:
+                    total_burden = df[burden_cols].sum(axis=1)
+                    local_max = total_burden.max()
+                    if local_max > max_burden:
+                        max_burden = float(local_max)
+                        
+        # 避免 exp 運算溢位，限制在一個安全的區間 (-500 到 500)
+        exponent = self.k_burden * (max_burden - self.limit_soft)
+        exponent = np.clip(exponent, -500, 500)
+        
+        score = 1.0 / (1.0 + np.exp(exponent))
+        
+        self._raw_metrics["max_burden"] = max_burden
+        
+        return float(score)
+
+    def evaluate(self, mc_results: List[Dict[str, pd.DataFrame]], target_spec: Dict[str, int], target_species: str, fc_ideal: float, t_target: float) -> Dict[str, Any]:
+        """
+        總成上述三個私有方法，回傳穩健度保留係數、時序得分與毒性懲罰係數。
+        """
+        # 清空緩存確保每次評估乾淨
+        self._raw_metrics = {}
+        
+        robustness_score = self._compute_robustness_retention(mc_results, target_spec, target_species, fc_ideal)
+        temporal_score = self._compute_temporal_efficiency(mc_results, target_spec, target_species, t_target)
+        burden_score = self._compute_burden_penalty(mc_results, target_species)
+        
+        kinetic_multiplier = robustness_score * temporal_score * burden_score
+        
+        return {
+            "r_kinetic_retention": robustness_score,
+            "score_temporal": temporal_score,
+            "p_burden": burden_score,
+            "kinetic_multiplier": float(kinetic_multiplier),
+            "raw_metrics": self._raw_metrics.copy()
+        }
