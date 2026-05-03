@@ -1,0 +1,117 @@
+import numpy as np
+from typing import Dict, Any, Tuple
+from .base_evaluator import BaseEvaluator
+
+class FunctionalScorer(BaseEvaluator):
+    """
+    模組二：理想態功能正確性評估器
+    接收無雜訊 ODE 模擬的穩態數據與預期的真值表，輸出 0.0 ~ 100.0 的功能分數。
+    """
+    
+    def __init__(self, 
+                 thresh_on: float = 1000.0, 
+                 thresh_off: float = 100.0, 
+                 k_ideal: float = 50.0, 
+                 n_hill: float = 2.0):
+        super().__init__()
+        self.thresh_on = thresh_on
+        self.thresh_off = thresh_off
+        self.k_ideal = k_ideal
+        self.n_hill = n_hill
+
+    def _get_min_on_max_off(self, steady_states: Dict[str, float], target_spec: Dict[str, int]) -> Tuple[float, float, int, int]:
+        """
+        輔助方法：萃取目標為 1 的最小濃度，與目標為 0 的最大濃度。
+        """
+        on_vals = [val for state, val in steady_states.items() if target_spec.get(state) == 1]
+        off_vals = [val for state, val in steady_states.items() if target_spec.get(state) == 0]
+        
+        min_on = float(min(on_vals)) if on_vals else 0.0
+        max_off = float(max(off_vals)) if off_vals else 0.0
+        return min_on, max_off, len(on_vals), len(off_vals)
+
+    def _compute_logic_compliance(self, steady_states: Dict[str, float], target_spec: Dict[str, int]) -> float:
+        """
+        計算所有狀態的邏輯吻合度乘數。
+        
+        回傳：所有狀態吻合度的連乘積 (Product)，介於 0.0 到 1.0 之間。
+        """
+        compliance_product = 1.0
+        for state, val in steady_states.items():
+            if state not in target_spec:
+                continue
+            target = target_spec[state]
+            if target == 1:
+                # Sigmoid 映射: 1 / (1 + exp(-k * (val - thresh_on)))
+                compliance = 1.0 / (1.0 + np.exp(-0.01 * (val - self.thresh_on)))
+            elif target == 0:
+                # 反向 Sigmoid: 1 / (1 + exp(k * (val - thresh_off)))
+                compliance = 1.0 / (1.0 + np.exp(0.01 * (val - self.thresh_off)))
+            else:
+                continue
+            compliance_product *= compliance
+        return float(compliance_product)
+
+    def _compute_fold_change_score(self, steady_states: Dict[str, float], target_spec: Dict[str, int]) -> float:
+        """
+        萃取最差情況的 Fold Change 並映射至 0~100。
+        """
+        min_on, max_off, len_on, len_off = self._get_min_on_max_off(steady_states, target_spec)
+        
+        # 若真值表全為 1 或全為 0 (無 FC 可言)，直接回傳 0.0
+        if len_on == 0 or len_off == 0:
+            return 0.0
+            
+        fc = min_on / (max_off + 1e-6)
+        
+        # Hill Equation 映射
+        score = 100.0 * (fc ** self.n_hill) / (self.k_ideal ** self.n_hill + fc ** self.n_hill)
+        return float(score)
+
+    def _compute_margin_score(self, steady_states: Dict[str, float], target_spec: Dict[str, int]) -> float:
+        """
+        評估絕對濃度的健康度 (裕度)。
+        """
+        min_on, max_off, len_on, len_off = self._get_min_on_max_off(steady_states, target_spec)
+        
+        # ON 狀態裕度得分 (0~50)
+        if len_on > 0:
+            score_on = 50.0 * (1.0 - np.exp(-0.001 * max(0.0, min_on - self.thresh_on)))
+        else:
+            score_on = 0.0
+            
+        # OFF 狀態乾淨度得分 (0~50)
+        if len_off > 0:
+            score_off = 50.0 * np.exp(-0.02 * max_off)
+        else:
+            score_off = 0.0
+            
+        return float(score_on + score_off)
+
+    def evaluate(self, steady_states: Dict[str, float], target_spec: Dict[str, int], w_fc: float = 0.6, w_margin: float = 0.4) -> Dict[str, Any]:
+        """
+        總成上述三個私有方法，輸出最終功能分數與詳細報告。
+        """
+        compliance = self._compute_logic_compliance(steady_states, target_spec)
+        fc_score = self._compute_fold_change_score(steady_states, target_spec)
+        margin_score = self._compute_margin_score(steady_states, target_spec)
+        
+        min_on, max_off, len_on, len_off = self._get_min_on_max_off(steady_states, target_spec)
+        if len_on == 0 or len_off == 0:
+            fc = 0.0
+        else:
+            fc = min_on / (max_off + 1e-6)
+            
+        total_score = compliance * (w_fc * fc_score + w_margin * margin_score)
+        
+        return {
+            "total_functional_score": float(total_score),
+            "compliance_multiplier": float(compliance),
+            "fc_score": float(fc_score),
+            "margin_score": float(margin_score),
+            "raw_metrics": {
+                "min_on": float(min_on),
+                "max_off": float(max_off),
+                "fold_change": float(fc)
+            }
+        }
