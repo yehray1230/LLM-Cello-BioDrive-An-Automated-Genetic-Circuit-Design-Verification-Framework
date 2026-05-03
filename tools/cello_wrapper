@@ -1,0 +1,246 @@
+import json
+import logging
+import subprocess
+import tempfile
+import os
+import glob
+from typing import List, Dict, Any
+
+# ==============================================================================
+# Configuration
+# ==============================================================================
+# MOCK_MODE: Set to True to bypass actual Docker execution and return mock data.
+# This is useful when running in environments where Docker is unavailable.
+MOCK_MODE = False
+
+# Configure logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    ch = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
+
+def run_cello_wrapper(verilog_codes: List[str], ucf_name: str = "Eco1C1G1T1") -> List[Dict[str, Any]]:
+    """
+    Main entry point for interacting with Cello CAD.
+    Takes multiple Verilog code snippets, runs Cello (mock or docker), 
+    and returns parsed topologies for the ODE Simulator.
+    """
+    results = []
+    logger.info(f"Starting Cello wrapper for {len(verilog_codes)} verilog codes. MOCK_MODE={MOCK_MODE}")
+    logger.info(f"正在使用 {ucf_name} 零件庫進行實體指派...")
+
+    for idx, code in enumerate(verilog_codes):
+        logger.info(f"Processing Verilog code index {idx}")
+        
+        # Validation
+        if not code or not code.strip():
+            logger.warning(f"Verilog code at index {idx} is empty.")
+            results.append({"error": "Empty Verilog code provided."})
+            continue
+            
+        if code.strip().startswith("ERROR:"):
+            logger.warning(f"Verilog code at index {idx} contains an error message: {code.strip()}")
+            results.append({"error": f"Invalid Verilog: {code.strip()}"})
+            continue
+
+        try:
+            if MOCK_MODE:
+                logger.info(f"[MOCK MODE] Executing mock Cello run for index {idx}")
+                topology = _run_mock_cello(code)
+            else:
+                logger.info(f"[DOCKER MODE] Executing real Cello run for index {idx} with UCF '{ucf_name}'")
+                topology = _run_docker_cello(code, ucf_name)
+            
+            results.append(topology)
+            logger.info(f"Successfully processed Verilog code index {idx}")
+            
+        except Exception as e:
+            logger.error(f"Failed to process Verilog code index {idx}: {str(e)}")
+            results.append({"error": str(e)})
+
+    return results
+
+
+def _run_mock_cello(verilog_code: str) -> Dict[str, Any]:
+    """
+    Simulates a successful Cello execution, returning a predefined topology 
+    that the ODE Simulator can understand.
+    """
+    logger.info("Generating mock topology dictionary...")
+    return {
+        "species": [
+            {"name": "pTac", "type": "promoter"},
+            {"name": "TetR", "type": "repressor"}
+        ],
+        "interactions": [
+            {"source": "pTac", "target": "TetR", "type": "expression"}
+        ],
+        "mocked": True,
+        "raw_verilog": verilog_code
+    }
+
+
+def _run_docker_cello(verilog_code: str, ucf_name: str) -> Dict[str, Any]:
+    """
+    Executes Cello inside a Docker container via subprocess.
+    Writes the Verilog to a temporary directory, mounts it, runs Cello,
+    and parses the resulting JSON netlist.
+    """
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # 確保在 Windows 下使用絕對路徑給 Docker 掛載
+        abs_temp_dir = os.path.abspath(temp_dir)
+        verilog_path = os.path.join(abs_temp_dir, "design.v")
+        output_dir = os.path.join(abs_temp_dir, "output")
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Write Verilog to temporary file
+        logger.debug(f"Writing Verilog code to {verilog_path}")
+        with open(verilog_path, "w", encoding="utf-8") as f:
+            f.write(verilog_code)
+            
+        # Construct Docker command
+        # 可以透過環境變數 CELLO_DOCKER_IMAGE 設定要使用的 Cello image
+        docker_image = os.environ.get("CELLO_DOCKER_IMAGE", "cello_image")
+        cmd = [
+            "docker", "run", "--rm",
+            "-v", f"{abs_temp_dir}:/workspace",
+            docker_image,
+            # 這些參數傳遞給 Docker container 內部的 Cello 執行檔
+            "-v", "/workspace/design.v",
+            "-u", ucf_name,
+            "-o", "/workspace/output"
+        ]
+        
+        logger.info(f"Running Docker command: {' '.join(cmd)}")
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300 # 5 minutes timeout
+            )
+            
+            if result.returncode != 0:
+                logger.error(f"Cello Docker execution failed with return code {result.returncode}")
+                logger.error(f"Stdout: {result.stdout}")
+                logger.error(f"Stderr: {result.stderr}")
+                raise RuntimeError(f"Cello execution failed: {result.stderr}")
+                
+            logger.info("Cello Docker execution completed successfully.")
+            
+            # Find the generated netlist JSON
+            # Output might be named e.g., design_netlist.json or similar.
+            json_files = glob.glob(os.path.join(output_dir, "*_netlist.json"))
+            if not json_files:
+                json_files = glob.glob(os.path.join(output_dir, "*.json"))
+                
+            if not json_files:
+                raise FileNotFoundError(f"No Cello output JSON found in {output_dir}")
+                
+            target_json = json_files[0]
+            logger.info(f"Reading Cello output from {target_json}")
+            
+            with open(target_json, "r", encoding="utf-8") as f:
+                cello_json = json.load(f)
+                
+            return _parse_cello_netlist_to_topology(cello_json)
+            
+        except subprocess.TimeoutExpired:
+            logger.error("Cello Docker execution timed out.")
+            raise TimeoutError("Cello execution exceeded the timeout limit.")
+
+
+def _parse_cello_netlist_to_topology(cello_json: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Parses Cello's native JSON output format into the standardized topology
+    format required by the ODE Simulator.
+    """
+    logger.info("Parsing Cello netlist JSON to topology format...")
+    
+    if not isinstance(cello_json, dict) or "nodes" not in cello_json or "edges" not in cello_json:
+        logger.error("Missing 'nodes' or 'edges' in Cello JSON.")
+        return {"error": "無效的 Cello JSON 格式"}
+        
+    topology = {
+        "species": [],
+        "interactions": [],
+        "mocked": False,
+        "raw_cello_output": cello_json
+    }
+    
+    nodes = cello_json.get("nodes", [])
+    edges = cello_json.get("edges", [])
+    
+    # 1. Parse Nodes
+    for node in nodes:
+        node_type = str(node.get("node_type", "")).upper()
+        # Fallbacks for names
+        name = node.get("gate_name") or node.get("protein") or node.get("name") or str(node.get("id", ""))
+        
+        if not name:
+            continue
+            
+        species_type = "unknown"
+        if node_type in ("PRIMARY_INPUT", "SENSOR"):
+            species_type = "sensor"
+        elif node_type in ("PRIMARY_OUTPUT", "REPORTER"):
+            species_type = "reporter"
+        elif node_type == "LOGIC_GATE" or "GATE" in node_type:
+            species_type = "repressor"
+            
+        topology["species"].append({
+            "name": name,
+            "type": species_type
+        })
+        
+    # 2. Parse Edges
+    for edge in edges:
+        source_id = edge.get("source")
+        target_id = edge.get("target")
+        
+        if source_id is None or target_id is None:
+            continue
+            
+        # Find corresponding source and target nodes to determine interaction type
+        source_node = next((n for n in nodes if n.get("id") == source_id or n.get("name") == source_id), None)
+        target_node = next((n for n in nodes if n.get("id") == target_id or n.get("name") == target_id), None)
+        
+        if not source_node or not target_node:
+            continue
+            
+        source_name = source_node.get("gate_name") or source_node.get("protein") or source_node.get("name") or str(source_id)
+        target_name = target_node.get("gate_name") or target_node.get("protein") or target_node.get("name") or str(target_id)
+        
+        source_type = str(source_node.get("node_type", "")).upper()
+        target_type = str(target_node.get("node_type", "")).upper()
+        
+        # default interaction
+        interaction_type = "expression"
+        
+        # Determine if it's a repression
+        if target_type == "LOGIC_GATE" or "GATE" in target_type:
+            interaction_type = "repression"
+        elif source_type == "LOGIC_GATE" or "GATE" in source_type:
+            interaction_type = "repression"
+            
+        interaction = {
+            "source": source_name,
+            "target": target_name,
+            "type": interaction_type
+        }
+        
+        # Extract parameters if available
+        parameters = edge.get("parameters") or source_node.get("parameters")
+        if parameters:
+            interaction["parameters"] = parameters
+            
+        topology["interactions"].append(interaction)
+        
+    if not topology["species"]:
+        logger.warning("Parsing completed but species list is empty. JSON may not contain expected Cello structure.")
+        
+    return topology
