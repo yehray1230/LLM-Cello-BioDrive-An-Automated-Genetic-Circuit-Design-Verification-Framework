@@ -1,39 +1,62 @@
 from __future__ import annotations
 
+import json
+import re
+import os
+import datetime
+
 from agents.builder_agent import call_builder
+from agents.translator_agent import call_translator
 from agents.consolidator_agent import call_design_consolidator
 from agents.critic_agent import call_critic
 from schemas.state import CircuitState, RoundRecord
+from tools.tool_schemas import execute_run_ode_simulation_tool
+from tools.cello_wrapper import run_cello_wrapper  # Placeholder
 
 
-MAX_ITERATIONS = 5
+MAX_ITERATIONS = 3
 
 
 def _is_error_text(text: str | None) -> bool:
     return bool(text) and str(text).startswith("ERROR:")
 
 
-def _extract_critic_route(feedback: str | None) -> str:
+
+
+
+def _pick_suboptimal_topology(state: CircuitState):
     """
-    Normalize Critic output into one of:
-    - PASS
-    - REVISE
-    - FATAL
-    - UNKNOWN
+    Find the best topology from the current round's batch.
+    Try to pick one with highest 'score' or 'fold_change' if present.
+    Otherwise, pick the first valid one.
     """
-    if not feedback:
-        return "UNKNOWN"
-
-    normalized = feedback.upper()
-
-    if "[PASS]" in normalized or "審查結論：通過" in feedback or "PASS" in normalized:
-        return "PASS"
-    if "[FATAL]" in normalized or "FATAL" in normalized:
-        return "FATAL"
-    if "[REVISE]" in normalized or "REVISE" in normalized or "需修改" in feedback:
-        return "REVISE"
-
-    return "UNKNOWN"
+    if not state.candidate_topologies:
+        return None
+        
+    best_topo = None
+    best_score = -float('inf')
+    has_valid_sim = False
+    
+    for topo, sim in zip(state.candidate_topologies, state.batch_simulation_results):
+        if not topo:
+            continue
+            
+        if isinstance(sim, dict) and "error" not in sim:
+            has_valid_sim = True
+            score = sim.get("score", sim.get("fold_change", 0))
+            try:
+                score = float(score)
+            except (ValueError, TypeError):
+                score = 0
+                
+            if score >= best_score:
+                best_score = score
+                best_topo = topo
+                
+    if not has_valid_sim and state.candidate_topologies:
+        return state.candidate_topologies[0]
+        
+    return best_topo
 
 
 def run_reflexion_workflow(
@@ -46,10 +69,20 @@ def run_reflexion_workflow(
     force_zero_shot: bool = False,
     host_organism: str = "Escherichia coli",
     max_iterations: int = MAX_ITERATIONS,
+    enable_ode: bool = True,
+    use_multi_agent: bool = True,
 ) -> tuple[bool, CircuitState]:
     """
-    Dynamic state-machine workflow for Builder/Critic/Consolidator routing.
+    Dynamic state-machine workflow for Pipeline routing.
     """
+    run_dir = f"outputs/run_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    os.makedirs(run_dir, exist_ok=True)
+    
+    def get_round_dir():
+        rd = os.path.join(run_dir, f"round_{state.current_round}")
+        os.makedirs(rd, exist_ok=True)
+        return rd
+
     state.last_error = None
     state.host_organism = host_organism
 
@@ -82,9 +115,109 @@ def run_reflexion_workflow(
                 force_zero_shot=force_zero_shot,
             )
 
-            if _is_error_text(state.current_topology):
+            # Check for errors in state.last_error or backward compatible current_topology error
+            if state.last_error:
+                return False, state
+            if state.current_topology and _is_error_text(state.current_topology):
                 state.last_error = state.current_topology
                 return False, state
+
+            current_node = "Translator"
+            continue
+
+        if current_node == "Translator":
+            state = call_translator(
+                state,
+                api_key,
+                model_name,
+                api_base=api_base,
+                force_zero_shot=force_zero_shot,
+            )
+
+            if state.last_error:
+                return False, state
+
+            rd = get_round_dir()
+            for i, code in enumerate(state.verilog_codes):
+                file_name = f"design_{chr(65+i)}.v"
+                with open(os.path.join(rd, file_name), "w", encoding="utf-8") as f:
+                    f.write(code)
+
+            current_node = "Cello_Wrapper"
+            continue
+
+        if current_node == "Cello_Wrapper":
+            try:
+                cello_results = run_cello_wrapper(state.verilog_codes, ucf_name=state.current_ucf)
+                state.candidate_topologies = cello_results
+                
+                rd = get_round_dir()
+                with open(os.path.join(rd, "cello_topologies.json"), "w", encoding="utf-8") as f:
+                    json.dump(state.candidate_topologies, f, indent=2, ensure_ascii=False)
+            except Exception as e:
+                state.last_error = f"ERROR: Cello Wrapper exception: {str(e)}"
+
+            if state.last_error or not state.candidate_topologies:
+                if use_multi_agent:
+                    # Let Critic evaluate the empty topology issue / compilation error
+                    current_node = "Critic"
+                else:
+                    state.last_error = state.last_error or "ERROR: Cello compilation failed to generate candidate topologies."
+                    return False, state
+                continue
+
+            current_node = "Batch_ODE"
+            continue
+
+        if current_node == "Batch_ODE":
+            state.batch_simulation_results = []
+            
+            if enable_ode and state.candidate_topologies:
+                rd = get_round_dir()
+                for i, topology in enumerate(state.candidate_topologies):
+                    topology_desc = json.dumps(topology) if isinstance(topology, dict) else str(topology)
+                    output_image_path = os.path.join(rd, f"simulation_{chr(65+i)}.png")
+                    sim_args = json.dumps({
+                        "topology_description": topology_desc,
+                        "host_organism": state.host_organism,
+                        "output_image_path": output_image_path
+                    })
+                    sim_result_json = execute_run_ode_simulation_tool(sim_args)
+                    
+                    if not sim_result_json.startswith("TOOL_ERROR:"):
+                        try:
+                            state.batch_simulation_results.append(json.loads(sim_result_json))
+                        except Exception:
+                            state.batch_simulation_results.append({"error": "JSON parse error", "raw": sim_result_json})
+                    else:
+                        state.batch_simulation_results.append({"error": sim_result_json})
+            
+            if not use_multi_agent:
+                state.is_approved = True
+                
+                # Default selection since Critic is disabled
+                if state.candidate_topologies:
+                    state.best_topology = state.candidate_topologies[0]
+                else:
+                    state.best_topology = None
+                    
+                builder_output = str(state.logic_proposals) if state.logic_proposals else str(state.current_topology or "")
+                
+                state.round_history.append(
+                    RoundRecord(
+                        round_number=state.current_round,
+                        builder_output=builder_output,
+                        critic_output="Skipped (Multi-Agent disabled)",
+                    )
+                )
+                if on_round_complete:
+                    on_round_complete(
+                        state.current_round,
+                        builder_output,
+                        "Skipped (Multi-Agent disabled)",
+                    )
+                current_node = "Consolidator"
+                continue
 
             current_node = "Critic"
             continue
@@ -102,40 +235,87 @@ def run_reflexion_workflow(
 
             latest_feedback = state.latest_critic_feedback
 
-            if _is_error_text(latest_feedback):
-                state.last_error = latest_feedback
+            if _is_error_text(latest_feedback) or (state.last_error and _is_error_text(state.last_error)):
+                state.last_error = state.last_error or latest_feedback
                 return False, state
 
+            builder_output = str(state.logic_proposals) if state.logic_proposals else str(state.current_topology or "")
             if len(state.critic_feedbacks) > prev_feedback_count:
                 state.round_history.append(
                     RoundRecord(
                         round_number=state.current_round,
-                        builder_output=state.current_topology or "",
+                        builder_output=builder_output,
                         critic_output=latest_feedback or "",
                     )
                 )
+                rd = get_round_dir()
+                with open(os.path.join(rd, "critic_decision.txt"), "w", encoding="utf-8") as f:
+                    f.write(state.critic_feedbacks[-1])
 
             if on_round_complete:
                 on_round_complete(
                     state.current_round,
-                    state.current_topology or "",
+                    builder_output,
                     latest_feedback or "",
                 )
 
-            critic_route = _extract_critic_route(latest_feedback)
+            print(f"\n[Critic 的最新反饋]\n{latest_feedback}")
+            print(f"[選定狀態 (Selected Topology)]\n{state.best_topology}")
+            
+            user_input = input("\n是否需要追加條件或強制拒絕？(輸入內容將退回 Builder，直接按下 Enter 則交由系統自動路由)：")
+            if user_input.strip():
+                state.human_feedback = user_input.strip()
+            else:
+                state.human_feedback = None
 
-            if critic_route == "PASS":
+            # 優先權 1 (HITL)
+            if state.human_feedback:
+                state.is_approved = False
+                state.logic_proposals = []
+                state.verilog_codes = []
+                current_node = "Builder"
+                continue
+
+            # 優先權 2 (PASS)
+            if (state.error_type == "NONE" or state.is_approved) and state.best_topology:
                 state.is_approved = True
                 current_node = "Consolidator"
                 continue
 
-            if critic_route in {"REVISE", "FATAL", "UNKNOWN"}:
+            # 優先權 3 (邏輯錯誤)
+            if state.error_type in ["LOGIC_ERROR", "BOTH"] and state.current_round < max_iterations:
                 state.is_approved = False
-                if state.current_round < max_iterations:
-                    current_node = "Builder"
-                else:
-                    current_node = "Human_in_Loop"
+                current_node = "Builder"
                 continue
+
+            # 優先權 4 (元件錯誤)
+            if state.error_type == "PART_ERROR" and state.current_round < max_iterations:
+                state.is_approved = False
+                current_node = "Translator"
+                continue
+
+            # 優先權 5 (降級保護)
+            if state.current_round >= max_iterations:
+                suboptimal_topology = _pick_suboptimal_topology(state)
+                if not suboptimal_topology:
+                    state.last_error = "經過多次嘗試，全數編譯失敗，無法產出任何拓樸"
+                    return False, state
+                
+                state.best_topology = suboptimal_topology
+                warning_msg = "[系統警告] 已達最大優化迭代次數 (3次)。系統無法找到完美解，已強制選出歷史表現最佳的妥協方案。請實驗人員注意潛在的漏電或代謝負荷風險。"
+                
+                if state.critic_feedbacks:
+                    state.critic_feedbacks[-1] = state.critic_feedbacks[-1] + "\n\n" + warning_msg
+                else:
+                    state.critic_feedbacks.append(warning_msg)
+                    
+                current_node = "Consolidator"
+                continue
+
+            # 若無匹配或未達最大迭代且發生未預期錯誤，預設退回 Builder
+            state.is_approved = False
+            current_node = "Builder"
+            continue
 
         if current_node == "Consolidator":
             state = call_design_consolidator(
@@ -145,9 +325,13 @@ def run_reflexion_workflow(
                 api_base=api_base,
             )
 
-            if _is_error_text(state.formal_specification):
-                state.last_error = state.formal_specification
+            if _is_error_text(state.formal_specification) or state.last_error:
+                state.last_error = state.last_error or state.formal_specification
                 return False, state
+
+            if state.formal_specification:
+                with open(os.path.join(run_dir, "final_specification.md"), "w", encoding="utf-8") as f:
+                    f.write(state.formal_specification)
 
             return True, state
 
