@@ -1,0 +1,16 @@
+from abc import ABC, abstractmethod
+from typing import Any
+
+class BaseEvaluator(ABC):
+    """
+    評估器的抽象基底類別。
+    每一個評估模組都應繼承此類別並實作 evaluate 方法。
+    """
+    
+    @abstractmethod
+    def evaluate(self, *args, **kwargs) -> Any:
+        """
+        執行評估邏輯。
+        子類別應定義具體的輸入參數並回傳評估結果。
+        """
+        pass
