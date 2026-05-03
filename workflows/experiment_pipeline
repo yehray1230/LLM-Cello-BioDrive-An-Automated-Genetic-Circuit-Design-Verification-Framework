@@ -1,0 +1,155 @@
+import datetime
+import json
+import logging
+import uuid
+from typing import Any, Dict
+
+# --- 假設已實作的元件匯入 ---
+from agents.builder_agent import BuilderAgent
+from agents.critic_agent import CriticAgent
+from agents.skill_extractor_agent import SkillExtractorAgent
+from benchmark_suite.benchmark_controller import BenchmarkController
+from vector_db import VectorDBClient
+
+# 設定 Logger
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
+
+async def run_automated_experiment(
+    user_intent: str, 
+    host_organism: str, 
+    max_iterations: int = 3, 
+    target_score: float = 80.0,
+    llm_client: Any = None
+) -> Dict[str, Any]:
+    """
+    基因電路全自動生成與驗證的工作流 (Automated Experiment Workflow)。
+    
+    流程：
+    1. 透過 VectorDB 檢索過去相關的 Skills。
+    2. Builder 與 Critic 進行迭代式設計與修改 (Reflexion Loop)。
+    3. 每輪將設計送入 BenchmarkController 取得評分與診斷。
+    4. 達到 target_score 或達到最大迭代次數後結束。
+    5. 由 SkillExtractorAgent 提煉這段對話中的設計經驗，並存入 VectorDB。
+    """
+    logger.info(f"Starting automated experiment. Intent: '{user_intent}', Host: '{host_organism}'")
+    
+    # 1. 實驗 ID 與狀態初始化
+    experiment_id = f"EXP-{datetime.datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+    dialogue_history = []
+    best_design = None
+    best_score = 0.0
+    final_diagnostic_json = {}
+    critic_advice = ""
+    actual_iterations = 0
+
+    # 2. 初始化與檢索 (實體與時序隔離)
+    logger.info(f"Initializing Agents and Controllers for {experiment_id}...")
+    builder = BuilderAgent()
+    critic = CriticAgent()
+    skill_extractor = SkillExtractorAgent(llm_client=llm_client)
+    benchmark = BenchmarkController()
+    vdb_client = VectorDBClient()
+    
+    logger.info(f"Retrieving historical skills for intent: '{user_intent}'...")
+    try:
+        # 時序隔離 (Temporal Isolation)：確保不會讀到本次實驗自己的 Skill
+        db_filter = {"experiment_id": {"$ne": experiment_id}}
+        retrieved_skills = vdb_client.query(user_intent, top_k=3, filter=db_filter)
+        skills_context = "\n".join([str(s) for s in retrieved_skills]) if retrieved_skills else ""
+    except Exception as e:
+        logger.warning(f"VectorDB query failed or not implemented: {e}. Proceeding without past skills.")
+        skills_context = ""
+
+    # 3. 進入 Reflexion Loop
+    for iteration in range(1, max_iterations + 1):
+        actual_iterations = iteration
+        logger.info(f"--- Iteration {iteration}/{max_iterations} ---")
+        
+        # Builder 生成
+        logger.info("Running Builder Agent...")
+        # 假設 BuilderAgent 實作了非同步或同步的 generate 方法
+        current_design = await builder.generate(
+            intent=user_intent, 
+            retrieved_skills=skills_context, 
+            critic_feedback=critic_advice if iteration > 1 else None
+        ) if hasattr(builder.generate, '__awaitable__') else builder.generate(
+            intent=user_intent, 
+            retrieved_skills=skills_context, 
+            critic_feedback=critic_advice if iteration > 1 else None
+        )
+        
+        dialogue_history.append(f"【Builder (Round {iteration})】\n{current_design}")
+        
+        # Benchmark 評分
+        logger.info("Evaluating design via BenchmarkController...")
+        # 假設 run_full_evaluation 回傳 (total_score, diagnostic_json)
+        total_score, diagnostic_json = benchmark.run_full_evaluation(
+            design=current_design, 
+            host_organism=host_organism
+        )
+        
+        logger.info(f"Iteration {iteration}: Score = {total_score:.2f}")
+        final_diagnostic_json = diagnostic_json
+        
+        # 記錄最佳結果
+        if total_score > best_score:
+            best_score = total_score
+            best_design = current_design
+            logger.info(f"New best score achieved: {best_score:.2f} (Updated best design)")
+            
+        # 條件判斷
+        if total_score >= target_score:
+            logger.info(f"Target score ({target_score}) reached! Terminating iteration early.")
+            break
+            
+        # Critic 反思
+        if iteration < max_iterations:
+            logger.info("Score below target. Running Critic Agent for revision advice...")
+            # 假設 CriticAgent 的分析方法
+            critic_advice = await critic.analyze(
+                diagnostic_reports=diagnostic_json
+            ) if hasattr(critic.analyze, '__awaitable__') else critic.analyze(
+                diagnostic_reports=diagnostic_json
+            )
+            dialogue_history.append(f"【Critic (Round {iteration})】\n{critic_advice}")
+
+    # 4. 跳出迴圈後的學習階段 (Meta-Learning)
+    logger.info("--- Entering Meta-Learning Phase ---")
+    metadata = {
+        "experiment_id": experiment_id,
+        "user_intent": user_intent,
+        "host_organism": host_organism,
+        "timestamp": datetime.datetime.now().isoformat(),
+        "final_score": best_score,
+        "iterations": actual_iterations
+    }
+    
+    dialogue_text = "\n\n".join(dialogue_history)
+    benchmark_report_text = json.dumps(final_diagnostic_json, ensure_ascii=False, indent=2)
+    
+    logger.info("Extracting high-level design skills from dialogue and reports...")
+    extracted_skill_dict = skill_extractor.extract_and_package_skill(
+        dialogue_history=dialogue_text,
+        benchmark_reports=benchmark_report_text,
+        metadata=metadata
+    )
+    
+    if extracted_skill_dict and extracted_skill_dict.get("skills"):
+        logger.info(f"Valuable skills successfully extracted and saved to staging area for {experiment_id}.")
+        # 注意：我們已經將技能隔離到 skills_pending/ 目錄，不再直接寫入 VectorDB。
+        # 需由獨立的 ingest_pending_skills 腳本負責審核後再寫入 VectorDB。
+    else:
+        logger.info(f"No valuable reusable skills extracted for {experiment_id}.")
+
+    # 5. 回傳結果
+    result = {
+        "experiment_id": experiment_id,
+        "best_design": best_design,
+        "best_score": best_score,
+        "total_iterations": actual_iterations,
+        "extracted_skill": extracted_skill_dict
+    }
+    
+    logger.info(f"Workflow Complete. Total Iterations: {actual_iterations}, Final Best Score: {best_score:.2f}")
+    return result
