@@ -1,0 +1,183 @@
+import json
+import logging
+from typing import Any, Dict, Optional
+
+from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
+
+
+class ModuleSkill(BaseModel):
+    """
+    Represents the extracted skill for a specific evaluation module.
+    """
+    has_skill: bool = Field(
+        ..., 
+        description="Whether a valuable skill was extracted for this module."
+    )
+    rule_summary: Optional[str] = Field(
+        default=None, 
+        description="The summary of the extracted rule (e.g., '避免在大腸桿菌中重複使用 pTac 啟動子，以防同源重組')."
+    )
+
+
+class ExtractedSkills(BaseModel):
+    """
+    Contains the skills extracted across the three evaluation dimensions.
+    """
+    module_1_plausibility: ModuleSkill = Field(
+        ..., 
+        description="Skills related to structural plausibility and biological feasibility."
+    )
+    module_2_functional: ModuleSkill = Field(
+        ..., 
+        description="Skills related to logic compliance and functional fold-change."
+    )
+    module_3_kinetic: ModuleSkill = Field(
+        ..., 
+        description="Skills related to kinetic robustness and metabolic burden."
+    )
+
+
+class LLMSkillOutput(BaseModel):
+    """
+    The structured JSON output expected from the LLM after analyzing the design history.
+    """
+    has_valuable_insight: bool = Field(
+        ..., 
+        description="True if valuable design rules can be extracted. False if the iteration was just syntax errors or meaningless attempts."
+    )
+    extracted_skills: Optional[ExtractedSkills] = Field(
+        default=None, 
+        description="The extracted skills categorized by evaluation module. Should be provided if has_valuable_insight is True."
+    )
+
+
+class SkillExtractorAgent:
+    """
+    SkillExtractorAgent (Meta-Cognitive / Skill Extraction Agent)
+    
+    This agent is responsible for reading the dialogue history between the Builder and Critic,
+    along with the Benchmark scoring reports, to extract reusable high-level biological design skills.
+    It ensures that the LLM only focuses on knowledge extraction while the Python layer handles 
+    metadata injection and structural validation.
+    """
+    
+    def __init__(self, llm_client: Any):
+        """
+        Initializes the SkillExtractorAgent.
+        
+        Args:
+            llm_client (Any): An initialized LLM client capable of enforcing structured outputs 
+                              (e.g., instructor-patched OpenAI client, LangChain structured output, etc.).
+        """
+        self.llm_client = llm_client
+        self.system_prompt = (
+            "你是一個合成生物學的實驗室知識總結員（Archivist）。\n"
+            "請閱讀 Builder 與 Critic 的除錯對話，以及 Benchmark 系統的體檢報告。\n"
+            "你的任務是萃取『具有未來重用價值的物理與生物學設計法則』。\n"
+            "如果這次的除錯只是單純的語法錯誤或無意義的隨機嘗試，請將 has_valuable_insight 設為 false，並清空其他欄位。\n"
+            "若有價值，請將萃取出的經驗歸類到對應的評估維度中（可單選或多選）。"
+        )
+
+    def _call_llm_structured(self, prompt: str) -> LLMSkillOutput:
+        """
+        Internal method to call the LLM and enforce the LLMSkillOutput structure.
+        
+        Args:
+            prompt (str): The combined user prompt containing dialogue and benchmark reports.
+            
+        Returns:
+            LLMSkillOutput: The structured parsed output from the LLM.
+        """
+        # Note: This is a pseudo-implementation. Depending on the LLM client (e.g., `instructor` with OpenAI/Gemini),
+        # the exact method call will differ. The structure below illustrates the expected pattern.
+        try:
+            # Example using instructor-patched OpenAI client:
+            # response = self.llm_client.chat.completions.create(
+            #     model="gpt-4o",
+            #     response_model=LLMSkillOutput,
+            #     messages=[
+            #         {"role": "system", "content": self.system_prompt},
+            #         {"role": "user", "content": prompt}
+            #     ]
+            # )
+            # return response
+            raise NotImplementedError("請根據您實際使用的 LLM 框架（例如 instructor, LangChain 等）實作此結構化輸出呼叫")
+        except Exception as e:
+            logger.error(f"Error calling LLM for structured output: {e}")
+            raise
+
+    def extract_and_package_skill(
+        self, 
+        dialogue_history: str, 
+        benchmark_reports: str, 
+        metadata: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Extracts high-level biological design skills from the provided logs and packages them with the experiment metadata.
+
+        Args:
+            dialogue_history (str): The conversation transcript between Builder and Critic.
+            benchmark_reports (str): The performance metrics and evaluations from the Benchmark system.
+            metadata (Dict[str, Any]): A dictionary containing environmental variables (e.g., experiment_id, host_organism, user_intent).
+
+        Returns:
+            Optional[Dict[str, Any]]: A merged dictionary containing the metadata and the extracted skills.
+                                      Returns None if no valuable insight was extracted or an error occurred.
+        """
+        prompt = (
+            f"=== 實驗背景 (Metadata) ===\n"
+            f"{json.dumps(metadata, ensure_ascii=False, indent=2)}\n\n"
+            f"=== 對話紀錄 (Builder & Critic Dialogue) ===\n"
+            f"{dialogue_history}\n\n"
+            f"=== 評分報告 (Benchmark Reports) ===\n"
+            f"{benchmark_reports}\n\n"
+            f"請根據上述資訊，提煉出高階生物學設計經驗。"
+        )
+
+        try:
+            experiment_id = metadata.get('experiment_id', 'UNKNOWN')
+            logger.info(f"Extracting skills for experiment: {experiment_id}")
+            
+            # 1. Call LLM with structured output schema
+            llm_response: LLMSkillOutput = self._call_llm_structured(prompt)
+            
+            # 2. Check if valuable insights were found
+            if not llm_response.has_valuable_insight:
+                logger.info(f"No valuable insight found for experiment {experiment_id} (Skipping).")
+                return None
+            
+            logger.info(f"Valuable skills successfully extracted for experiment {experiment_id}.")
+            
+            # 3. Merge extracted skills with the incoming metadata
+            packaged_skill = metadata.copy()
+            if llm_response.extracted_skills:
+                # model_dump() is available in Pydantic V2. (Use dict() for V1)
+                packaged_skill["skills"] = llm_response.extracted_skills.model_dump(exclude_none=True)
+            else:
+                packaged_skill["skills"] = {}
+            
+            # 4. Save to Staging Directory (Physical Isolation)
+            import os
+            pending_dir = "skills_pending"
+            os.makedirs(pending_dir, exist_ok=True)
+            
+            # Sanitize experiment_id for filename
+            safe_exp_id = str(experiment_id).replace(":", "-").replace(" ", "_")
+            file_path = os.path.join(pending_dir, f"skill_{safe_exp_id}.json")
+            
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump(packaged_skill, f, ensure_ascii=False, indent=2)
+                
+            logger.info(f"Successfully saved extracted skill to {file_path}")
+            
+            return packaged_skill
+
+        except NotImplementedError as e:
+            logger.warning(str(e))
+            # Return a mock output for demonstration if NotImplementedError is raised
+            return None
+        except Exception as e:
+            logger.error(f"Failed to extract and package skills: {e}")
+            return None
