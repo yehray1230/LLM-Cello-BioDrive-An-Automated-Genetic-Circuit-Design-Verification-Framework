@@ -1,0 +1,243 @@
+import pandas as pd
+from typing import Dict, List, Any, Tuple
+from .static_plausibility_evaluator import StaticPlausibilityEvaluator
+from .functional_scorer import FunctionalScorer
+from .kinetic_scorer import KineticScorer
+
+class BenchmarkController:
+    """
+    基因電路基準測試主控調度器
+    負責串接靜態合理性、功能正確性與動力學穩健度評估器，
+    並計算最終的「總體實驗潛力評級（Total Viability Score）」。
+    """
+
+    def __init__(self, 
+                 plausibility_kwargs: Dict[str, Any] = None,
+                 functional_kwargs: Dict[str, Any] = None,
+                 kinetic_kwargs: Dict[str, Any] = None):
+        """
+        初始化三個子評估器模組，並允許外部傳入配置參數。
+        """
+        p_kwargs = plausibility_kwargs or {}
+        f_kwargs = functional_kwargs or {}
+        k_kwargs = kinetic_kwargs or {}
+        
+        self.plausibility_evaluator = StaticPlausibilityEvaluator(**p_kwargs)
+        self.functional_scorer = FunctionalScorer(**f_kwargs)
+        self.kinetic_scorer = KineticScorer(**k_kwargs)
+
+    def run_full_evaluation(self, 
+                            topology: Dict[str, int], 
+                            selected_parts: List[str], 
+                            deterministic_steady_states: Dict[str, float], 
+                            mc_results: List[Dict[str, pd.DataFrame]], 
+                            target_spec: Dict[str, int], 
+                            target_species: str, 
+                            fc_ideal: float = 50.0, 
+                            t_target: float = 7200.0) -> Dict[str, Any]:
+        """
+        執行完整的 Benchmark 評估流程。
+        
+        Args:
+            topology: 包含 nodes 與 edges 的網路結構字典。
+            selected_parts: 設計選用的元件清單。
+            deterministic_steady_states: 無噪音 ODE 穩態數據。
+            mc_results: 蒙地卡羅 ODE 多狀態數據。
+            target_spec: 預期的目標真值表。
+            target_species: 目標輸出的蛋白質名稱。
+            fc_ideal: 預期的完美 Fold Change。
+            t_target: 預期的理想上升時間 (秒)。
+            
+        Returns:
+            Dict: 包含最終評級、總分以及各模組詳細報表的字典。
+        """
+        # 防呆機制：確保必要的模擬數據存在
+        if not mc_results:
+            raise ValueError("執行失敗：mc_results (蒙地卡羅模擬數據) 不能為空。")
+        if not deterministic_steady_states:
+            raise ValueError("執行失敗：deterministic_steady_states (決定性穩態數據) 不能為空。")
+            
+        # 1. 執行模組一：靜態合理性評估
+        c_plausibility = self.plausibility_evaluator.evaluate(topology, selected_parts)
+        
+        # 2. 執行模組二：功能正確性評估
+        func_result = self.functional_scorer.evaluate(deterministic_steady_states, target_spec)
+        score_functional = func_result.get("total_functional_score", 0.0)
+        
+        # 3. 執行模組三：動力學穩健度評估
+        kin_result = self.kinetic_scorer.evaluate(mc_results, target_spec, target_species, fc_ideal, t_target)
+        r_kinetic = kin_result.get("r_kinetic_retention", 0.0)
+        p_burden = kin_result.get("p_burden", 0.0)
+        score_temporal = kin_result.get("score_temporal", 0.0)
+        
+        # 最終分數計算
+        # 公式: Total_Score = Score_Functional * C_Plausibility * R_Kinetic * P_Burden * Score_Temporal
+        total_score = score_functional * c_plausibility * r_kinetic * p_burden * score_temporal
+        
+        # 計算評級
+        if total_score >= 80.0:
+            rating = "Excellent"
+        elif total_score >= 60.0:
+            rating = "Pass"
+        else:
+            rating = "Fail"
+            
+        # 組裝報表
+        report = {
+            "evaluation_rating": rating,
+            "total_viability_score": float(total_score),
+            "multipliers": {
+                "score_functional": float(score_functional),
+                "c_plausibility": float(c_plausibility),
+                "r_kinetic": float(r_kinetic),
+                "p_burden": float(p_burden),
+                "score_temporal": float(score_temporal)
+            },
+            "module_reports": {
+                "static_plausibility": {
+                    "c_plausibility": float(c_plausibility)
+                },
+                "functional_correctness": func_result,
+                "kinetic_robustness": kin_result
+            }
+        }
+        
+        return report
+
+    def generate_markdown_report(self, evaluation_result: Dict[str, Any]) -> str:
+        """
+        將 run_full_evaluation 的輸出字典格式化為易於人類閱讀的 Markdown 字串。
+        """
+        rating = evaluation_result.get("evaluation_rating", "Unknown")
+        total_score = evaluation_result.get("total_viability_score", 0.0)
+        multipliers = evaluation_result.get("multipliers", {})
+        
+        func_res = evaluation_result.get("module_reports", {}).get("functional_correctness", {})
+        kin_res = evaluation_result.get("module_reports", {}).get("kinetic_robustness", {})
+        
+        func_raw = func_res.get("raw_metrics", {})
+        kin_raw = kin_res.get("raw_metrics", {})
+        
+        md = f"""# 基因電路基準測試報告 (Benchmark Suite Report)
+
+## 🏆 總體實驗潛力評級 (Total Viability)
+- **最終分數 (Total Score):** `{total_score:.2f} / 100`
+- **綜合評級 (Rating):** **{rating}**
+
+---
+
+## 📊 評估模組摘要 (Evaluation Breakdown)
+
+### 1. 靜態合理性 (Static Plausibility)
+- **拓樸與重複性懲罰乘數 ($C_{{Plausibility}}$):** `{multipliers.get('c_plausibility', 0.0):.4f}`
+
+### 2. 功能正確性 (Functional Correctness)
+- **理想態功能分數 ($Score_{{Functional}}$):** `{multipliers.get('score_functional', 0.0):.2f} / 100`
+  - 邏輯吻合度乘數: `{func_res.get('compliance_multiplier', 0.0):.4f}`
+  - 倍數變化分數 (FC Score): `{func_res.get('fc_score', 0.0):.2f}`
+  - 裕度分數 (Margin Score): `{func_res.get('margin_score', 0.0):.2f}`
+  - *原始指標:* `Fold Change = {func_raw.get('fold_change', 0.0):.2f}`, `Min ON = {func_raw.get('min_on', 0.0):.2f} nM`, `Max OFF = {func_raw.get('max_off', 0.0):.2f} nM`
+
+### 3. 動力學穩健度 (Kinetic Robustness)
+- **動態乘數綜效:** `{kin_res.get('kinetic_multiplier', 0.0):.4f}`
+  - 穩健度保留係數 ($R_{{Kinetic}}$): `{multipliers.get('r_kinetic', 0.0):.4f}`
+  - 時序得分 ($Score_{{Temporal}}$): `{multipliers.get('score_temporal', 0.0):.4f}`
+  - 代謝毒性懲罰 ($P_{{Burden}}$): `{multipliers.get('p_burden', 0.0):.4f}`
+  - *原始指標:* `CV = {kin_raw.get('cv', 0.0):.4f}`, `Avg Rise Time = {kin_raw.get('t_rise_avg', 0.0):.2f} s`, `Max Burden = {kin_raw.get('max_burden', 0.0):.2f} nM`
+
+---
+*Generated by BenchmarkController*
+"""
+        return md
+
+    def generate_reports(self, evaluation_result: Dict[str, Any], selected_parts: List[str] = None) -> Tuple[Dict[str, Any], str]:
+        """
+        同時回傳兩種報表格式：
+        1. diagnostic_json: 扁平化、結構嚴謹的 JSON dict，供 AI Agent 讀取進行 Reflexion。
+        2. human_readable_markdown: 排版精美、適合研究員閱讀的 Markdown 測試報告。
+        """
+        multipliers = evaluation_result.get("multipliers", {})
+        func_res = evaluation_result.get("module_reports", {}).get("functional_correctness", {})
+        kin_res = evaluation_result.get("module_reports", {}).get("kinetic_robustness", {})
+        
+        func_raw = func_res.get("raw_metrics", {})
+        kin_raw = kin_res.get("raw_metrics", {})
+        
+        # 1. 產生扣分原因描述 (Penalty Reasons)
+        penalties = []
+        if multipliers.get("c_plausibility", 1.0) < 1.0:
+            if selected_parts:
+                seen = set()
+                repeats = [x for x in selected_parts if x in seen or seen.add(x)]
+                if repeats:
+                    penalties.append(f"Penalty triggered: Repeat sequence '{repeats[0]}' found. (C_Plausibility reduced)")
+                else:
+                    penalties.append("Penalty triggered: High network complexity. (C_Plausibility reduced)")
+            else:
+                penalties.append("Penalty triggered: Topology/Component complexity or repetition. (C_Plausibility reduced)")
+                    
+        if multipliers.get("score_functional", 100.0) < 80.0:
+            penalties.append(f"Penalty triggered: Sub-optimal Fold Change ({func_raw.get('fold_change', 0.0):.2f}) or Logic Compliance. (Score_Functional reduced)")
+            
+        if multipliers.get("r_kinetic", 1.0) < 0.9:
+            penalties.append(f"Penalty triggered: High Coefficient of Variation (CV = {kin_raw.get('cv', 0.0):.4f}) under noise. (R_Kinetic reduced)")
+            
+        if multipliers.get("p_burden", 1.0) < 0.9:
+            penalties.append(f"Penalty triggered: High metabolic toxicity. Max burden ({kin_raw.get('max_burden', 0.0):.1f} nM) approaches limit. (P_Burden reduced)")
+            
+        if multipliers.get("score_temporal", 1.0) < 0.9:
+            penalties.append(f"Penalty triggered: Slow signal propagation. Average rise time ({kin_raw.get('t_rise_avg', 0.0):.1f} s). (Score_Temporal reduced)")
+
+        # 2. 構建 diagnostic_json (扁平化)
+        diagnostic_json = {
+            "total_score": evaluation_result.get("total_viability_score", 0.0),
+            "rating": evaluation_result.get("evaluation_rating", "Unknown"),
+            "c_plausibility": multipliers.get("c_plausibility", 0.0),
+            "score_functional": multipliers.get("score_functional", 0.0),
+            "r_kinetic": multipliers.get("r_kinetic", 0.0),
+            "p_burden": multipliers.get("p_burden", 0.0),
+            "score_temporal": multipliers.get("score_temporal", 0.0),
+            "metrics_fold_change": func_raw.get("fold_change", 0.0),
+            "metrics_min_on": func_raw.get("min_on", 0.0),
+            "metrics_max_off": func_raw.get("max_off", 0.0),
+            "metrics_cv": kin_raw.get("cv", 0.0),
+            "metrics_max_burden": kin_raw.get("max_burden", 0.0),
+            "metrics_t_rise_avg": kin_raw.get("t_rise_avg", 0.0),
+            "penalty_reasons": penalties
+        }
+        
+        # 3. 構建 human_readable_markdown
+        md = f"""# 🔬 基因電路基準測試完整報告
+
+## 🏆 總體評估結論
+| 指標 | 結果 |
+| :--- | :--- |
+| **最終實驗潛力分數** | `{diagnostic_json['total_score']:.2f} / 100` |
+| **實驗潛力評級** | **{diagnostic_json['rating']}** |
+
+## 📊 模組得分雷達 (Multipliers)
+| 評估模組 | 係數/得分 | 健康度狀態 |
+| :--- | :--- | :--- |
+| 靜態合理性 ($C_{{Plausibility}}$) | `{diagnostic_json['c_plausibility']:.4f}` | {"🟢" if diagnostic_json['c_plausibility'] > 0.9 else "🟡"} |
+| 功能正確性 ($Score_{{Functional}}$) | `{diagnostic_json['score_functional']:.2f}` | {"🟢" if diagnostic_json['score_functional'] > 80 else "🔴"} |
+| 動力學穩健度 ($R_{{Kinetic}}$) | `{diagnostic_json['r_kinetic']:.4f}` | {"🟢" if diagnostic_json['r_kinetic'] > 0.9 else "🟡"} |
+| 代謝毒性控制 ($P_{{Burden}}$) | `{diagnostic_json['p_burden']:.4f}` | {"🟢" if diagnostic_json['p_burden'] > 0.9 else "🔴"} |
+| 時序效率 ($Score_{{Temporal}}$) | `{diagnostic_json['score_temporal']:.4f}` | {"🟢" if diagnostic_json['score_temporal'] > 0.9 else "🟡"} |
+
+## 🧬 理化參數摘要 (Physical Metrics)
+- **Fold Change:** `{diagnostic_json['metrics_fold_change']:.2f}` (Min ON: `{diagnostic_json['metrics_min_on']:.1f}` nM, Max OFF: `{diagnostic_json['metrics_max_off']:.1f}` nM)
+- **變異係數 (CV under noise):** `{diagnostic_json['metrics_cv']:.4f}`
+- **最大蛋白負擔 (Max Burden):** `{diagnostic_json['metrics_max_burden']:.1f}` nM
+- **平均上升時間 (Avg Rise Time):** `{diagnostic_json['metrics_t_rise_avg']:.1f}` 秒
+
+## ⚠️ 扣分與改善建議 (Diagnostics)
+"""
+        if penalties:
+            for p in penalties:
+                md += f"- {p}\n"
+        else:
+            md += "- 🌟 無重大扣分項目，電路設計表現優異。\n"
+
+        md += "\\n*Generated by BenchmarkController*"
+
+        return diagnostic_json, md
