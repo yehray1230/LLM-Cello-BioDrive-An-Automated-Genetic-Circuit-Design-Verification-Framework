@@ -1,0 +1,143 @@
+[
+  {
+    "motif_name": "NOT_GATE",
+    "category": "primitives",
+    "purpose": "反轉單一輸入訊號。無輸入時產生輸出，有輸入時關閉輸出。",
+    "logic_depth": 1,
+    "estimated_repressor_cost": 1,
+    "decomposition_strategy": "基礎單元，無需分解。在實體層面直接映射到單一轉錄抑制蛋白 (如 PhlF, TetR)。",
+    "boolean_template": "NOT(A)",
+    "trade_offs": "訊號轉換最快速、代謝負擔最低。它是所有高階反相邏輯的基石。",
+    "known_risks": "若選用的抑制蛋白解離常數 (K 值) 不佳，在無訊號時可能會產生基礎漏電 (Leakage)，導致輸出無法達到完美的 1。"
+  },
+  {
+    "motif_name": "NOR_GATE",
+    "category": "primitives",
+    "purpose": "當任何一個輸入訊號存在時，即關閉輸出。只有當所有輸入皆為零時，才啟動下游表現。",
+    "logic_depth": 1,
+    "estimated_repressor_cost": 1,
+    "decomposition_strategy": "Cello 平台的核心泛用閘。通常由兩個輸入啟動子串聯 (Tandem promoters) 共同驅動同一個下游的抑制蛋白來達成。",
+    "boolean_template": "A NOR B",
+    "trade_offs": "作為泛用閘，它可以組合出任何布林邏輯，是演算法化簡時最愛用的標準節點。",
+    "known_risks": "啟動子串聯時容易引發轉錄通讀 (Read-through) 或空間立體障礙 (Steric hindrance)，可能導致 A 與 B 兩個輸入的權重不相等。"
+  },
+  {
+    "motif_name": "OR_GATE",
+    "category": "primitives",
+    "purpose": "只要有任何一個輸入訊號存在，就啟動下游基因表現。",
+    "logic_depth": 1,
+    "estimated_repressor_cost": 0,
+    "decomposition_strategy": "不需要使用抑制蛋白。直接將 A 與 B 兩個輸入對應的啟動子串聯，共同驅動最終的輸出基因。",
+    "boolean_template": "A OR B",
+    "trade_offs": "不消耗任何細胞的轉譯資源（因為不需要生成額外的抑制蛋白），代謝負擔極低，反應時間也最快。",
+    "known_risks": "由於沒有經過抑制蛋白的「非線性轉換 (Non-linear transfer)」來重整訊號，OR 閘容易累積並放大上游傳遞過來的雜訊。"
+  },
+  {
+    "motif_name": "NAND_GATE",
+    "category": "primitives",
+    "purpose": "除非所有輸入訊號同時存在，否則皆保持啟動狀態。只有在 A 與 B 皆存在時，才關閉輸出。",
+    "logic_depth": 1,
+    "estimated_repressor_cost": 2,
+    "decomposition_strategy": "根據迪摩根定律 NOT(A AND B) = NOT(A) OR NOT(B)。實體上會表現兩種不同的轉錄抑制蛋白 (分別被 A 與 B 誘導)，並將這兩個抑制蛋白對應的啟動子串聯起來驅動下游。",
+    "boolean_template": "NOT(A) OR NOT(B)",
+    "trade_offs": "雖然在數位電路中 NAND 是泛用閘，但在生物系統中，NOR 閘的實作 (直接抑制) 比 NAND 閘 (雙重抑制加串聯) 更穩定，因此生物編譯器通常優先選用 NOR 而非 NAND。",
+    "known_risks": "需要消耗兩種正交 (Orthogonal) 的抑制蛋白，若庫存不足容易產生資源排擠。"
+  },
+  {
+    "motif_name": "XOR_GATE",
+    "category": "primitives",
+    "purpose": "互斥或閘。當輸入訊號 A 與 B 不相同時 (一有一無) 才啟動輸出；若兩者皆無，或兩者皆有，則關閉輸出。",
+    "logic_depth": 3,
+    "estimated_repressor_cost": 4,
+    "decomposition_strategy": "生物體內幾乎沒有天然的 XOR 閘。必須由純 NOR 閘網路組合而成：(A NOR (A NOR B)) NOR (B NOR (A NOR B))，或者透過更複雜的多層級網路來實現。",
+    "boolean_template": "A XOR B",
+    "trade_offs": "極度耗費細胞資源。高達 3 層的邏輯深度會帶來嚴重的訊號延遲，且需要 4 到 5 個完全互不干擾的抑制蛋白，這往往會逼近單一細胞的代謝負擔極限。",
+    "known_risks": "極易產生「競爭危害 (Race Condition / Logic Hazard)」。因為 A 與 B 的訊號在電路中經過的路徑長度 (邏輯深度) 不同，抵達末端的時間會有時間差，可能導致本該關閉的狀態出現短暫的錯誤脈衝 (Glitch)。"
+  },
+  {
+    "motif_name": "XNOR_GATE",
+    "category": "primitives",
+    "purpose": "反互斥或閘 (等價閘)。只有當輸入訊號 A 與 B 狀態完全一致時 (皆無或皆有)，才啟動輸出。",
+    "logic_depth": 3,
+    "estimated_repressor_cost": 5,
+    "decomposition_strategy": "本質上是 NOT(XOR)。在純 NOR 閘的合成中，通常需要比 XOR 再多加一層反相器，或者重新進行卡諾圖化簡。",
+    "boolean_template": "A XNOR B",
+    "trade_offs": "這是基礎組合邏輯中最笨重的一個。如果 Agent 偵測到需要使用 XNOR，應該優先思考能否在更高層級的演算法中重新定義問題，以避開這個昂貴的結構。",
+    "known_risks": "除了與 XOR 相同的競爭危害與巨大代謝毒性外，過深的邏輯層數會讓訊號嚴重衰減，導致輸出的「On/Off 差異比 (Dynamic Range)」變得極度模糊。"
+  },
+  {
+    "motif_name": "TOGGLE_SWITCH",
+    "category": "sequential_memory",
+    "purpose": "儲存 1-bit 的二進位記憶。能在短暫的誘導訊號後，永久維持細胞狀態的切換。",
+    "logic_depth": "迴圈網路 (環狀依賴)",
+    "estimated_repressor_cost": 2,
+    "decomposition_strategy": "由兩個 NOT 閘互相抑制形成正回饋迴路。通常需要極度精準挑選兩個抑制蛋白 (如 LacI 與 TetR)，使其表現強度與降解率高度對稱。",
+    "dynamic_behavior": "雙穩態 (Bistability)。系統具有兩個穩定的吸引子 (Attractors)，不允許中間狀態的長期存在。",
+    "trade_offs": "記憶屬於揮發性 (Volatile)。如果細胞遭遇極端生長壓力或質體大量遺失，蛋白質濃度的平衡一旦崩潰，記憶就會被洗掉。",
+    "known_risks": "若選用的兩個 NOT 閘的希爾係數 (Hill Coefficient) 太低 (n < 2)，或者漏電 (Leakage) 太高，雙穩態將無法維持，系統會陷入兩者皆弱的灰色地帶。"
+  },
+  {
+    "motif_name": "REPRESSILATOR",
+    "category": "dynamic_oscillator",
+    "purpose": "作為細胞內建的生物時鐘，產生週期性的蛋白質濃度波動，用於控制定時任務。",
+    "logic_depth": "迴圈網路 (奇數環)",
+    "estimated_repressor_cost": 3,
+    "decomposition_strategy": "由三個 (或大於三的奇數個) NOT 閘頭尾相連組成。例如：A 抑制 B，B 抑制 C，C 抑制 A。",
+    "dynamic_behavior": "極限環震盪 (Limit Cycle Oscillation)。系統永遠無法達到穩定平衡點，呈現週期性的狀態輪轉。",
+    "trade_offs": "是極度難以穩定的「脆弱 (Fragile)」電路。任何一個節點的參數微小偏移，都會導致震盪停止。",
+    "known_risks": "嚴重依賴蛋白質的快速降解。若未在蛋白質序列後加上降解標籤 (如 ssrA tag)，累積的蛋白質會如同緩衝液般吸收訊號變化，使震盪訊號迅速衰減為直線 (Damped Oscillation)。"
+  },
+  {
+    "motif_name": "COHERENT_FEED_FORWARD_LOOP",
+    "category": "signal_processing",
+    "purpose": "雜訊濾波器 (Noise Filter) 或延遲啟動開關。只對持續時間夠長的真實訊號起反應，忽略短暫的環境雜訊。",
+    "logic_depth": 2,
+    "estimated_repressor_cost": "視具體拓樸而定 (通常為活化子或抑制子的混合)",
+    "decomposition_strategy": "信號路徑分岔後再匯合。X 啟動 Y，然後 X 和 Y 共同啟動 Z (此處通常包含一個隱含的 AND 邏輯)。",
+    "dynamic_behavior": "非對稱延遲 (Sign-sensitive delay)。啟動時有顯著的時間延遲 (需等待 Y 累積)，但訊號消失時，Z 可能會迅速關閉。",
+    "trade_offs": "以犧牲反應速度為代價，換取極高的訊號保真度與抗雜訊能力。",
+    "known_risks": "若 Y 的轉譯速率過慢或降解過快，可能導致 Z 永遠無法跨越啟動的閾值。"
+  },
+  {
+    "motif_name": "INCOHERENT_FEED_FORWARD_LOOP",
+    "category": "signal_processing",
+    "purpose": "脈衝產生器 (Pulse Generator) 或折疊變化偵測器 (Fold-change Detector)。在持續的輸入訊號下，只產生短暫的輸出爆發，隨後自動適應並關閉。",
+    "logic_depth": 2,
+    "estimated_repressor_cost": "至少 1 個抑制蛋白",
+    "decomposition_strategy": "X 啟動目標基因 Z，但 X 同時也啟動抑制蛋白 Y，隨後 Y 會關閉 Z。創造了活化與抑制之間的時間差。",
+    "dynamic_behavior": "瞬態脈衝 (Transient Pulse) 與適應性 (Adaptation)。輸出的峰值高度與輸入訊號的絕對濃度無關，而是與濃度的「相對變化率」有關。",
+    "trade_offs": "非常優雅且節省資源的脈衝產生方式，但脈衝的寬度 (Duration) 難以精準控制，高度依賴 Y 的生成動力學。",
+    "known_risks": "如果抑制蛋白 Y 漏電過高或基礎表現太強，一開始就把 Z 壓制住，那麼連短暫的脈衝都不會產生。"
+  },
+  {
+    "motif_name": "THRESHOLD_GATE",
+    "category": "signal_processing",
+    "purpose": "類比數位轉換器 (ADC) 或噪音消除器。設定一個絕對的濃度門檻，跨越前輸出為零，跨越後呈現極陡峭的啟動。",
+    "logic_depth": 1,
+    "estimated_repressor_cost": "需要額外的『分子海綿 (Decoys)』資源",
+    "decomposition_strategy": "引入與活化子具有極高親和力，但無法啟動下游的『誘餌分子』。在活化子填滿所有誘餌之前，系統保持絕對的關閉狀態。",
+    "dynamic_behavior": "極高非線性 (Ultra-sensitivity)。在濃度-反應曲線上創造一個宛如數位電晶體般的垂直切換點。",
+    "trade_offs": "能完美切斷底層雜訊漏電，但需要持續消耗細胞資源來製造大量毫無運算功能的誘餌分子，代謝負擔隱蔽且沉重。",
+    "known_risks": "誘餌分子的表現量必須保持絕對穩定。若細胞狀態改變導致誘餌數量波動，整個系統的啟動閾值就會隨之瘋狂漂移。"
+  },
+  {
+    "motif_name": "PULSE_GENERATOR",
+    "category": "signal_processing",
+    "purpose": "在面臨持續的輸入訊號時，只產生短暫的輸出爆發（脈衝），隨後系統會自動關閉並適應。",
+    "logic_depth": 2,
+    "estimated_repressor_cost": 1,
+    "decomposition_strategy": "在轉錄層次上，最穩定的實作是使用非一致性前饋迴路 (I1-FFL)。輸入訊號 A 同時啟動目標輸出 Z 以及抑制蛋白 Y，而 Y 負責關閉 Z。脈衝的產生依賴於 Y 轉錄與累積的『物理時間差』。",
+    "trade_offs": "資源消耗極低（只需額外 1 個抑制蛋白）。但缺點是脈衝的『高度（振幅）』與『寬度（持續時間）』高度耦合，在傳統轉錄系統中難以將兩者獨立拆分調整。",
+    "known_risks": "若抑制蛋白 Y 的生成速率過快，或者基礎漏電（Leakage）過高，會導致輸出 Z 根本來不及累積，連短暫的脈衝都會被直接掐死。"
+  },
+  {
+    "motif_name": "BAND_PASS_FILTER",
+    "category": "signal_processing",
+    "purpose": "濃度區間偵測器。只有當輸入訊號處於特定的『中等濃度區間』時才啟動輸出；濃度過低或過高皆會關閉輸出。",
+    "logic_depth": 2,
+    "estimated_repressor_cost": 1,
+    "decomposition_strategy": "將『低閾值的活化途徑』與『高閾值的抑制途徑』平行疊加。低濃度時觸發活化；高濃度時抑制蛋白啟動，且其抑制效力必須覆蓋過活化效力。",
+    "trade_offs": "能讓細胞具備空間定位（例如在濃度梯度的特定位置亮起）或精準的劑量感知能力。但它對參數匹配的要求極度嚴苛。",
+    "known_risks": "這是一個極易失效的電路。如果高閾值（抑制器啟動所需的濃度）小於或等於低閾值（活化器啟動所需的濃度），這兩個曲線的交集就會消失，系統將永遠處於關閉狀態，完全失去帶通效應。"
+  }
+]
