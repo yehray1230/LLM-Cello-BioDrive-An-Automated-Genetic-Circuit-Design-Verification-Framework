@@ -1,0 +1,68 @@
+import os
+import json
+import shutil
+import logging
+import sys
+
+# 為了能在 scripts 資料夾下正確 import 專案根目錄的 vector_db
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from vector_db import VectorDBClient
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
+
+def ingest_pending_skills():
+    """
+    批次讀取 skills_pending/ 內的 JSON，將有價值的經驗寫入 VectorDB，
+    完成後將檔案移至 skills_archive/。
+    """
+    # 專案根目錄路徑
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    pending_dir = os.path.join(base_dir, "skills_pending")
+    archive_dir = os.path.join(base_dir, "skills_archive")
+    
+    # 確保資料夾存在
+    os.makedirs(pending_dir, exist_ok=True)
+    os.makedirs(archive_dir, exist_ok=True)
+    
+    # 掃描 pending 目錄
+    files = [f for f in os.listdir(pending_dir) if f.endswith(".json")]
+    
+    if not files:
+        logger.info("No pending skills found in 'skills_pending/'. Exiting.")
+        return
+        
+    vdb_client = VectorDBClient()
+    logger.info(f"Found {len(files)} pending skill files. Starting ingestion...")
+    
+    for filename in files:
+        file_path = os.path.join(pending_dir, filename)
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                
+            skills = data.get("skills", {})
+            # 過濾掉 skills 欄位，其餘皆為 metadata
+            metadata = {k: v for k, v in data.items() if k != "skills"}
+            
+            if skills:
+                # 寫入 VectorDB
+                vdb_client.insert(
+                    document=json.dumps(skills, ensure_ascii=False),
+                    metadata=metadata
+                )
+                logger.info(f"Successfully ingested {filename} into VectorDB.")
+                
+                # 寫入成功後，移動檔案到 skills_archive
+                archive_path = os.path.join(archive_dir, filename)
+                shutil.move(file_path, archive_path)
+                logger.info(f"Moved {filename} to archive.")
+            else:
+                logger.warning(f"{filename} contains no skills. Skipped ingestion.")
+                
+        except Exception as e:
+            logger.error(f"Error processing {filename}: {e}")
+
+if __name__ == "__main__":
+    ingest_pending_skills()
