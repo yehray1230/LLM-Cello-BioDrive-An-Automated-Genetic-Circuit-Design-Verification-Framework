@@ -1,0 +1,133 @@
+import re
+import logging
+import litellm
+from schemas.state import CircuitState
+
+def _validate_verilog_ast(code: str) -> tuple[bool, str]:
+    """輕量級正則語意校驗，確保具備 Cello Verilog 所需基本要素，並嚴格限制為純組合邏輯。"""
+    if "module " not in code or "endmodule" not in code:
+        return False, "缺乏 `module` 或 `endmodule` 宣告。"
+    if "input " not in code:
+        return False, "缺乏 `input` 腳位宣告。"
+    if "output " not in code:
+        return False, "缺乏 `output` 腳位宣告。"
+        
+    # 簡易邏輯運算字眼檢查
+    has_logic = any(kw in code for kw in ["and(", "or(", "not(", "nor(", "nand(", "assign "])
+    if not has_logic:
+        return False, "缺乏具體邏輯運算 (如 and, or, not) 或 assign 語句。"
+        
+    # 嚴格禁用 always, reg, # (時間延遲)
+    if re.search(r"\balways\b", code):
+        return False, "嚴格禁止使用 `always` 區塊，Cello 僅支援純組合邏輯。"
+    if re.search(r"\breg\b", code):
+        return False, "嚴格禁止使用 `reg` 變數，Cello 僅支援純組合邏輯 (請使用 wire 或直接 assign)。"
+    if "#" in code:
+        return False, "嚴格禁止使用 `#` 延遲語法，Cello 僅支援純組合邏輯。"
+        
+    return True, ""
+
+def _translate_single_proposal(proposal: str, api_key: str | None, model_name: str, api_base: str | None = None, rag_context: str = "", feedback: str = "") -> str:
+    system_prompt = """You are an expert biological circuit compiler for the Cello CAD software. Your ONLY job is to translate structured logic specifications into standard structural/dataflow Verilog code.
+
+STRICT RULES:
+1. Output ONLY raw, valid Verilog code.
+2. NO Markdown formatting (Do NOT use ```verilog or ```).
+3. 【Logic Translation Rules】:
+   - Cello ONLY supports pure Combinational Logic.
+   - You MUST use basic logic gates (and, or, not, nand, nor, xor, xnor) or continuous assignment (`assign`, `wire`).
+   - ABSOLUTELY NO sequential logic. Do NOT use `always` blocks. Do NOT use `reg`.
+   - ABSOLUTELY NO temporal dynamics or delays. Do NOT use `#` delay syntax.
+"""
+
+    if rag_context:
+        system_prompt += f"\n【生物元件約束庫 (RAG Context)】\n{rag_context}\n"
+        
+    if feedback:
+        system_prompt += f"\n【元件微調指示 (Critic Feedback)】\n{feedback}\n"
+        system_prompt += "這是一次針對元件的微調 (PART_ERROR)。請根據此回饋，在 Verilog 程式碼中加入 Cello 支援的約束語法、指定腳位名稱、或是加入對應的元件綁定註解，以強制抽換或避開有問題的生物實體元件，但絕對不可改變原本的布林邏輯架構。\n"
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {
+            "role": "user",
+            "content": (
+                "請根據以下邏輯方案，設計對應的 Cello Verilog 組合邏輯電路：\n"
+                f"{proposal}"
+            ),
+        },
+    ]
+
+    max_retries = 3
+
+    for attempt in range(max_retries):
+        try:
+            response = litellm.completion(
+                model=model_name,
+                messages=messages,
+                temperature=0.1,
+                api_key=api_key.strip() if api_key and api_key.strip() else None,
+                api_base=api_base.strip() if api_base and api_base.strip() else None,
+            )
+
+            raw_output = response.choices[0].message["content"]
+
+            match = re.search(r"(?s)module\s+\w+\s*\(.*?\);.*?endmodule", raw_output, re.MULTILINE)
+            if not match:
+                err_msg = "無法從輸出中萃取完整的 Verilog 區塊 (module ... endmodule)。"
+                if attempt < max_retries - 1:
+                    messages.append({"role": "assistant", "content": raw_output})
+                    messages.append({"role": "user", "content": f"【格式校驗失敗】{err_msg} 請務必只產出純 Verilog 程式碼，並確保只使用組合邏輯。"})
+                    continue
+                return f"ERROR: {err_msg}"
+
+            extracted_code = match.group(0).strip()
+
+            is_valid, val_err = _validate_verilog_ast(extracted_code)
+            if not is_valid:
+                if attempt < max_retries - 1:
+                    messages.append({"role": "assistant", "content": extracted_code})
+                    messages.append({"role": "user", "content": f"【語意校驗失敗】{val_err} 請修正後重新產出，嚴格遵守組合邏輯限制。"})
+                    continue
+                return f"ERROR: 多次重試後語法/語意校驗依然失敗：{val_err}"
+
+            return extracted_code
+
+        except Exception as e:
+            logging.error(f"Translation error: {e}")
+            if attempt == max_retries - 1:
+                return f"ERROR: 呼叫模型發生問題：{str(e)}"
+            
+    return "ERROR: 產生 Verilog 失敗，超過最大重試次數。"
+
+
+def call_translator(state: CircuitState, api_key: str | None, model_name: str, api_base: str | None = None, **kwargs) -> CircuitState:
+    """
+    接收 Builder 產出的多個「純邏輯方案」(state.logic_proposals)，
+    並將它們逐一翻譯為 Cello CAD 支援的 Verilog 程式碼。
+    """
+    state.verilog_codes = []
+    
+    rag_context = state.rag_context or ""
+    feedback = ""
+    if state.error_type == "PART_ERROR" and state.critic_feedbacks:
+        feedback = state.critic_feedbacks[-1]
+    
+    # 防呆檢查：如果沒有 logic_proposals，就拿 current_topology 當作唯一方案
+    proposals = state.logic_proposals
+    if not proposals:
+        if state.current_topology:
+            proposals = [state.current_topology]
+        else:
+            state.last_error = "ERROR: 無法進行轉譯，因為 logic_proposals 為空。"
+            return state
+
+    for prop in proposals:
+        verilog_res = _translate_single_proposal(prop, api_key, model_name, api_base, rag_context=rag_context, feedback=feedback)
+        state.verilog_codes.append(verilog_res)
+        
+    # 如果全都是 ERROR，可以設定 last_error
+    if all(v.startswith("ERROR:") for v in state.verilog_codes):
+        state.last_error = "ERROR: 所有邏輯方案的 Verilog 轉譯皆失敗。"
+        
+    return state
