@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import os
+import shutil
 from typing import Any, Callable
 
 import litellm
 import litellm.exceptions
+from litellm.caching import Cache
 
+litellm.cache = Cache(type="disk", disk_cache_dir="./.llm_cache")
+ENABLE_LLM_CACHE = True
 
 ToolExecutor = Callable[..., str]
 
@@ -29,6 +34,7 @@ def call_llm(
             temperature=0.3,
             api_key=api_key.strip() if api_key and api_key.strip() else None,
             api_base=api_base.strip() if api_base and api_base.strip() else None,
+            caching=ENABLE_LLM_CACHE,
         )
         return response.choices[0].message["content"].strip()
     except litellm.exceptions.AuthenticationError:
@@ -102,6 +108,7 @@ def run_llm_with_tools(
                 temperature=temperature,
                 api_key=api_key.strip() if api_key and api_key.strip() else None,
                 api_base=api_base.strip() if api_base and api_base.strip() else None,
+                caching=ENABLE_LLM_CACHE,
             )
         except litellm.exceptions.AuthenticationError:
             return {
@@ -203,3 +210,6 @@ def run_llm_with_tools(
         "tool_outputs": collected_tool_outputs,
         "error": f"ERROR: {error_prefix} exceeded max tool-calling rounds.",
     }
+
+def clear_llm_cache():
+    shutil.rmtree("./.llm_cache", ignore_errors=True)
