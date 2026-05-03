@@ -34,42 +34,14 @@ SEARCH_PARTS_TOOL: dict[str, Any] = {
 }
 
 
-RUN_ODE_SIMULATION_TOOL: dict[str, Any] = {
-    "type": "function",
-    "function": {
-        "name": "run_ode_simulation",
-        "description": "對候選基因電路做輕量 ODE 壓力測試，用來估計 leakage、穩定性與潛在動態風險。",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "topology_description": {
-                    "type": "string",
-                    "description": "Builder 設計的自然語言描述或拓樸摘要。",
-                },
-                "focus": {
-                    "type": "string",
-                    "description": "模擬關注點，例如 leakage、toxicity、stability。",
-                    "default": "stability",
-                },
-                "host_organism": {
-                    "type": "string",
-                    "description": "宿主生物名稱。",
-                    "default": "Escherichia coli",
-                },
-            },
-            "required": ["topology_description"],
-            "additionalProperties": False,
-        },
-    },
-}
+
 
 
 def get_builder_tools() -> list[dict[str, Any]]:
     return [SEARCH_PARTS_TOOL]
 
 
-def get_critic_tools() -> list[dict[str, Any]]:
-    return [RUN_ODE_SIMULATION_TOOL]
+
 
 
 def _normalize_host_name(host_organism: str) -> str:
@@ -192,6 +164,7 @@ def execute_run_ode_simulation_tool(arguments_json: str) -> str:
     focus = str(args.get("focus", "stability")).strip().lower() or "stability"
     normalized_host = _normalize_host_name(str(args.get("host_organism", "Escherichia coli")))
     baseline_key = _resolve_host_baseline_key(normalized_host)
+    output_image_path = args.get("output_image_path", None)
 
     if not topology_description:
         return "TOOL_ERROR: topology_description 不可為空。"
@@ -209,7 +182,7 @@ def execute_run_ode_simulation_tool(arguments_json: str) -> str:
         params["leakage"] = 0.02
 
     try:
-        df = run_ode_simulation(params=params, topology=topology, stimulus_curves=None)
+        df = run_ode_simulation(params=params, topology=topology, stimulus_curves=None, output_image_path=output_image_path)
         output_species = topology["species"][-1]
         summary = _summarize_dataframe(df, output_species)
         result = {
