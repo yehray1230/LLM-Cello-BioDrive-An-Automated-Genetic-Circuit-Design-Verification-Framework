@@ -1,147 +1,165 @@
-# LLM-Cello BioDrive: An Automated Genetic Circuit Design & Verification Framework
-本專案旨在降低合成生物學中基因電路設計的門檻。透過引入大型語言模型（LLMs），系統能將研究人員輸入的「自然語言描述」自動轉譯為 Cello 軟體可接受的硬體描述語言（Verilog）。 
-
-開發方法聲明 (Development Methodology)
-
-本專案採用了 AI 輔助編程工具（Cursor Vibe Coding,Google Anigravity）進行快速迭代開發。專案的核心學術與工程價值在於「系統工作流程架構設計」與「高約束性提示詞工程 (Prompt Engineering)」，基礎程式碼與介面橋接則藉助工具加速完成，以專注於驗證概念的可行性。
-
+# LLM-Cello-BioDrive: Automated Genetic Circuit Design & Verification Framework
 
 ## 專案簡介 (Introduction)
-LLM-Cello BioDrive 是一個次世代的合成生物學生成式框架。本專案旨在橋接「自然語言需求」與「底層基因實體」，提供一個端到端（End-to-End）的自動化設計與驗證平台。
-
-在最新版本中，系統全面升級為狀態機驅動的多智能體架構（State-Driven Multi-Agent Workflow）。有別於傳統依賴靜態邏輯閘的基因電路輔助設計軟體，本框架讓 AI 智能體（Builder, Critic, Consolidator）能自主調用工具（Autonomous Tool Calling），並結合檢索增強生成 (RAG)、常微分方程 (ODE) 統計動力學模擬，以及人機協作審核機制（Human-in-the-Loop）。系統不僅能自動編譯對應的 Verilog 網表，更能針對活體細胞不可避免的代謝負擔與基因表現雜訊，進行工業級的蒙地卡羅穩健度壓力測試。
+這個專案的建立旨在搭建一個「自動化基因電路設計代理 (Agentic Genetic Circuit Designer)」。系統能夠接收使用者的自然語言需求，將其自動轉換為經過生化動力學驗證的實體基因電路。本架構導入了「邏輯多樣性生成」與「實體最佳化」分離的核心精神，不再依賴單一模型完成生成，而是構建了一個強大且穩健的多智能體批次評估 (Multi-Agent Batch Evaluation) 流水線。
 ## 核心功能 (Key Features)
 
-### 狀態驅動的智能體架構 (State-Driven Agentic Workflow)
+#### 狀態驅動的智能體架構 (State-Driven Agentic Workflow)
 
 拋棄單純的對話歷史拼接，系統內部採用嚴謹的 CircuitState 狀態機結構，精確追蹤每一輪的拓樸草案、審查意見、模擬結果與錯誤日誌，確保多智能體協作過程中的上下文穩定性。
 
-### 人機協作與動態約束 (Human-in-the-Loop & Dynamic Constraints)
+#### 人機協作與動態約束 (Human-in-the-Loop & Dynamic Constraints)
 
 系統不會盲目黑箱作業。在智能體完成初步對抗設計後，工作流會暫停並進入人機協核階段。研究人員可以檢視完整的辯論邏輯，並能隨時注入額外的生物學限制（例如：指定生物安全等級、避免高拷貝載體），系統將帶著完整的歷史記憶重啟迭代。
 
-### 真實元件檢索增強 (RAG-based Component Grounding)
+#### 真實元件檢索增強 (RAG-based Component Grounding)
 
 支援解析 Cello UCF (User Constraint File) 規格，將真實實驗室表徵過的感測器與邏輯閘寫入 ChromaDB 向量資料庫，確保 AI 設計具備物理真實性。
 
-### 自動化生化參數探勘 (Biokinetic Data Mining)
+#### 自動化生化參數探勘 (Biokinetic Data Mining)
 
 內建 Data Miner Agent，可非同步針對 BioNumbers 等學術資料庫進行爬蟲，萃取解離常數 ($K_d$)、轉錄/轉譯率與降解率，並自動標準化為系統單位（nM 與秒）。
 
-### 剛性方程與蒙地卡羅模擬 (Stiff ODE & Monte Carlo Analysis)
+#### 剛性方程與蒙地卡羅模擬 (Stiff ODE & Monte Carlo Analysis)
 
 Stiff ODE Solver：採用 scipy.integrate.solve_ivp 的 Radau 演算法，精確處理生物系統中時序差異極大的剛性動力學方程。
 
 參數擾動與群體模擬：對基礎參數疊加高斯噪音 (Gaussian perturbation)，模擬細胞群體間的外在雜訊 (Extrinsic Noise)，繪製動態時序軌跡與分佈通道。
 
-### 自動化效能評估 (Automated Oracle Verification)
+#### 自動化效能評估 (Automated Oracle Verification)
 
 透過自動萃取真值表 (Truth Table) 計算 ON/OFF Fold Change。
 
 設立總蛋白質代謝負荷閾值，動態攔截因資源耗盡引發的非預期細胞毒性崩潰。
 
-### 全端本地化與隱私防護 (Local LLM & Embedding Support)
+#### 全端本地化與隱私防護 (Local LLM & Embedding Support)
 
 全面支援 Ollama 等本地端模型運行。從 RAG 的向量嵌入（Embeddings）到多智能體的邏輯推理，皆可在無網際網路連線的情況下於本地伺服器執行，確保敏感基因序列與專利設計的絕對隱私。
 
-## 系統架構與工作流程 (Workflow)
+## 核心系統工作流 (System Workflow)
 
-需求輸入：使用者輸入自然語言描述的生物學意圖與目標底盤細胞（如 E. coli 或 B. subtilis）。
+當使用者在前端輸入自然語言需求後，系統將在背後經歷以下五個完整的生命週期階段：
 
-對抗式迭代：Builder 提出草案，Critic 針對啟動子強度、毒性與邏輯延遲進行批判，經三輪迭代產出最佳化規格矩陣。
+#### 1.意圖解析與知識檢索 (Intent & Retrieval): 
+系統讀取使用者需求與選定的宿主生物，並透過 Embedding 模型至 ChromaDB 檢索相關的生物元件庫與生化約束，形成 rag_context。
 
-動態編譯：Design Consolidator 將規格翻譯為標準 Cello Verilog 網表 (Netlist)。
+#### 2.邏輯生成與硬體描述轉譯 (Generation & Translation): 
+Builder Agent 負責生成 3 組不同化簡策略的布林邏輯提案。接著，Translator Agent 會將這些邏輯精準轉譯為 Cello CAD 軟體支援的組合邏輯 Verilog 程式碼。
 
-壓力測試：Oracle Evaluator 自動生成 Test Vectors，調用 ODE 引擎執行 50 次蒙地卡羅抽樣，並計算穩健度通過率 (Robustness Score)。
+#### 3.實體映射與動態模擬 (Mapping & Simulation): 
+透過 Cello Wrapper 呼叫 Cello 工具，將抽象 Verilog 對應到真實的生物元件 (Technology Mapping)。隨後由 Batch ODE Simulator 針對各組拓樸執行蒙地卡羅 (Monte Carlo) 常微分方程解算，產生動態生化曲線與效能數據。
+
+#### 4.多智能體對抗與決策 (Reflexion & Routing):
+Critic Agent 負責檢視所有候選方案的拓樸與模擬數據。若達標則選出最佳解；若不佳則執行根因分析，判定為邏輯錯誤 (LOGIC_ERROR) 或元件約束錯誤 (PART_ERROR) 並退回重試，最多自動迭代 3 輪。
+
+#### 5.人機協作與最終驗證 (Human-in-the-loop & Validation): 
+系統呈現對抗紀錄與結果給使用者。使用者可追加條件進行手動反饋，或透過 Consolidator Agent 產出最終設計規格矩陣，最後由 Oracle Evaluator 產生供實體 Cello 平台使用的 .v 網表檔案。
+
 
 ```mermaid
-flowchart TB
-    %% 定義全局樣式
-    classDef agent fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
-    classDef engine fill:#fff3e0,stroke:#e65100,stroke-width:2px;
-    classDef data fill:#f1f8e9,stroke:#33691e,stroke-width:2px;
-    classDef output fill:#fce4ec,stroke:#880e4f,stroke-width:2px;
-    classDef human fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
+graph TD
+    %% 節點樣式定義
+    classDef user fill:#f9f9f9,stroke:#333,stroke-width:2px;
+    classDef agent fill:#e1f5fe,stroke:#0288d1,stroke-width:2px;
+    classDef tool fill:#fff3e0,stroke:#f57c00,stroke-width:2px;
+    classDef data fill:#e8f5e9,stroke:#388e3c,stroke-width:2px;
+    classDef decision fill:#fce4ec,stroke:#c2185b,stroke-width:2px,shape:diamond;
 
-    U([使用者自然語言意圖]) --> State[狀態機初始化 CircuitState]
-    State --> Reflexion_Loop
+    %% 階段一：輸入與檢索
+    User["使用者自然語言需求<br>(User Intent & Host)"]:::user --> Retriever["Vector Retriever<br>(RAG Context)"]:::tool
+    Retriever -.-> ChromaDB[("ChromaDB<br>元件庫與約束")]:::data
 
-    %% 模組 1：多智能體工具調用與對抗
-    subgraph Reflexion_Loop [1. Agentic Reflexion Workflow]
-        direction LR
-        B[Builder Agent] <-->|狀態傳遞與邏輯辯論| C[Critic Agent]
-        B -.->|自主調用 Tool| RAG[(ChromaDB: 真實元件庫)]
-        C -.->|自主調用 Tool| Light_ODE[(輕量級 ODE 探測)]
+    %% 階段二：邏輯生成與轉譯
+    subgraph Phase2 [邏輯生成與硬體轉譯 Generation & Translation]
+        Builder["Builder Agent"]:::agent
+        Builder -->|策略 A: 閘數最小化| Prop1[("布林邏輯 1")]:::data
+        Builder -->|策略 B: 層級最小化| Prop2[("布林邏輯 2")]:::data
+        Builder -->|策略 C: 元件相容性| Prop3[("布林邏輯 3")]:::data
+        
+        Prop1 & Prop2 & Prop3 --> Translator["⚙️ Translator Agent"]:::agent
+        Translator -->|AST 校驗與降級| Verilog["組合邏輯 Verilog (x3)"]:::data
     end
-    class B,C agent
-    class RAG,Light_ODE data
+    Retriever --> Builder
+    Retriever --> Translator
 
-    %% 人機協作節點
-    Reflexion_Loop --> HITL{2. 人機協作審核 \n Human-in-the-Loop}
-    class HITL human
-    
-    HITL -->|追加生物學約束 / 駁回重試| Reflexion_Loop
-    HITL -->|專家核准通過| Formalization
-
-    %% 模組 2：規格形式化與全域驗證
-    subgraph Formalization [3. Formal Specification & Verification]
-        direction TB
-        DC[Design Consolidator] --> TV[Test Vector Generator]
-        DM[Data Miner Agent] -.->|異步爬取生化參數| ODE
-        TV --> ODE[Stiff ODE / Monte Carlo Engine]
-        ODE -->|時序軌跡與代謝負荷| OE[Oracle Evaluator]
+    %% 階段三：實體映射與動態模擬
+    subgraph Phase3 [物理映射與驗證 Physical Mapping & Simulation]
+        Cello["Cello Wrapper<br>(Technology Mapping)"]:::tool
+        ODE["Batch ODE Simulator<br>(Monte Carlo & DAE)"]:::tool
+        
+        Verilog --> Cello
+        Cello -->|實體拓樸 Netlist| ODE
+        ODE -->|高斯雜訊與代謝負擔分析| Metrics["綜合效能數據矩陣<br>(FC, Burden, Robustness)"]:::data
     end
-    class DC,TV,DM,OE agent
-    class ODE engine
 
-    %% 決策與輸出
-    OE -.->|自動反饋失敗報告| HITL
-    OE -->|Pass: 穩健度達標| VC[Verilog Compiler]
-    
-    VC --> Netlist([Verilog Netlist .v 檔案])
-    class VC agent
-    class Netlist output
+    %% 階段四：多智能體對抗
+    subgraph Phase4 [反思決策迴圈 Reflexion Controller]
+        Critic{"Critic Agent<br>評估所有方案"}:::decision
+        Metrics --> Critic
+        
+        Critic -->|FAIL: 邏輯錯誤| Builder
+        Critic -->|FAIL: 毒性過高/元件衝突| Translator
+    end
+
+    %% 階段五：輸出
+    Critic -->|PASS: 表現達標| Consolidator["Consolidator Agent"]:::agent
+    Consolidator --> Output["最終設計規格書 & 測試向量<br>(Deployable Circuit)"]:::user
+
+    %% 快取機制標示
+    Cache[("LLM & ODE 雙軌快取機制")] -.-> Builder
+    Cache -.-> Translator
+    Cache -.-> ODE
 ```
+## 邏輯生成的多樣性策略 (Logic Diversity Strategies)
+在 Builder Agent 階段，系統會並行生成三種具有不同側重點的布林邏輯提案。之所以不只生成一個「最簡化」的邏輯，是因為生物電路的實作受限於極其有限的元件庫與嚴苛的生化代謝壓力。
 
-## 快速開始 (Quick Start)
+#### 閘數最小化策略 (Gate-Count Optimization):
+目標： 利用布林代數化簡，將所需的邏輯閘數量降到最低。
 
-環境建置
+優勢： 減少宿主細胞的代謝負擔 (Metabolic Burden)。較少的元件意味著較低的蛋白質合成壓力，能提高細胞的存活率與生長穩定性。
+#### 層級最小化策略 (Depth/Latency Optimization):
+目標： 縮短從輸入訊號到最終輸出之間的邏輯層級。
 
-請確保您的環境中已安裝 Python 3.10 以上版本。
+優勢： 優化時序效率 (Temporal Efficiency)。在生物系統中，訊號穿過每一層邏輯閘都會產生顯著的時間延遲。減少層級可以加快電路反應速度，避免訊號在傳遞過程中因衰減而消散。
+#### 元件相容性導向策略 (Library-Aware/Robustness Strategy):
+目標： 避開複雜的複合門（如複雜的 AOI 邏輯），優先使用宿主生物元件庫（UCF）中最穩定、特徵化最完整的常用元件（如常用的 Repressors）。
 
-1. 複製專案
-git clone https://github.com/yehray1230/LLM-Cello-BioDrive-An-Automated-Genetic-Circuit-Design-Verification-Framework/tree/main
-cd LLM-Cello-BioDrive-An-Automated-Genetic-Circuit-Design-Verification-Framework
+優勢： 提高技術映射 (Technology Mapping) 的成功率。有時邏輯最簡的電路，可能因為找不到對應的啟動子或阻遏蛋白而無法在物理層面實現，此策略能確保「有藥可醫」。
+### 為什麼要這麼做？ (The Rationale)
+#### 對沖生化風險： 
+生物元件具有「非線性」與「漏電」特性。一個在邏輯上完美的電路，在 ODE 模擬中可能會因為連鎖反應導致背景電流過大（Leakage）。生成多樣性提案能讓後續的 Critic Agent 有機會從中挑選出抗噪能力最強的設計。
 
-2. 安裝依賴套件
-pip install -r requirements.txt
+#### 突破 Cello 映射限制： 
+Cello 在進行實體元件指派時，常會因為特定元件的干擾（Crosstalk）或重複序列（Homologous Recombination）而失敗。三種策略提供了三種不同的拓撲結構，極大地增加了通過驗證的機率。
 
-3. 啟動 Streamlit 視覺化介面
-python -m streamlit run app.py
+#### 從「代碼生成」進化到「架構探索」：
+這體現了 Agent 的決策價值——它不只是翻譯員，而是會根據生化常識提供不同工程取捨（Trade-offs）的資深設計師。
 
-系統配置
+## 生化動力學與科學評分機制 (Evaluation & Scoring)
 
-在側邊欄選擇您偏好的 LLM 供應商（支援 OpenAI, Anthropic, Google Gemini, Groq 或本地端 Ollama）。
+#### 功能正確性 (Functional Scorer): 
+評估無雜訊理想條件下的邏輯辨識度，包含 Fold Change (FC) Score、邏輯吻合度以及針對背景漏電的 Margin Score 懲罰。
 
-輸入對應的 API Key。
+#### 動力學與物理限制 (Kinetic Scorer):
+引入高斯分佈噪音 (15% 變異量) 進行平行的蒙地卡羅壓力測試。分析引入雜訊後的穩健度保留係數 ($R_{Kinetic}$)、代謝毒性負擔 ($P_{Burden}$)，以及跨越啟動閾值所需的時序效率 ($Score_{Temporal}$)。
 
-建議先在介面中或使用 ucf_ingest.py 解析您的元件庫以建立向量索引。
+#### 靜態合理性 (Static Plausibility):
+分析網路拓樸結構，針對過深層級的電路預先折扣，並對重複的元件序列施加同源重組 (Homologous Recombination) 懲罰。
 
-## 未來展望 (Future Work)
+#### 生化資源競爭模型 (DAE Simulation): 
+模擬全域資源（如 RNA 聚合酶與總核醣體）天花板，動態結算游離態資源，並利用 Michaelis-Menten 動力學修正基因表現速率，真實反映多基因並行時的相互排擠效應。
 
-本專案未來的發展將擺脫傳統數位邏輯的單細胞限制，轉向更具生物學原生特性的時空動態建模 (Spatio-temporal Modeling) 與巨觀結構生成 (Generative Morphogenesis)：
+## 前端自定義開關與控制 (Configuration Toggles)
+使用者可透過介面切換以下開關，動態改變底層狀態機的路由邏輯：
+#### 啟用 RAG (預設 ON): 
+結合向量庫增強生成；關閉則進入完全依賴模型內部知識的 Zero-shot 模式。
+#### 啟用自動化 ODE 模擬 (預設 ON): 
+解算剛性微分方程提供定量分數；關閉可大幅加速系統反應時間以進行純拓樸預覽，但 Critic 將失去動態數據輔助判斷。
+#### 啟用 Multi-Agent 架構 (預設 ON):
+啟動完整的反思修正迴圈；關閉則進入 Single-Pass 模式，繞過 Critic 審查進行快速直通生成。
+#### 啟用 LLM 與 ODE 快取 (預設 ON): 
+結合 LiteLLM 與 Joblib 提供雙軌持久化快取機制，大幅節省 API 成本與算力。若想強迫模型發揮新創造力或重新抽取高斯噪音進行壓力測試，可關閉快取或進行清除。
 
-多細胞協同與通訊 (Multicellular Consortia & Quorum Sensing)
-未來的版本將原生支援多細胞群體的設計。系統將能自動分配不同的邏輯閘到多個特化的細胞株中，並透過群體感應分子 (e.g., AHLs, Autoinducers) 建立細胞間的通訊網路，藉此降低單一細胞的代謝負擔並實現更複雜的邏輯運算。
-
-代謝網路與基因電路的深度耦合 (Metabolic-Genetic Coupling)
-除了目前的蛋白質轉錄/轉譯動力學，我們計畫整合流體平衡分析 (Flux Balance Analysis, FBA) 或全基因組代謝網路模型。這將使 AI 能夠預測基因電路在運作時，對宿主細胞核心代謝路徑（如生長速率、ATP 消耗量）的動態影響，實現更精確的資源分配預測。
-
-反應-擴散系統與偏微分方程模擬 (Reaction-Diffusion Systems & PDE Simulation)
-從現有的常微分方程 (ODE) 升級至偏微分方程 (PDE)，引入空間維度。這將能模擬訊號分子在二維培養皿或三維空間中的濃度梯度擴散，進而探索細胞群體如何透過 Turing Patterns（圖靈斑圖）形成特定的空間排列。
-
-巨觀結構逆向工程 (Reverse-Engineering Macro-Structures)
-這是本框架的最終願景：發展 3D 幾何到基因電路的逆向編譯器 (3D-to-Circuit Compiler)。使用者只需輸入目標蛋白質聚合體或生物薄膜 (Biofilm) 的 3D 巨觀結構模型，AI 代理將反向推導出所需的細胞間黏附蛋白表現時序、空間分化邏輯與細胞自溶 (Programmed Cell Death) 機制，進而由下而上 (Bottom-up) 培育出客製化的工程活體材料 (Engineered Living Materials)。
 
 ## 授權
 
