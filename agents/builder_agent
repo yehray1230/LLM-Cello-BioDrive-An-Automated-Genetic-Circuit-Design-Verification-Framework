@@ -59,3 +59,45 @@ def _build_system_prompt(state: CircuitState) -> str:
         )
         
     return system_prompt
+
+def call_builder(state: CircuitState, api_key: str | None, model_name: str, api_base: str | None = None, force_zero_shot: bool = False, **kwargs) -> CircuitState:
+    system_prompt = _build_system_prompt(state)
+    user_content = "請根據系統提示的規則與使用者的需求，以純 JSON 格式輸出 3 個不同的設計方案。"
+    
+    response = call_llm(
+        api_key=api_key,
+        model_name=model_name,
+        system_prompt=system_prompt,
+        user_content=user_content,
+        api_base=api_base,
+    )
+    
+    if response.startswith("ERROR:"):
+        state.last_error = response
+        return state
+        
+    try:
+        start = response.find("{")
+        end = response.rfind("}")
+        if start != -1 and end != -1:
+            json_str = response[start:end+1]
+            data = json.loads(json_str)
+            
+            proposals = []
+            for k, v in data.items():
+                if isinstance(v, dict):
+                    proposals.append(json.dumps(v, ensure_ascii=False))
+            
+            if not proposals:
+                state.logic_proposals = [json_str]
+            else:
+                state.logic_proposals = proposals
+        else:
+            state.logic_proposals = [response]
+            
+        state.current_topology = state.logic_proposals[0] if state.logic_proposals else ""
+        
+    except Exception as e:
+        state.last_error = f"ERROR: 無法解析 Builder 回傳的 JSON。錯誤：{str(e)}\n回傳內容：{response}"
+        
+    return state
