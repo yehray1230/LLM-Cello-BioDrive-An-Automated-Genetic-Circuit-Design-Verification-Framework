@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from benchmark_suite.base_evaluator import EvaluationResult
+from benchmark_suite.score_values import clamp01 as _clamp01
 
 DEFAULT_ORTHOGONALITY_SCORE = 0.25
 SEVERE_ORTHOGONALITY_SCORE = 0.05
@@ -264,7 +265,3 @@ def _coerce_bool(value: Any, default: bool) -> bool:
             return False
         return default
     return bool(value)
-
-
-def _clamp01(value: float) -> float:
-    return max(0.0, min(1.0, float(value)))

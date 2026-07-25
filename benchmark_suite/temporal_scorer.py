@@ -4,6 +4,9 @@ import math
 from typing import Any
 
 from benchmark_suite.base_evaluator import EvaluationResult
+from benchmark_suite.candidate_values import candidate_float as _candidate_float
+from benchmark_suite.candidate_values import maybe_float as _maybe_float
+from benchmark_suite.score_values import clamp01 as _clamp01
 
 DEFAULT_TARGET_RISE_TIME = 180.0
 DEFAULT_GATE_DELAY = 35.0
@@ -70,19 +73,3 @@ def _rise_time_from_trace(times: list[Any], outputs: list[Any], threshold: float
         if output_number >= threshold:
             return max(0.0, time_number)
     return None
-
-
-def _candidate_float(candidate: dict[str, Any], key: str, default: float) -> float:
-    value = _maybe_float(candidate.get(key))
-    return default if value is None else value
-
-
-def _maybe_float(value: Any) -> float | None:
-    try:
-        return None if value is None else float(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _clamp01(value: float) -> float:
-    return max(0.0, min(1.0, float(value)))

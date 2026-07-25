@@ -15,6 +15,7 @@ from schemas.design_ir import (
     ProvenanceRecord,
     RegulatoryInteraction,
 )
+from utils.scalar_values import optional_trimmed_text as _optional_text
 
 
 SCHEMA_VERSION = "1.0"
@@ -412,8 +413,3 @@ def _is_missing(value: Any) -> bool:
 
 def _text(value: Any) -> str:
     return "" if value is None else str(value).strip()
-
-
-def _optional_text(value: Any) -> str | None:
-    text = _text(value)
-    return text or None

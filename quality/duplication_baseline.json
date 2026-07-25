@@ -1,0 +1,492 @@
+{
+  "schema_version": "duplicate-function-baseline@1.0.0",
+  "detector_version": "0.1.0",
+  "mode": "report-only",
+  "group_ids": {
+    "exact_body": [
+      "exact_body:110e5e93e83e1334",
+      "exact_body:1dec0591d444e972",
+      "exact_body:1f3e71a11ee53015",
+      "exact_body:2f141c783a90c022",
+      "exact_body:3617bffdbaa270e3",
+      "exact_body:3a83f180093c0e9e",
+      "exact_body:45d513b8be92a444",
+      "exact_body:50e707504d5ea755",
+      "exact_body:58567f4bfde25313",
+      "exact_body:620d384827f28772",
+      "exact_body:71ba6412702ee0a0",
+      "exact_body:86568369eff5307d",
+      "exact_body:8dd09e54180ab4fe",
+      "exact_body:9086555e797549c7",
+      "exact_body:9dab0aa67c7576a2",
+      "exact_body:a131a5b225a7c2c1",
+      "exact_body:af042880b03558a6",
+      "exact_body:b3085085c6912b29",
+      "exact_body:b71c330309799325",
+      "exact_body:c5c8d74a966669a7",
+      "exact_body:cac051f4b1042d3f",
+      "exact_body:ddb6ef2df8ff4ce7",
+      "exact_body:e0929008a00a5bc0",
+      "exact_body:eb8ab64e37a3b68b"
+    ],
+    "structural_body": [
+      "structural_body:05d2176d4ce0a8e0",
+      "structural_body:174c86a497bf01ee",
+      "structural_body:19e95cc2cfc6fa64",
+      "structural_body:2ca259acf2bd3f12",
+      "structural_body:3df47a98276effb4",
+      "structural_body:3e96e3ab1bc376da",
+      "structural_body:6fa2d1276fc9360f",
+      "structural_body:73bf403346a96dcf",
+      "structural_body:805af1704e61ebef",
+      "structural_body:c134b113b8bd6972",
+      "structural_body:e8c06895e88c0240"
+    ],
+    "repeated_name": [
+      "repeated_name:_as_bool",
+      "repeated_name:_best_topology_from_result",
+      "repeated_name:_clean_signal_name",
+      "repeated_name:_coerce_float",
+      "repeated_name:_coerce_str_list",
+      "repeated_name:_comma_list",
+      "repeated_name:_component_score",
+      "repeated_name:_connect",
+      "repeated_name:_content_hash",
+      "repeated_name:_decision_action",
+      "repeated_name:_decision_result",
+      "repeated_name:_dict_list",
+      "repeated_name:_extract_verilog_signals",
+      "repeated_name:_filename_token",
+      "repeated_name:_float_or_none",
+      "repeated_name:_grade",
+      "repeated_name:_host",
+      "repeated_name:_incomplete_constructs",
+      "repeated_name:_infer_gene_count",
+      "repeated_name:_label",
+      "repeated_name:_locus_token",
+      "repeated_name:_mean",
+      "repeated_name:_migrate_database",
+      "repeated_name:_normalize_sequence",
+      "repeated_name:_not_found",
+      "repeated_name:_now_iso",
+      "repeated_name:_number",
+      "repeated_name:_observation_from_dict",
+      "repeated_name:_optional_score",
+      "repeated_name:_origin_lines",
+      "repeated_name:_output_key",
+      "repeated_name:_package_version",
+      "repeated_name:_payload",
+      "repeated_name:_payload_hash",
+      "repeated_name:_primitive_calls",
+      "repeated_name:_qualifier",
+      "repeated_name:_render_human",
+      "repeated_name:_run_task",
+      "repeated_name:_safe_index",
+      "repeated_name:_score_like",
+      "repeated_name:_sequence_coverage",
+      "repeated_name:_sequence_quality_score",
+      "repeated_name:_single_line",
+      "repeated_name:_slug",
+      "repeated_name:_source_path",
+      "repeated_name:_stable_seed",
+      "repeated_name:_strip_comments",
+      "repeated_name:_strip_verilog_comments",
+      "repeated_name:_summary",
+      "repeated_name:_summary_markdown",
+      "repeated_name:_text",
+      "repeated_name:_tokenize",
+      "repeated_name:_transaction",
+      "repeated_name:_valid_ode_trace",
+      "repeated_name:_validate_id",
+      "repeated_name:_wait_for_research_result",
+      "repeated_name:_write_json"
+    ]
+  },
+  "group_members": {
+    "exact_body:110e5e93e83e1334": [
+      "src/exporters/genbank_exporter.py::_incomplete_constructs",
+      "src/exporters/plasmid_assembler.py::_incomplete_constructs"
+    ],
+    "exact_body:1dec0591d444e972": [
+      "src/api/v2_routes.py::get_assembly_deliverable_artifact",
+      "src/web/routes.py::download_assembly_delivery"
+    ],
+    "exact_body:1f3e71a11ee53015": [
+      "src/exporters/plasmid_tools.py::_package_version",
+      "src/tools/assembly_planner.py::_package_version",
+      "src/tools/primer_designer.py::_package_version"
+    ],
+    "exact_body:2f141c783a90c022": [
+      "src/schemas/design_ir_v2.py::_dict_list",
+      "src/schemas/design_migrations.py::_dict_list"
+    ],
+    "exact_body:3617bffdbaa270e3": [
+      "benchmark_suite/functional_scorer.py::_strip_comments",
+      "benchmark_suite/static_plausibility_evaluator.py::_strip_comments"
+    ],
+    "exact_body:3a83f180093c0e9e": [
+      "app.py::_run_byok_workflow.TranslatorRunner.__init__",
+      "src/mcp_server/service.py::TranslatorRunner.__init__"
+    ],
+    "exact_body:45d513b8be92a444": [
+      "src/tools/sequence_analyzer.py::_host",
+      "src/tools/sequence_optimization.py::_host"
+    ],
+    "exact_body:50e707504d5ea755": [
+      "src/schemas/design_draft.py::DesignDraft.from_dict",
+      "src/schemas/notification.py::Notification.from_dict"
+    ],
+    "exact_body:58567f4bfde25313": [
+      "src/catalog/agent_catalog.py::_source_path",
+      "src/catalog/workflow_kit_catalog.py::_source_path"
+    ],
+    "exact_body:620d384827f28772": [
+      "app.py::_extract_verilog_signals",
+      "src/tools/ode_simulator.py::_extract_verilog_signals"
+    ],
+    "exact_body:71ba6412702ee0a0": [
+      "src/mcp_server/explainer.py::_number",
+      "src/mcp_server/ode_explainer.py::_number"
+    ],
+    "exact_body:86568369eff5307d": [
+      "src/api/v2_schemas.py::AssemblyPlanRequest.validate_plan",
+      "src/api/v2_schemas.py::PlasmidAssemblyRequest.validate_window"
+    ],
+    "exact_body:8dd09e54180ab4fe": [
+      "src/exporters/plasmid_tools.py::AssemblyReport.to_dict",
+      "src/schemas/assembly_plan.py::AssemblyPlan.to_dict"
+    ],
+    "exact_body:9086555e797549c7": [
+      "benchmark_suite/semantic_evaluator.py::_coerce_float",
+      "src/schemas/state.py::_coerce_float",
+      "src/tools/ode_simulator.py::_coerce_float"
+    ],
+    "exact_body:9dab0aa67c7576a2": [
+      "app.py::_strip_verilog_comments",
+      "src/tools/ode_simulator.py::_strip_verilog_comments"
+    ],
+    "exact_body:a131a5b225a7c2c1": [
+      "app.py::_valid_ode_trace",
+      "src/web/routes.py::_valid_ode_trace"
+    ],
+    "exact_body:af042880b03558a6": [
+      "src/mcp_server/explainer.py::_best_topology_from_result",
+      "src/mcp_server/service.py::_best_topology_from_result"
+    ],
+    "exact_body:b3085085c6912b29": [
+      "app.py::_clean_signal_name",
+      "src/schemas/design_ir.py::_signal_name",
+      "src/tools/ode_simulator.py::_clean_signal_name"
+    ],
+    "exact_body:b71c330309799325": [
+      "src/exporters/genbank_exporter.py::_origin_lines",
+      "src/exporters/plasmid_assembler.py::_origin_lines"
+    ],
+    "exact_body:c5c8d74a966669a7": [
+      "benchmark_suite/resource_model_analysis.py::_observation_from_dict",
+      "benchmark_suite/resource_workflow.py::_observation_from_dict"
+    ],
+    "exact_body:cac051f4b1042d3f": [
+      "src/exporters/genbank_exporter.py::_locus_token",
+      "src/exporters/plasmid_assembler.py::_locus_token"
+    ],
+    "exact_body:ddb6ef2df8ff4ce7": [
+      "benchmark_suite/cello_constraint_evaluator.py::_try_float",
+      "src/utils/scalar_values.py::optional_float"
+    ],
+    "exact_body:e0929008a00a5bc0": [
+      "src/repositories/postgres_repository.py::_validate_id",
+      "src/repositories/sqlite_repository.py::_validate_id"
+    ],
+    "exact_body:eb8ab64e37a3b68b": [
+      "src/schemas/run_manifest.py::payload_sha256",
+      "src/schemas/simulation.py::canonical_payload_hash"
+    ],
+    "structural_body:05d2176d4ce0a8e0": [
+      "src/schemas/resource_calibration.py::_validate_optional_non_negative",
+      "src/schemas/resource_calibration.py::_validate_optional_positive"
+    ],
+    "structural_body:174c86a497bf01ee": [
+      "benchmark_suite/functional_scorer.py::_strip_comments",
+      "benchmark_suite/metabolic_scorer.py::_strip_verilog_comments",
+      "benchmark_suite/static_plausibility_evaluator.py::_strip_comments"
+    ],
+    "structural_body:19e95cc2cfc6fa64": [
+      "app.py::_component_score",
+      "src/mcp_server/explainer.py::_component_score"
+    ],
+    "structural_body:2ca259acf2bd3f12": [
+      "benchmark_suite/semantic_evaluator.py::_coerce_float",
+      "src/schemas/state.py::_coerce_float",
+      "src/schemas/state.py::_coerce_int",
+      "src/tools/ode_simulator.py::_coerce_float"
+    ],
+    "structural_body:3df47a98276effb4": [
+      "src/mcp_server/ode_explainer.py::_int_or_none",
+      "src/mcp_server/service.py::_float_or_none"
+    ],
+    "structural_body:3e96e3ab1bc376da": [
+      "src/catalog/agent_catalog.py::_as_bool",
+      "src/catalog/workflow_kit_catalog.py::_as_bool"
+    ],
+    "structural_body:6fa2d1276fc9360f": [
+      "src/agents/critic_agent.py::_ensure_metabolic_burden_guidance",
+      "src/agents/critic_agent.py::_ensure_sequence_quality_guidance"
+    ],
+    "structural_body:73bf403346a96dcf": [
+      "application/services.py::DesignService.get_v2",
+      "application/services.py::HostProfileRegistryService.get"
+    ],
+    "structural_body:805af1704e61ebef": [
+      "src/exporters/sequence_utils.py::normalize_dna",
+      "src/tools/part_library.py::_normalize_sequence"
+    ],
+    "structural_body:c134b113b8bd6972": [
+      "app.py::_strip_verilog_comments",
+      "src/tools/ode_simulator.py::_strip_verilog_comments",
+      "src/web/routes.py::_strip_verilog_comments"
+    ],
+    "structural_body:e8c06895e88c0240": [
+      "src/repositories/postgres_repository.py::_content_hash",
+      "src/repositories/sqlite_repository.py::_content_hash"
+    ],
+    "repeated_name:_as_bool": [
+      "benchmark_suite/functional_scorer.py::_as_bool",
+      "src/catalog/agent_catalog.py::_as_bool",
+      "src/catalog/workflow_kit_catalog.py::_as_bool"
+    ],
+    "repeated_name:_best_topology_from_result": [
+      "src/mcp_server/explainer.py::_best_topology_from_result",
+      "src/mcp_server/service.py::_best_topology_from_result"
+    ],
+    "repeated_name:_clean_signal_name": [
+      "app.py::_clean_signal_name",
+      "src/tools/ode_simulator.py::_clean_signal_name"
+    ],
+    "repeated_name:_coerce_float": [
+      "benchmark_suite/cello_constraint_evaluator.py::_coerce_float",
+      "benchmark_suite/semantic_evaluator.py::_coerce_float",
+      "src/mcp_server/chart_renderer.py::_coerce_float",
+      "src/schemas/state.py::_coerce_float",
+      "src/tools/ode_simulator.py::_coerce_float"
+    ],
+    "repeated_name:_coerce_str_list": [
+      "benchmark_suite/semantic_evaluator.py::_coerce_str_list",
+      "src/schemas/state.py::_coerce_str_list"
+    ],
+    "repeated_name:_comma_list": [
+      "src/ui/external_import.py::_comma_list",
+      "src/web/routes.py::_comma_list"
+    ],
+    "repeated_name:_component_score": [
+      "app.py::_component_score",
+      "src/mcp_server/explainer.py::_component_score"
+    ],
+    "repeated_name:_connect": [
+      "src/repositories/postgres_repository.py::PostgresDesignRepository._connect",
+      "src/repositories/sqlite_repository.py::SqliteDesignRepository._connect"
+    ],
+    "repeated_name:_content_hash": [
+      "src/repositories/postgres_repository.py::_content_hash",
+      "src/repositories/sqlite_repository.py::_content_hash"
+    ],
+    "repeated_name:_decision_action": [
+      "app.py::_decision_action",
+      "src/mcp_server/explainer.py::_decision_action"
+    ],
+    "repeated_name:_decision_result": [
+      "app.py::_decision_result",
+      "src/mcp_server/explainer.py::_decision_result"
+    ],
+    "repeated_name:_dict_list": [
+      "src/schemas/design_ir_v2.py::_dict_list",
+      "src/schemas/design_migrations.py::_dict_list"
+    ],
+    "repeated_name:_extract_verilog_signals": [
+      "app.py::_extract_verilog_signals",
+      "src/tools/ode_simulator.py::_extract_verilog_signals"
+    ],
+    "repeated_name:_filename_token": [
+      "src/exporters/bom_exporter.py::_filename_token",
+      "src/exporters/plasmid_tools.py::_filename_token"
+    ],
+    "repeated_name:_float_or_none": [
+      "src/mcp_server/service.py::_float_or_none",
+      "src/schemas/host_profile.py::host_profile_from_dict._float_or_none"
+    ],
+    "repeated_name:_grade": [
+      "benchmark_suite/benchmark_controller.py::_grade",
+      "src/mcp_server/explainer.py::_grade"
+    ],
+    "repeated_name:_host": [
+      "src/tools/sequence_analyzer.py::_host",
+      "src/tools/sequence_optimization.py::_host"
+    ],
+    "repeated_name:_incomplete_constructs": [
+      "src/exporters/genbank_exporter.py::_incomplete_constructs",
+      "src/exporters/plasmid_assembler.py::_incomplete_constructs"
+    ],
+    "repeated_name:_infer_gene_count": [
+      "src/agents/data_miner_agent.py::DataMinerAgent._infer_gene_count",
+      "src/tools/ode_simulator.py::_infer_gene_count"
+    ],
+    "repeated_name:_label": [
+      "src/catalog/agent_catalog.py::_label",
+      "src/catalog/workflow_kit_catalog.py::_label"
+    ],
+    "repeated_name:_locus_token": [
+      "src/exporters/genbank_exporter.py::_locus_token",
+      "src/exporters/plasmid_assembler.py::_locus_token"
+    ],
+    "repeated_name:_mean": [
+      "benchmark_suite/benchmark_controller.py::_mean",
+      "benchmark_suite/readiness_evaluator.py::_mean"
+    ],
+    "repeated_name:_migrate_database": [
+      "src/repositories/postgres_repository.py::PostgresDesignRepository._migrate_database",
+      "src/repositories/sqlite_repository.py::SqliteDesignRepository._migrate_database"
+    ],
+    "repeated_name:_normalize_sequence": [
+      "src/schemas/import_draft.py::_normalize_sequence",
+      "src/tools/part_library.py::_normalize_sequence"
+    ],
+    "repeated_name:_not_found": [
+      "src/api/routes.py::_not_found",
+      "src/mcp_server/run_store.py::_not_found"
+    ],
+    "repeated_name:_now_iso": [
+      "src/mcp_server/run_store.py::_now_iso",
+      "src/repositories/postgres_repository.py::_now_iso",
+      "src/repositories/sqlite_repository.py::_now_iso"
+    ],
+    "repeated_name:_number": [
+      "src/mcp_server/explainer.py::_number",
+      "src/mcp_server/ode_explainer.py::_number"
+    ],
+    "repeated_name:_observation_from_dict": [
+      "benchmark_suite/resource_model_analysis.py::_observation_from_dict",
+      "benchmark_suite/resource_workflow.py::_observation_from_dict"
+    ],
+    "repeated_name:_optional_score": [
+      "benchmark_suite/benchmark_controller.py::_optional_score",
+      "benchmark_suite/readiness_evaluator.py::_optional_score"
+    ],
+    "repeated_name:_origin_lines": [
+      "src/exporters/genbank_exporter.py::_origin_lines",
+      "src/exporters/plasmid_assembler.py::_origin_lines"
+    ],
+    "repeated_name:_output_key": [
+      "benchmark_suite/functional_scorer.py::_output_key",
+      "src/schemas/simulation.py::_output_key"
+    ],
+    "repeated_name:_package_version": [
+      "src/exporters/plasmid_tools.py::_package_version",
+      "src/tools/assembly_planner.py::_package_version",
+      "src/tools/primer_designer.py::_package_version"
+    ],
+    "repeated_name:_payload": [
+      "benchmark_suite/readiness_evaluator.py::_payload",
+      "src/repositories/postgres_repository.py::_payload"
+    ],
+    "repeated_name:_payload_hash": [
+      "benchmark_suite/runner.py::_payload_hash",
+      "src/repositories/sqlite_repository.py::_payload_hash"
+    ],
+    "repeated_name:_primitive_calls": [
+      "benchmark_suite/functional_scorer.py::_primitive_calls",
+      "benchmark_suite/static_plausibility_evaluator.py::_primitive_calls"
+    ],
+    "repeated_name:_qualifier": [
+      "src/exporters/genbank_exporter.py::_qualifier",
+      "src/exporters/plasmid_assembler.py::_qualifier"
+    ],
+    "repeated_name:_render_human": [
+      "src/scripts/check_duplicate_functions.py::_render_human",
+      "src/scripts/verify_evidence_manifest.py::_render_human"
+    ],
+    "repeated_name:_run_task": [
+      "application/design_task_benchmark.py::_run_task",
+      "src/mcp_server/run_store.py::RunStore._run_task"
+    ],
+    "repeated_name:_safe_index": [
+      "app.py::_safe_index",
+      "src/ui/external_import.py::_safe_index"
+    ],
+    "repeated_name:_score_like": [
+      "src/mcp_server/explainer.py::_score_like",
+      "src/web/routes.py::_score_like"
+    ],
+    "repeated_name:_sequence_coverage": [
+      "src/schemas/design_operations.py::_sequence_coverage",
+      "src/schemas/import_draft.py::_sequence_coverage"
+    ],
+    "repeated_name:_sequence_quality_score": [
+      "benchmark_suite/readiness_evaluator.py::_sequence_quality_score",
+      "src/tools/host_optimization.py::_sequence_quality_score"
+    ],
+    "repeated_name:_single_line": [
+      "src/exporters/genbank_exporter.py::_single_line",
+      "src/exporters/plasmid_assembler.py::_single_line"
+    ],
+    "repeated_name:_slug": [
+      "src/agents/skill_extractor_agent.py::_slug",
+      "src/importers/genbank_importer.py::_slug",
+      "src/ui/external_import.py::_slug"
+    ],
+    "repeated_name:_source_path": [
+      "src/catalog/agent_catalog.py::_source_path",
+      "src/catalog/workflow_kit_catalog.py::_source_path"
+    ],
+    "repeated_name:_stable_seed": [
+      "benchmark_suite/kinetic_scorer.py::_stable_seed",
+      "src/tools/ode_simulator.py::_stable_seed"
+    ],
+    "repeated_name:_strip_comments": [
+      "benchmark_suite/functional_scorer.py::_strip_comments",
+      "benchmark_suite/static_plausibility_evaluator.py::_strip_comments",
+      "src/schemas/design_ir.py::_strip_comments"
+    ],
+    "repeated_name:_strip_verilog_comments": [
+      "app.py::_strip_verilog_comments",
+      "benchmark_suite/metabolic_scorer.py::_strip_verilog_comments",
+      "src/tools/ode_simulator.py::_strip_verilog_comments",
+      "src/web/routes.py::_strip_verilog_comments"
+    ],
+    "repeated_name:_summary": [
+      "benchmark_suite/runner.py::_summary",
+      "src/mcp_server/ode_explainer.py::_summary"
+    ],
+    "repeated_name:_summary_markdown": [
+      "benchmark_suite/reporting.py::_summary_markdown",
+      "src/mcp_server/artifact_writer.py::_summary_markdown"
+    ],
+    "repeated_name:_text": [
+      "src/schemas/import_draft.py::_text",
+      "src/schemas/resource_calibration.py::_text"
+    ],
+    "repeated_name:_tokenize": [
+      "src/tools/skill_retriever.py::_tokenize",
+      "vector_db.py::InMemoryVectorDB._tokenize"
+    ],
+    "repeated_name:_transaction": [
+      "src/repositories/postgres_repository.py::PostgresDesignRepository._transaction",
+      "src/repositories/sqlite_repository.py::SqliteDesignRepository._transaction"
+    ],
+    "repeated_name:_valid_ode_trace": [
+      "app.py::_valid_ode_trace",
+      "src/web/routes.py::_valid_ode_trace"
+    ],
+    "repeated_name:_validate_id": [
+      "src/repositories/postgres_repository.py::_validate_id",
+      "src/repositories/sqlite_repository.py::_validate_id"
+    ],
+    "repeated_name:_wait_for_research_result": [
+      "application/demo_baseline.py::_wait_for_research_result",
+      "application/design_task_benchmark.py::_wait_for_research_result"
+    ],
+    "repeated_name:_write_json": [
+      "src/scripts/build_registry.py::_write_json",
+      "src/scripts/check_duplicate_functions.py::_write_json"
+    ]
+  }
+}

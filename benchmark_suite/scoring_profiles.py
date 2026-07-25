@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-import hashlib
-import json
 from typing import Any
+
+from utils.hashing import stable_json_sha256
 
 
 @dataclass(frozen=True)
@@ -21,13 +21,7 @@ class ScoringProfile:
         configuration = asdict(self)
         if configuration["biophysical_weights"] is None:
             configuration.pop("biophysical_weights")
-        payload = json.dumps(
-            configuration,
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        return stable_json_sha256(configuration)
 
     def to_dict(self) -> dict[str, Any]:
         return {**asdict(self), "configuration_hash": self.configuration_hash}

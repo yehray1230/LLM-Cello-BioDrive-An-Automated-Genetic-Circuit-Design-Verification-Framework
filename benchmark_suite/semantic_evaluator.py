@@ -4,6 +4,7 @@ import json
 from typing import Any
 
 from benchmark_suite.base_evaluator import BaseEvaluator, EvaluationResult
+from benchmark_suite.score_values import clamp01 as _clamp01
 from utils.llm_utils import call_llm
 
 SEMANTIC_SYSTEM_PROMPT = """You are a strict test engineer for genetic circuit translation.
@@ -172,7 +173,3 @@ def _coerce_str_list(value: Any) -> list[str]:
     if isinstance(value, tuple):
         return [str(item) for item in value]
     return [str(value)]
-
-
-def _clamp01(value: float) -> float:
-    return max(0.0, min(1.0, float(value)))

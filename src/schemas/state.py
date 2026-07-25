@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from utils.boolean_values import defaulted_bool as _coerce_bool
+
 SearchMode = Literal["Exploration", "Repair", "Exploitation"]
 NodeStatus = Literal["Pending", "Evaluated", "Pass", "Dead_End", "Needs_Human_Input"]
 ErrorType = Literal["LOGIC_ERROR", "PART_ERROR", "BOTH", "NONE"]
@@ -20,21 +22,6 @@ def _coerce_int(value: Any, default: int) -> int:
         return default if value is None else int(value)
     except (TypeError, ValueError):
         return default
-
-
-def _coerce_bool(value: Any, default: bool) -> bool:
-    if value is None:
-        return default
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        lowered = value.strip().lower()
-        if lowered in {"1", "true", "yes", "y"}:
-            return True
-        if lowered in {"0", "false", "no", "n"}:
-            return False
-        return default
-    return bool(value)
 
 
 def _coerce_str_list(value: Any, default: list[str]) -> list[str]:

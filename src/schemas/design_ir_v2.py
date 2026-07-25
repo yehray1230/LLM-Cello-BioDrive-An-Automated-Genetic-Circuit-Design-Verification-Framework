@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
+from utils.scalar_values import optional_trimmed_text as _optional_string
+
 
 DESIGN_IR_V2_SCHEMA_VERSION = "2.0"
 EVIDENCE_STATUSES = {
@@ -340,13 +342,6 @@ def _dict_list(value: Any) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
     return [dict(item) for item in value if isinstance(item, dict)]
-
-
-def _optional_string(value: Any) -> str | None:
-    if value is None:
-        return None
-    text = str(value).strip()
-    return text or None
 
 
 def _duplicate_errors(label: str, values: list[str]) -> list[str]:

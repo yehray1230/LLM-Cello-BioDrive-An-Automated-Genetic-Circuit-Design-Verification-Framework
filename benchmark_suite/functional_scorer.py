@@ -5,6 +5,9 @@ import re
 from typing import Any
 
 from benchmark_suite.base_evaluator import EvaluationResult
+from benchmark_suite.candidate_values import candidate_float as _candidate_float
+from benchmark_suite.candidate_values import maybe_float as _maybe_float
+from benchmark_suite.score_values import clamp01 as _clamp01
 
 DEFAULT_OUTPUT_KEYS = ("Y", "OUT", "OUTPUT", "Z")
 PRIMITIVE_GATES = {"and", "nand", "or", "nor", "xor", "xnor", "not", "buf"}
@@ -203,22 +206,6 @@ def _as_bool(value: Any) -> bool:
     return bool(value)
 
 
-def _candidate_float(candidate: dict[str, Any], key: str, default: float) -> float:
-    value = _maybe_float(candidate.get(key))
-    return default if value is None else value
-
-
-def _maybe_float(value: Any) -> float | None:
-    try:
-        return None if value is None else float(value)
-    except (TypeError, ValueError):
-        return None
-
-
 def _strip_comments(verilog: str) -> str:
     without_block = re.sub(r"/\*.*?\*/", "", verilog, flags=re.DOTALL)
     return re.sub(r"//.*?$", "", without_block, flags=re.MULTILINE)
-
-
-def _clamp01(value: float) -> float:
-    return max(0.0, min(1.0, float(value)))
