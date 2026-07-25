@@ -55,9 +55,9 @@ GPL-compliance review. The upstream license is authoritative:
 ## Optional and development dependencies
 
 `dna-features-viewer` is optional. Test and development tools such as pytest,
-pytest-asyncio, pytest-mock, responses, mypy, Ruff, and HTTPX are not runtime
-components of the project artifact. Their upstream licenses still apply if they
-are redistributed.
+pytest-asyncio, pytest-mock, pytest-cov (MIT), mutmut (BSD-3-Clause), responses,
+mypy, Ruff, and HTTPX are not runtime components of the project artifact. Their
+upstream licenses still apply if they are redistributed.
 
 ## External tools and biological data
 

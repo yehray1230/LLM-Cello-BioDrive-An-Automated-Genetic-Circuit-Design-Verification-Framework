@@ -42,6 +42,11 @@ outputs/
 Thumbs.db
 
 # Logs and temporary files
+.codex_test_logs/
+.coverage
+coverage.json
+htmlcov/
+mutants/
 *.log
 *.tmp
 *.bak
