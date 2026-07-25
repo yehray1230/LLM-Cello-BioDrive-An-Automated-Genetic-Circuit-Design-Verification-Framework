@@ -17,6 +17,7 @@ jobs:
     env:
       MPLBACKEND: Agg
       PYTHONUTF8: "1"
+      PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src
 
     steps:
       - name: Check out repository
