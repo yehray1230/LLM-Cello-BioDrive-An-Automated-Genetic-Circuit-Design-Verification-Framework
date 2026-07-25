@@ -39,7 +39,9 @@ output = "outputs/pre_release/coverage.json"
 pretty_print = true
 
 [tool.mutmut]
-source_paths = ["src/utils/safety_checker.py"]
+source_paths = ["src"]
+only_mutate = ["src/utils/safety_checker.py"]
+also_copy = ["application", "benchmark_suite"]
 pytest_add_cli_args_test_selection = ["tests/test_safety_boundary.py"]
 pytest_add_cli_args = ["-q", "-p", "no:cacheprovider"]
 max_stack_depth = 8
