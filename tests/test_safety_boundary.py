@@ -71,6 +71,7 @@ def test_safety_checker_warning_chassis():
         "and must not be treated as an experimental protocol."
         in result.warnings
     )
+    assert result.categories == ["review_required_chassis"]
 
 
 def test_safety_checker_warning_keywords():
@@ -91,7 +92,11 @@ def test_safety_checker_blocked_chassis():
     assert result.status == "blocked"
     assert any("High-risk chassis" in w for w in result.warnings)
     assert "Yersinia pestis" in result.redirection_message or "yersinia pestis" in result.redirection_message.lower()
-    assert result.redirection_message.endswith("biosafety-review level.")
+    assert result.redirection_message == (
+        "Design assistance involving the high-risk chassis 'Yersinia pestis' is "
+        "blocked. Use a benign teaching host or keep the discussion at a "
+        "non-operational biosafety-review level."
+    )
     assert result.requires_human_review is True
 
 
@@ -135,6 +140,9 @@ def test_sequence_automation_requires_review_and_blocks_automatic_export():
         "human review; this request does not authorize an automated sequence action."
         in result.warnings
     )
+    assert result.redirection_message == (
+        "Sequence-level automation is paused pending explicit human safety review."
+    )
 
 
 def test_benign_sequence_education_continues_without_automation_gate():
@@ -159,10 +167,12 @@ def test_safety_audit_logging_redacts_sequence_literals(isolated_safety_audit):
     )
 
     logs = json.loads(isolated_safety_audit.read_text(encoding="utf-8"))
+    assert "timestamp" in logs[-1]
     assert logs[-1]["run_id"] == "test_run_123"
     assert logs[-1]["status"] == "warn"
     assert logs[-1]["action"] == "export:genbank"
     assert logs[-1]["categories"] == ["sequence_automation"]
+    assert logs[-1]["warnings"] == ["Test warning"]
     assert sequence not in logs[-1]["intent_preview"]
     assert "sequence:redacted" in logs[-1]["intent_preview"]
     assert len(logs[-1]["intent_sha256"]) == 64
@@ -206,6 +216,27 @@ def test_safety_audit_preserves_metadata_unicode_and_existing_directory(
     assert logs[-1]["metadata"] == {"reviewer_note": "需要複核"}
     assert "人工確認" in raw_log
     assert "需要複核" in raw_log
+
+
+def test_safety_audit_write_failure_is_reported_to_stderr(monkeypatch, capsys):
+    def fail_mkdir(*args, **kwargs):
+        raise OSError("simulated disk failure")
+
+    monkeypatch.setattr(Path, "mkdir", fail_mkdir)
+
+    safety_checker.log_safety_event(
+        "failed-write",
+        "Review a benign reporter.",
+        "safe",
+        [],
+    )
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert (
+        "Failed to write safety audit log: simulated disk failure"
+        in captured.err
+    )
 
 
 def test_api_save_draft_safe(client):
