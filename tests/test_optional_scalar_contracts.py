@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -98,6 +99,16 @@ def test_scalar_values_imports_in_clean_python_process() -> None:
     completed = subprocess.run(
         [sys.executable, "-c", code],
         cwd=repository_root,
+        env={
+            **os.environ,
+            "PYTHONPATH": os.pathsep.join(
+                (
+                    str(repository_root),
+                    str(repository_root / "src"),
+                    os.environ.get("PYTHONPATH", ""),
+                )
+            ),
+        },
         capture_output=True,
         text=True,
         check=False,

@@ -21,7 +21,7 @@ from utils.safety_checker import check_design_export_safety, check_safety
 
 @pytest.fixture(autouse=True)
 def isolated_safety_audit(tmp_path, monkeypatch):
-    audit_dir = tmp_path / "safety_audit"
+    audit_dir = tmp_path / "missing_parent" / "safety_audit"
     audit_file = audit_dir / "safety_audit.json"
     monkeypatch.setattr(safety_checker, "AUDIT_LOG_DIR", audit_dir)
     monkeypatch.setattr(safety_checker, "AUDIT_LOG_FILE", audit_file)
@@ -62,6 +62,10 @@ def test_safety_checker_warning_chassis():
     assert result.status == "warn"
     assert any("Pseudomonas aeruginosa" in w or "pseudomonas aeruginosa" in w.lower() for w in result.warnings)
     assert any("not been validated in vivo" in w for w in result.warnings)
+    assert any(
+        "not be treated as an experimental protocol." in warning
+        for warning in result.warnings
+    )
 
 
 def test_safety_checker_warning_keywords():
@@ -70,6 +74,7 @@ def test_safety_checker_warning_keywords():
     assert result.status == "warn"
     assert any("virulence" in w.lower() for w in result.warnings)
     assert any("antibiotic" in w.lower() for w in result.warnings)
+    assert "biosafety_context" in result.categories
 
 
 def test_safety_checker_blocked_chassis():
@@ -78,6 +83,8 @@ def test_safety_checker_blocked_chassis():
     assert result.status == "blocked"
     assert any("High-risk chassis" in w for w in result.warnings)
     assert "Yersinia pestis" in result.redirection_message or "yersinia pestis" in result.redirection_message.lower()
+    assert "biosafety-review level." in result.redirection_message
+    assert result.requires_human_review is True
 
 
 def test_safety_checker_blocked_toxins():
@@ -86,6 +93,11 @@ def test_safety_checker_blocked_toxins():
     assert result.status == "blocked"
     assert any("biological toxin" in w.lower() for w in result.warnings)
     assert "ricin" in result.redirection_message.lower()
+    assert (
+        "blocked. Use a benign reporter or request high-level safety information."
+        in result.redirection_message
+    )
+    assert result.requires_human_review is True
 
 
 def test_safety_checker_blocks_chinese_high_risk_chassis():
@@ -135,9 +147,23 @@ def test_safety_audit_logging_redacts_sequence_literals(isolated_safety_audit):
     assert logs[-1]["run_id"] == "test_run_123"
     assert logs[-1]["status"] == "warn"
     assert logs[-1]["action"] == "export:genbank"
+    assert logs[-1]["categories"] == ["sequence_automation"]
     assert sequence not in logs[-1]["intent_preview"]
     assert "sequence:redacted" in logs[-1]["intent_preview"]
     assert len(logs[-1]["intent_sha256"]) == 64
+
+
+def test_safety_audit_preview_is_capped_at_1000_characters(isolated_safety_audit):
+    safety_checker.log_safety_event(
+        None,
+        "x" * 1001,
+        "safe",
+        [],
+    )
+
+    logs = json.loads(isolated_safety_audit.read_text(encoding="utf-8"))
+    assert logs[-1]["run_id"] == "direct_check"
+    assert len(logs[-1]["intent_preview"]) == 1000
 
 
 def test_api_save_draft_safe(client):
@@ -226,6 +252,65 @@ def test_design_export_safety_uses_persisted_intent_and_part_context():
     assert result.status == "warn"
     assert result.export_allowed is False
     assert any("Pre-export" in warning for warning in result.warnings)
+
+
+@pytest.mark.parametrize(
+    "host_value",
+    (
+        {"value": "Yersinia pestis"},
+        "Yersinia pestis",
+    ),
+)
+def test_design_export_safety_uses_attributed_and_plain_host_context(host_value):
+    result = check_design_export_safety(
+        {
+            "name": "Benign reporter design",
+            "specification": {"user_intent": "Design a GFP reporter."},
+            "biological_context": {"host_organism": host_value},
+            "parts": [{"name": "GFP", "role": "reporter"}],
+        },
+        "genbank",
+    )
+
+    assert result.status == "blocked"
+    assert result.categories == ["high_risk_chassis"]
+    assert result.requires_human_review is True
+    assert result.export_allowed is False
+
+
+def test_design_export_safety_checks_design_name():
+    result = check_design_export_safety(
+        {
+            "name": "botulinum toxin expression design",
+            "specification": {"user_intent": "Review this design."},
+            "biological_context": {
+                "host_organism": {"value": "Escherichia coli"}
+            },
+            "parts": [{"name": "GFP", "role": "reporter"}],
+        },
+        "genbank",
+    )
+
+    assert result.status == "blocked"
+    assert result.categories == ["high_risk_toxin"]
+    assert result.requires_human_review is True
+
+
+def test_design_export_safety_does_not_add_review_warning_to_safe_result():
+    result = check_design_export_safety(
+        {
+            "name": "Benign GFP reporter",
+            "specification": {"user_intent": "Design a GFP reporter."},
+            "biological_context": {
+                "host_organism": {"value": "Escherichia coli"}
+            },
+            "parts": [{"name": "GFP", "role": "reporter"}],
+        },
+        "genbank",
+    )
+
+    assert result.status == "safe"
+    assert result.warnings == []
 
 
 def test_api_export_blocks_sequence_automation_and_logs_decision(
