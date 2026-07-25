@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -168,6 +169,7 @@ def test_safety_audit_logging_redacts_sequence_literals(isolated_safety_audit):
 
     logs = json.loads(isolated_safety_audit.read_text(encoding="utf-8"))
     assert "timestamp" in logs[-1]
+    assert logs[-1]["boundary_version"] == safety_checker.SAFETY_BOUNDARY_VERSION
     assert logs[-1]["run_id"] == "test_run_123"
     assert logs[-1]["status"] == "warn"
     assert logs[-1]["action"] == "export:genbank"
@@ -190,6 +192,19 @@ def test_safety_audit_preview_is_capped_at_1000_characters(isolated_safety_audit
     assert logs[-1]["run_id"] == "direct_check"
     assert logs[-1]["action"] == "intake"
     assert len(logs[-1]["intent_preview"]) == 1000
+
+
+def test_safety_audit_normalizes_none_intent_to_empty_text(isolated_safety_audit):
+    safety_checker.log_safety_event(
+        "none-intent",
+        None,
+        "safe",
+        [],
+    )
+
+    logs = json.loads(isolated_safety_audit.read_text(encoding="utf-8"))
+    assert logs[-1]["intent_preview"] == ""
+    assert logs[-1]["intent_sha256"] == hashlib.sha256(b"").hexdigest()
 
 
 def test_safety_audit_preserves_metadata_unicode_and_existing_directory(
