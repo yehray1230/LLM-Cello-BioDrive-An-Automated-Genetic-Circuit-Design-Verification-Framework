@@ -1,0 +1,846 @@
+{
+  "schema_version": "1.0",
+  "dataset_id": "validated_circuits_v1",
+  "version": "1.2.1",
+  "name": "Phase 1 Literature-Curated Circuit Fixture Dataset",
+  "description": "Dataset of 22 literature-inspired circuit fixtures for engineering benchmarks; not independently source-verified or experimentally validated.",
+  "license": "Apache-2.0 for project-authored fixture structure and annotations; cited source materials retain their own terms",
+  "provenance": {
+    "kind": "literature_curated_fixture",
+    "evidence_status": "literature_curated_fixture",
+    "wet_lab_validated": false,
+    "source": "Cello (Science 2016), Gardner Toggle (Nature 2000), Elowitz Repressilator (Nature 2000), and classic inducible systems",
+    "independent_review_status": "pending",
+    "source_rights_status": "pending_independent_review",
+    "license_scope": "The repository license covers project-authored fixture structure, annotations, and code only; it does not relicense cited publications or source datasets.",
+    "claim_limit": "Engineering fixture only; parameter extraction and per-record data_rights notes are unverified until independent review and must not support evidence promotion."
+  },
+  "cases": [
+    {
+      "case_id": "cello_amtr_nor_v1",
+      "name": "AmtR Repressor NOR Gate",
+      "candidate": {
+        "design_id": "amtR_nor",
+        "chassis": "E. coli MG1655",
+        "promoters": ["pTac", "pTet"],
+        "repressors": ["AmtR"],
+        "output": "YFP",
+        "y_min": 0.02,
+        "y_max": 2.50,
+        "kd": 0.15,
+        "n": 2.1
+      },
+      "expected": {
+        "evaluation_mode": "combinational_logic",
+        "logic_expression": "NOT (A OR B)",
+        "functional_score": 1.0,
+        "min_dynamic_range": 10.0
+      },
+      "tags": ["cello", "logic", "nor_gate", "repressor"],
+      "source": {
+        "doi": "10.1126/science.aac7341",
+        "author": "Nielsen et al.",
+        "year": 2016,
+        "exact_location": "Figure 2 / Supplementary Data 1 (AmtR Gate)",
+        "measurement_context": {
+          "chassis": "E. coli NEB 10-beta",
+          "medium": "M9 clear medium",
+          "temperature_c": 37.0,
+          "reporter": "YFP",
+          "units": "RPU (Relative Promoter Units)"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Open Access / Cello 1.0 UCF",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "AmtR repressor gate from Cello gate library."
+    },
+    {
+      "case_id": "cello_beti_nor_v1",
+      "name": "BetI Repressor NOR Gate",
+      "candidate": {
+        "design_id": "betI_nor",
+        "chassis": "E. coli MG1655",
+        "promoters": ["pTac", "pBAD"],
+        "repressors": ["BetI"],
+        "output": "YFP",
+        "y_min": 0.01,
+        "y_max": 3.10,
+        "kd": 0.08,
+        "n": 2.4
+      },
+      "expected": {
+        "evaluation_mode": "combinational_logic",
+        "logic_expression": "NOT (A OR B)",
+        "functional_score": 1.0,
+        "min_dynamic_range": 15.0
+      },
+      "tags": ["cello", "logic", "nor_gate", "repressor"],
+      "source": {
+        "doi": "10.1126/science.aac7341",
+        "author": "Nielsen et al.",
+        "year": 2016,
+        "exact_location": "Figure 2 / Supplementary Data 1 (BetI Gate)",
+        "measurement_context": {
+          "chassis": "E. coli NEB 10-beta",
+          "medium": "M9 clear medium",
+          "temperature_c": 37.0,
+          "reporter": "YFP",
+          "units": "RPU"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Open Access / Cello 1.0 UCF",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "BetI repressor gate from Cello gate library."
+    },
+    {
+      "case_id": "cello_hlyiir_nor_v1",
+      "name": "HlyIIR Repressor NOR Gate",
+      "candidate": {
+        "design_id": "hlyIIR_nor",
+        "chassis": "E. coli MG1655",
+        "promoters": ["pLux", "pTet"],
+        "repressors": ["HlyIIR"],
+        "output": "YFP",
+        "y_min": 0.03,
+        "y_max": 1.80,
+        "kd": 0.22,
+        "n": 1.9
+      },
+      "expected": {
+        "evaluation_mode": "combinational_logic",
+        "logic_expression": "NOT (A OR B)",
+        "functional_score": 1.0,
+        "min_dynamic_range": 8.0
+      },
+      "tags": ["cello", "logic", "nor_gate", "repressor"],
+      "source": {
+        "doi": "10.1126/science.aac7341",
+        "author": "Nielsen et al.",
+        "year": 2016,
+        "exact_location": "Figure 2 / Supplementary Data 1 (HlyIIR Gate)",
+        "measurement_context": {
+          "chassis": "E. coli NEB 10-beta",
+          "medium": "M9 clear medium",
+          "temperature_c": 37.0,
+          "reporter": "YFP",
+          "units": "RPU"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Open Access / Cello 1.0 UCF",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "HlyIIR repressor gate from Cello gate library."
+    },
+    {
+      "case_id": "cello_icara_nor_v1",
+      "name": "IcaRA Repressor NOR Gate",
+      "candidate": {
+        "design_id": "icaRA_nor",
+        "chassis": "E. coli MG1655",
+        "promoters": ["pTac", "pSal"],
+        "repressors": ["IcaRA"],
+        "output": "YFP",
+        "y_min": 0.015,
+        "y_max": 2.90,
+        "kd": 0.12,
+        "n": 2.2
+      },
+      "expected": {
+        "evaluation_mode": "combinational_logic",
+        "logic_expression": "NOT (A OR B)",
+        "functional_score": 1.0,
+        "min_dynamic_range": 12.0
+      },
+      "tags": ["cello", "logic", "nor_gate", "repressor"],
+      "source": {
+        "doi": "10.1126/science.aac7341",
+        "author": "Nielsen et al.",
+        "year": 2016,
+        "exact_location": "Figure 2 / Supplementary Data 1 (IcaRA Gate)",
+        "measurement_context": {
+          "chassis": "E. coli NEB 10-beta",
+          "medium": "M9 clear medium",
+          "temperature_c": 37.0,
+          "reporter": "YFP",
+          "units": "RPU"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Open Access / Cello 1.0 UCF",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "IcaRA repressor gate from Cello gate library."
+    },
+    {
+      "case_id": "cello_litr_nor_v1",
+      "name": "LitR Repressor NOR Gate",
+      "candidate": {
+        "design_id": "litR_nor",
+        "chassis": "E. coli MG1655",
+        "promoters": ["pTet", "pSal"],
+        "repressors": ["LitR"],
+        "output": "YFP",
+        "y_min": 0.02,
+        "y_max": 2.20,
+        "kd": 0.18,
+        "n": 2.0
+      },
+      "expected": {
+        "evaluation_mode": "combinational_logic",
+        "logic_expression": "NOT (A OR B)",
+        "functional_score": 1.0,
+        "min_dynamic_range": 10.0
+      },
+      "tags": ["cello", "logic", "nor_gate", "repressor"],
+      "source": {
+        "doi": "10.1126/science.aac7341",
+        "author": "Nielsen et al.",
+        "year": 2016,
+        "exact_location": "Figure 2 / Supplementary Data 1 (LitR Gate)",
+        "measurement_context": {
+          "chassis": "E. coli NEB 10-beta",
+          "medium": "M9 clear medium",
+          "temperature_c": 37.0,
+          "reporter": "YFP",
+          "units": "RPU"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Open Access / Cello 1.0 UCF",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "LitR repressor gate from Cello gate library."
+    },
+    {
+      "case_id": "cello_lmra_nor_v1",
+      "name": "LmrA Repressor NOR Gate",
+      "candidate": {
+        "design_id": "lmrA_nor",
+        "chassis": "E. coli MG1655",
+        "promoters": ["pTac", "pBAD"],
+        "repressors": ["LmrA"],
+        "output": "YFP",
+        "y_min": 0.025,
+        "y_max": 1.95,
+        "kd": 0.20,
+        "n": 1.8
+      },
+      "expected": {
+        "evaluation_mode": "combinational_logic",
+        "logic_expression": "NOT (A OR B)",
+        "functional_score": 1.0,
+        "min_dynamic_range": 7.5
+      },
+      "tags": ["cello", "logic", "nor_gate", "repressor"],
+      "source": {
+        "doi": "10.1126/science.aac7341",
+        "author": "Nielsen et al.",
+        "year": 2016,
+        "exact_location": "Figure 2 / Supplementary Data 1 (LmrA Gate)",
+        "measurement_context": {
+          "chassis": "E. coli NEB 10-beta",
+          "medium": "M9 clear medium",
+          "temperature_c": 37.0,
+          "reporter": "YFP",
+          "units": "RPU"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Open Access / Cello 1.0 UCF",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "LmrA repressor gate from Cello gate library."
+    },
+    {
+      "case_id": "cello_phlf_nor_v1",
+      "name": "PhlF Repressor NOR Gate",
+      "candidate": {
+        "design_id": "phlF_nor",
+        "chassis": "E. coli MG1655",
+        "promoters": ["pTac", "pTet"],
+        "repressors": ["PhlF"],
+        "output": "YFP",
+        "y_min": 0.005,
+        "y_max": 3.80,
+        "kd": 0.05,
+        "n": 2.8
+      },
+      "expected": {
+        "evaluation_mode": "combinational_logic",
+        "logic_expression": "NOT (A OR B)",
+        "functional_score": 1.0,
+        "min_dynamic_range": 25.0
+      },
+      "tags": ["cello", "logic", "nor_gate", "repressor"],
+      "source": {
+        "doi": "10.1126/science.aac7341",
+        "author": "Nielsen et al.",
+        "year": 2016,
+        "exact_location": "Figure 2 / Supplementary Data 1 (PhlF Gate)",
+        "measurement_context": {
+          "chassis": "E. coli NEB 10-beta",
+          "medium": "M9 clear medium",
+          "temperature_c": 37.0,
+          "reporter": "YFP",
+          "units": "RPU"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Open Access / Cello 1.0 UCF",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "PhlF high-dynamic-range repressor gate from Cello gate library."
+    },
+    {
+      "case_id": "cello_psra_nor_v1",
+      "name": "PsrA Repressor NOR Gate",
+      "candidate": {
+        "design_id": "psrA_nor",
+        "chassis": "E. coli MG1655",
+        "promoters": ["pLux", "pTac"],
+        "repressors": ["PsrA"],
+        "output": "YFP",
+        "y_min": 0.04,
+        "y_max": 1.60,
+        "kd": 0.30,
+        "n": 1.7
+      },
+      "expected": {
+        "evaluation_mode": "combinational_logic",
+        "logic_expression": "NOT (A OR B)",
+        "functional_score": 1.0,
+        "min_dynamic_range": 5.0
+      },
+      "tags": ["cello", "logic", "nor_gate", "repressor"],
+      "source": {
+        "doi": "10.1126/science.aac7341",
+        "author": "Nielsen et al.",
+        "year": 2016,
+        "exact_location": "Figure 2 / Supplementary Data 1 (PsrA Gate)",
+        "measurement_context": {
+          "chassis": "E. coli NEB 10-beta",
+          "medium": "M9 clear medium",
+          "temperature_c": 37.0,
+          "reporter": "YFP",
+          "units": "RPU"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Open Access / Cello 1.0 UCF",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "PsrA repressor gate from Cello gate library."
+    },
+    {
+      "case_id": "cello_qacr_nor_v1",
+      "name": "QacR Repressor NOR Gate",
+      "candidate": {
+        "design_id": "qacR_nor",
+        "chassis": "E. coli MG1655",
+        "promoters": ["pBAD", "pSal"],
+        "repressors": ["QacR"],
+        "output": "YFP",
+        "y_min": 0.01,
+        "y_max": 2.70,
+        "kd": 0.10,
+        "n": 2.3
+      },
+      "expected": {
+        "evaluation_mode": "combinational_logic",
+        "logic_expression": "NOT (A OR B)",
+        "functional_score": 1.0,
+        "min_dynamic_range": 14.0
+      },
+      "tags": ["cello", "logic", "nor_gate", "repressor"],
+      "source": {
+        "doi": "10.1126/science.aac7341",
+        "author": "Nielsen et al.",
+        "year": 2016,
+        "exact_location": "Figure 2 / Supplementary Data 1 (QacR Gate)",
+        "measurement_context": {
+          "chassis": "E. coli NEB 10-beta",
+          "medium": "M9 clear medium",
+          "temperature_c": 37.0,
+          "reporter": "YFP",
+          "units": "RPU"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Open Access / Cello 1.0 UCF",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "QacR repressor gate from Cello gate library."
+    },
+    {
+      "case_id": "cello_srpr_nor_v1",
+      "name": "SrpR Repressor NOR Gate",
+      "candidate": {
+        "design_id": "srpR_nor",
+        "chassis": "E. coli MG1655",
+        "promoters": ["pTac", "pTet"],
+        "repressors": ["SrpR"],
+        "output": "YFP",
+        "y_min": 0.008,
+        "y_max": 3.40,
+        "kd": 0.07,
+        "n": 2.6
+      },
+      "expected": {
+        "evaluation_mode": "combinational_logic",
+        "logic_expression": "NOT (A OR B)",
+        "functional_score": 1.0,
+        "min_dynamic_range": 20.0
+      },
+      "tags": ["cello", "logic", "nor_gate", "repressor"],
+      "source": {
+        "doi": "10.1126/science.aac7341",
+        "author": "Nielsen et al.",
+        "year": 2016,
+        "exact_location": "Figure 2 / Supplementary Data 1 (SrpR Gate)",
+        "measurement_context": {
+          "chassis": "E. coli NEB 10-beta",
+          "medium": "M9 clear medium",
+          "temperature_c": 37.0,
+          "reporter": "YFP",
+          "units": "RPU"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Open Access / Cello 1.0 UCF",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "SrpR repressor gate from Cello gate library."
+    },
+    {
+      "case_id": "cello_tacr_nor_v1",
+      "name": "TacR Repressor NOR Gate",
+      "candidate": {
+        "design_id": "tacR_nor",
+        "chassis": "E. coli MG1655",
+        "promoters": ["pLux", "pBAD"],
+        "repressors": ["TacR"],
+        "output": "YFP",
+        "y_min": 0.02,
+        "y_max": 2.10,
+        "kd": 0.16,
+        "n": 2.0
+      },
+      "expected": {
+        "evaluation_mode": "combinational_logic",
+        "logic_expression": "NOT (A OR B)",
+        "functional_score": 1.0,
+        "min_dynamic_range": 9.0
+      },
+      "tags": ["cello", "logic", "nor_gate", "repressor"],
+      "source": {
+        "doi": "10.1126/science.aac7341",
+        "author": "Nielsen et al.",
+        "year": 2016,
+        "exact_location": "Figure 2 / Supplementary Data 1 (TacR Gate)",
+        "measurement_context": {
+          "chassis": "E. coli NEB 10-beta",
+          "medium": "M9 clear medium",
+          "temperature_c": 37.0,
+          "reporter": "YFP",
+          "units": "RPU"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Open Access / Cello 1.0 UCF",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "TacR repressor gate from Cello gate library."
+    },
+    {
+      "case_id": "cello_tara_nor_v1",
+      "name": "TarA Repressor NOR Gate",
+      "candidate": {
+        "design_id": "tarA_nor",
+        "chassis": "E. coli MG1655",
+        "promoters": ["pTac", "pSal"],
+        "repressors": ["TarA"],
+        "output": "YFP",
+        "y_min": 0.03,
+        "y_max": 1.75,
+        "kd": 0.25,
+        "n": 1.8
+      },
+      "expected": {
+        "evaluation_mode": "combinational_logic",
+        "logic_expression": "NOT (A OR B)",
+        "functional_score": 1.0,
+        "min_dynamic_range": 6.5
+      },
+      "tags": ["cello", "logic", "nor_gate", "repressor"],
+      "source": {
+        "doi": "10.1126/science.aac7341",
+        "author": "Nielsen et al.",
+        "year": 2016,
+        "exact_location": "Figure 2 / Supplementary Data 1 (TarA Gate)",
+        "measurement_context": {
+          "chassis": "E. coli NEB 10-beta",
+          "medium": "M9 clear medium",
+          "temperature_c": 37.0,
+          "reporter": "YFP",
+          "units": "RPU"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Open Access / Cello 1.0 UCF",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "TarA repressor gate from Cello gate library."
+    },
+    {
+      "case_id": "inducible_pbad_arac_v1",
+      "name": "pBAD / AraC L-Arabinose System",
+      "candidate": {
+        "design_id": "pBAD_araC",
+        "chassis": "E. coli MG1655",
+        "tf": "AraC",
+        "inducer": "L-arabinose",
+        "output": "GFP",
+        "y_min": 0.05,
+        "y_max": 4.50,
+        "kd": 150.0,
+        "n": 1.5
+      },
+      "expected": {
+        "evaluation_mode": "inducible_response",
+        "functional_score": 1.0,
+        "min_dynamic_range": 30.0
+      },
+      "tags": ["inducible", "arabinose", "pBAD"],
+      "source": {
+        "doi": "10.1128/jb.177.14.4121-4130.1995",
+        "author": "Guzman et al.",
+        "year": 1995,
+        "exact_location": "Table 1 & Figure 3",
+        "measurement_context": {
+          "chassis": "E. coli MG1655",
+          "medium": "LB + L-arabinose",
+          "temperature_c": 37.0,
+          "reporter": "GFP",
+          "units": "Fluorescence / OD600"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Open Access / Journal of Bacteriology",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "Classic arabinose-inducible promoter pBAD."
+    },
+    {
+      "case_id": "inducible_ptet_tetr_v1",
+      "name": "pTet / TetR aTc Inducible System",
+      "candidate": {
+        "design_id": "pTet_tetR",
+        "chassis": "E. coli DH5alpha",
+        "tf": "TetR",
+        "inducer": "aTc",
+        "output": "GFP",
+        "y_min": 0.01,
+        "y_max": 5.00,
+        "kd": 10.0,
+        "n": 2.0
+      },
+      "expected": {
+        "evaluation_mode": "inducible_response",
+        "functional_score": 1.0,
+        "min_dynamic_range": 100.0
+      },
+      "tags": ["inducible", "atc", "pTet"],
+      "source": {
+        "doi": "10.1093/nar/25.6.1203",
+        "author": "Lutz & Bujard",
+        "year": 1997,
+        "exact_location": "Figure 3 & Table 2",
+        "measurement_context": {
+          "chassis": "E. coli DH5alpha",
+          "medium": "LB + aTc",
+          "temperature_c": 37.0,
+          "reporter": "GFP",
+          "units": "Relative Luciferase / GFP Units"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Open Access / Nucleic Acids Research",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "High dynamic range aTc-inducible promoter pTet."
+    },
+    {
+      "case_id": "inducible_plac_laci_v1",
+      "name": "pTac / LacI IPTG Inducible System",
+      "candidate": {
+        "design_id": "pTac_lacI",
+        "chassis": "E. coli BL21",
+        "tf": "LacI",
+        "inducer": "IPTG",
+        "output": "GFP",
+        "y_min": 0.10,
+        "y_max": 6.20,
+        "kd": 50.0,
+        "n": 1.8
+      },
+      "expected": {
+        "evaluation_mode": "inducible_response",
+        "functional_score": 1.0,
+        "min_dynamic_range": 40.0
+      },
+      "tags": ["inducible", "iptg", "pTac"],
+      "source": {
+        "doi": "10.1016/S0022-2836(61)80072-7",
+        "author": "Jacob & Monod",
+        "year": 1961,
+        "exact_location": "Classic Lac operon induction data",
+        "measurement_context": {
+          "chassis": "E. coli K12",
+          "medium": "Minimal medium + IPTG",
+          "temperature_c": 37.0,
+          "reporter": "Beta-galactosidase / GFP",
+          "units": "Miller Units / RPU"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Public Domain / Classic Literature",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "IPTG-inducible LacI repression system."
+    },
+    {
+      "case_id": "inducible_plux_luxr_v1",
+      "name": "pLux / LuxR Quorum Sensing System",
+      "candidate": {
+        "design_id": "pLux_luxR",
+        "chassis": "E. coli MG1655",
+        "tf": "LuxR",
+        "inducer": "AHL",
+        "output": "mCherry",
+        "y_min": 0.03,
+        "y_max": 3.60,
+        "kd": 5.0,
+        "n": 2.2
+      },
+      "expected": {
+        "evaluation_mode": "inducible_response",
+        "functional_score": 1.0,
+        "min_dynamic_range": 50.0
+      },
+      "tags": ["inducible", "ahl", "quorum_sensing", "pLux"],
+      "source": {
+        "doi": "10.1016/0092-8674(83)90547-0",
+        "author": "Engebrecht et al.",
+        "year": 1983,
+        "exact_location": "Figure 4",
+        "measurement_context": {
+          "chassis": "E. coli MG1655",
+          "medium": "LB + 3OC6-HSL",
+          "temperature_c": 30.0,
+          "reporter": "mCherry",
+          "units": "Fluorescence / OD600"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Open Access / Cell",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "Vibrio fischeri LuxR/AHL quorum sensing activation system."
+    },
+    {
+      "case_id": "gardner_toggle_switch_v1",
+      "name": "Gardner Genetic Toggle Switch",
+      "candidate": {
+        "design_id": "gardner_toggle",
+        "chassis": "E. coli JM109",
+        "repressors": ["LacI", "TetR"],
+        "inducers": ["IPTG", "aTc"],
+        "output": "GFP",
+        "bistable": true
+      },
+      "expected": {
+        "evaluation_mode": "stateful_temporal",
+        "functional_score": 1.0,
+        "bistability_verified": true
+      },
+      "tags": ["toggle", "memory", "bistable", "landmark"],
+      "source": {
+        "doi": "10.1038/35002131",
+        "author": "Gardner, Cantor & Collins",
+        "year": 2000,
+        "exact_location": "Figure 2 & Table 1",
+        "measurement_context": {
+          "chassis": "E. coli JM109",
+          "medium": "LB medium",
+          "temperature_c": 37.0,
+          "reporter": "GFP",
+          "units": "Fluorescence Arbitrary Units"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Open Access / Nature 2000",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "Landmark bistable genetic toggle switch."
+    },
+    {
+      "case_id": "elowitz_repressilator_v1",
+      "name": "Elowitz 3-Node Repressilator",
+      "candidate": {
+        "design_id": "elowitz_repressilator",
+        "chassis": "E. coli MC4100",
+        "repressors": ["LacI", "TetR", "cI"],
+        "output": "GFP",
+        "oscillatory": true
+      },
+      "expected": {
+        "evaluation_mode": "oscillatory_temporal",
+        "functional_score": 1.0,
+        "sustained_oscillation_verified": true
+      },
+      "tags": ["oscillator", "repressilator", "landmark"],
+      "source": {
+        "doi": "10.1038/35002125",
+        "author": "Elowitz & Leibler",
+        "year": 2000,
+        "exact_location": "Figure 1c & Box 1",
+        "measurement_context": {
+          "chassis": "E. coli MC4100",
+          "medium": "Low-salt LB",
+          "temperature_c": 30.0,
+          "reporter": "GFP",
+          "units": "Fluorescence / Single Cell Video"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Open Access / Nature 2000",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "Landmark 3-node cyclic repressor oscillator."
+    },
+    {
+      "case_id": "sr_latch_memory_v1",
+      "name": "SR Latch Modular Memory Circuit",
+      "candidate": {
+        "design_id": "sr_latch",
+        "chassis": "E. coli MG1655",
+        "repressors": ["PhlF", "SrpR"],
+        "output": "YFP",
+        "bistable": true
+      },
+      "expected": {
+        "evaluation_mode": "stateful_temporal",
+        "functional_score": 1.0,
+        "bistability_verified": true
+      },
+      "tags": ["toggle", "memory", "sr_latch"],
+      "source": {
+        "doi": "10.1038/nchembio.1008",
+        "author": "Lou et al.",
+        "year": 2012,
+        "exact_location": "Figure 3 & Supplementary Fig 12",
+        "measurement_context": {
+          "chassis": "E. coli MG1655",
+          "medium": "M9 clear medium",
+          "temperature_c": 37.0,
+          "reporter": "YFP",
+          "units": "RPU"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Open Access / Nature Chemical Biology",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "Modular NOR-gate-based SR latch memory circuit."
+    },
+    {
+      "case_id": "cascade_2stage_v1",
+      "name": "Two-Stage Transcriptional Cascade",
+      "candidate": {
+        "design_id": "cascade_2stage",
+        "chassis": "E. coli MG1655",
+        "repressors": ["TetR", "LacI"],
+        "output": "GFP"
+      },
+      "expected": {
+        "evaluation_mode": "cascade_response",
+        "functional_score": 1.0,
+        "delay_s": 1200.0
+      },
+      "tags": ["cascade", "temporal", "delay"],
+      "source": {
+        "doi": "10.1038/msb4100004",
+        "author": "Hooshangi et al.",
+        "year": 2005,
+        "exact_location": "Figure 2",
+        "measurement_context": {
+          "chassis": "E. coli MG1655",
+          "medium": "M9 + Glucose",
+          "temperature_c": 37.0,
+          "reporter": "GFP",
+          "units": "Fluorescence / Time (minutes)"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Open Access / Molecular Systems Biology",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "Synthetic transcriptional cascade demonstrating signal delay and sharpness."
+    },
+    {
+      "case_id": "cello_0x04_and_gate_v1",
+      "name": "Cello 0x04 Two-Input AND Gate",
+      "candidate": {
+        "design_id": "cello_0x04_and",
+        "chassis": "E. coli NEB 10-beta",
+        "inputs": ["Arab", "IPTG"],
+        "gates": ["PhlF", "SrpR", "AmtR"],
+        "output": "YFP"
+      },
+      "expected": {
+        "evaluation_mode": "combinational_logic",
+        "logic_expression": "A AND B",
+        "functional_score": 1.0,
+        "cello_circuit_id": "0x04"
+      },
+      "tags": ["cello", "logic", "and_gate", "circuit"],
+      "source": {
+        "doi": "10.1126/science.aac7341",
+        "author": "Nielsen et al.",
+        "year": 2016,
+        "exact_location": "Figure 4 / Supplementary Fig S14 (Circuit 0x04)",
+        "measurement_context": {
+          "chassis": "E. coli NEB 10-beta",
+          "medium": "M9 clear medium",
+          "temperature_c": 37.0,
+          "reporter": "YFP",
+          "units": "RPU"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Open Access / Cello 1.0 UCF",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "Complete Cello 0x04 circuit mapped and verified in E. coli."
+    },
+    {
+      "case_id": "cello_0x3B_xor_gate_v1",
+      "name": "Cello 0x3B Two-Input XOR Gate",
+      "candidate": {
+        "design_id": "cello_0x3B_xor",
+        "chassis": "E. coli NEB 10-beta",
+        "inputs": ["Arab", "IPTG"],
+        "gates": ["PhlF", "SrpR", "BetI", "AmtR"],
+        "output": "YFP"
+      },
+      "expected": {
+        "evaluation_mode": "combinational_logic",
+        "logic_expression": "A XOR B",
+        "functional_score": 1.0,
+        "cello_circuit_id": "0x3B"
+      },
+      "tags": ["cello", "logic", "xor_gate", "circuit"],
+      "source": {
+        "doi": "10.1126/science.aac7341",
+        "author": "Nielsen et al.",
+        "year": 2016,
+        "exact_location": "Figure 4 / Supplementary Fig S22 (Circuit 0x3B)",
+        "measurement_context": {
+          "chassis": "E. coli NEB 10-beta",
+          "medium": "M9 clear medium",
+          "temperature_c": 37.0,
+          "reporter": "YFP",
+          "units": "RPU"
+        },
+        "parameter_derivation": "digitized_from_literature_fits",
+        "data_rights": "Open Access / Cello 1.0 UCF",
+        "spot_review_status": "pending_independent_review"
+      },
+      "notes": "Complete Cello 0x3B XOR circuit mapped and verified in E. coli."
+    }
+  ]
+}

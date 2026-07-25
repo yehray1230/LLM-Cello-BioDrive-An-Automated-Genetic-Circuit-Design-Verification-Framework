@@ -13,4 +13,6 @@ class ExportResult:
     status: str
     warnings: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    safety_status: str = "safe"
+    safety_review_required: bool = False
 

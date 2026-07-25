@@ -289,8 +289,26 @@ def _get_limiting_factor(topo: dict) -> str:
     return "無明顯限制因素"
 
 
-def _extract_warnings(topo: dict) -> list[WarningView]:
+def _extract_warnings(topo: dict, run_status: dict | None = None) -> list[WarningView]:
     warnings = []
+
+    # Safety Warnings
+    from utils.safety_checker import check_safety
+    intent = ""
+    host = "Escherichia coli"
+    if run_status:
+        intent = run_status.get("user_intent") or run_status.get("summary", {}).get("user_intent") or run_status.get("request", {}).get("user_intent") or ""
+        host = run_status.get("host_organism") or run_status.get("summary", {}).get("host_organism") or run_status.get("request", {}).get("host_organism") or "Escherichia coli"
+    intent = intent or topo.get("user_intent") or ""
+    host = host or topo.get("host_organism") or "Escherichia coli"
+    if intent:
+        safety_result = check_safety(intent, host)
+        for w in safety_result.warnings:
+            warnings.append(WarningView(
+                message=w,
+                level="warning",
+                category="safety"
+            ))
 
     # Provisional Warning
     source = str(topo.get("source") or "").lower()
@@ -434,7 +452,7 @@ def build_candidate_list_view(
         topo = ref.topology
         score_val = float(topo.get("score", topo.get("weighted_total_score", 0.0)))
 
-        topo_warnings = _extract_warnings(topo)
+        topo_warnings = _extract_warnings(topo, run_status)
         is_fallback = any(w.category == "fallback" for w in topo_warnings)
         is_provisional = any(w.category == "provisional" for w in topo_warnings)
         is_incomplete = any(w.category == "incomplete" for w in topo_warnings)
@@ -746,7 +764,7 @@ def build_candidate_detail_view(
                 n_type = "cds" if "CDS" in node_id or "regulator" in node_id else "gate"
                 regulatory_graph["nodes"].append({"id": node_id, "label": node_id, "type": n_type})
 
-    warnings = _extract_warnings(topo)
+    warnings = _extract_warnings(topo, run_status)
 
     tool_versions = run_status.get("summary", {}).get("tool_versions") or run_status.get("tool_versions") or {}
     if not tool_versions and isinstance(run_result, dict):
@@ -898,7 +916,7 @@ def build_candidate_comparison_view(
         topo = candidate_refs[idx].topology
         score_val = float(topo.get("score", topo.get("weighted_total_score", 0.0)))
 
-        topo_warnings = _extract_warnings(topo)
+        topo_warnings = _extract_warnings(topo, run_status)
         is_fallback = any(w.category == "fallback" for w in topo_warnings)
         is_provisional = any(w.category == "provisional" for w in topo_warnings)
         is_incomplete = any(w.category == "incomplete" for w in topo_warnings)

@@ -1,0 +1,32 @@
+{
+  "context_id": "ctx_ecoli_k12_m9_37c_v1",
+  "host_organism": "Escherichia coli",
+  "strain": "E. coli K-12 MG1655",
+  "medium": "M9 glucose 0.4%",
+  "temperature_c": 37.0,
+  "aeration": "orbital shaking",
+  "culture_format": "96-well clear-bottom plate",
+  "working_volume_ul": 200.0,
+  "instrument": "synthetic_plate_reader",
+  "gain_settings": {
+    "od600": "auto",
+    "capacity": 80,
+    "output": 90
+  },
+  "growth_phase": "exponential",
+  "capacity_reporter": "mScarlet-I",
+  "output_reporter": "sfGFP",
+  "protocol_version": "plate_protocol_0.1.0",
+  "plasmid_backbone": "p15a_capacity_reference",
+  "origin": "p15A",
+  "selectable_marker": "kanR",
+  "antibiotic_name": "kanamycin",
+  "antibiotic_concentration": 50.0,
+  "antibiotic_unit": "ug/mL",
+  "shaking_rpm": 250.0,
+  "metadata": {
+    "fixture": true,
+    "data_boundary": "public_synthetic"
+  },
+  "schema_version": "0.1.0"
+}

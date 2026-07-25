@@ -15,6 +15,8 @@ from api.schemas import (
     JsonImportRequest,
     ParameterFitRequest,
     ParameterFitSnapshotComparisonRequest,
+    ResourceCalibrationWorkflowRequest,
+    ResourceModelAnalysisRequest,
     RunFeedbackRequest,
     RunResumeRequest,
     RunStartRequest,
@@ -33,6 +35,7 @@ from exporters.claim_boundary import claim_boundary_headers, is_exchange_export_
 from mcp_server.service import list_tool_capabilities
 from repositories.json_repository import RepositoryError
 from schemas.import_draft import import_draft_from_json
+from utils.llm_utils import resolve_agent_model
 
 
 router = APIRouter(prefix="/api/v1")
@@ -491,6 +494,60 @@ def create_parameter_fit_snapshot_comparison(
     )
 
 
+@router.post("/resource-calibrations", status_code=status.HTTP_201_CREATED)
+def create_resource_calibration_workflow(
+    request: ResourceCalibrationWorkflowRequest,
+    services: ApplicationServices = Depends(get_services),
+) -> dict[str, Any]:
+    try:
+        result = services.evaluations.create_resource_calibration_workflow(
+            request.model_dump()
+        )
+    except (RuntimeError, ValueError, RepositoryError) as exc:
+        raise _bad_request("RESOURCE_CALIBRATION_INVALID", str(exc)) from exc
+    return envelope(result, list(result.get("warnings") or []))
+
+
+@router.get("/resource-calibrations")
+def list_resource_calibration_workflows(
+    services: ApplicationServices = Depends(get_services),
+) -> dict[str, Any]:
+    items = services.evaluations.resource_calibration_workflows()
+    return envelope({"items": items, "count": len(items)})
+
+
+@router.get("/resource-calibrations/{workflow_id}")
+def get_resource_calibration_workflow(
+    workflow_id: str,
+    services: ApplicationServices = Depends(get_services),
+) -> dict[str, Any]:
+    try:
+        result = services.evaluations.resource_calibration_workflow(workflow_id)
+    except RepositoryError as exc:
+        raise _bad_request("RESOURCE_CALIBRATION_ID_INVALID", str(exc)) from exc
+    if result is None:
+        raise _not_found("RESOURCE_CALIBRATION_NOT_FOUND", workflow_id)
+    return envelope(result, list(result.get("warnings") or []))
+
+
+@router.post("/resource-calibrations/{workflow_id}/model-analysis")
+def analyze_resource_calibration_workflow(
+    workflow_id: str,
+    request: ResourceModelAnalysisRequest,
+    services: ApplicationServices = Depends(get_services),
+) -> dict[str, Any]:
+    try:
+        result = services.evaluations.analyze_resource_calibration_workflow(
+            workflow_id,
+            request.model_dump(),
+        )
+    except KeyError as exc:
+        raise _not_found("RESOURCE_CALIBRATION_NOT_FOUND", workflow_id) from exc
+    except (RuntimeError, ValueError, RepositoryError) as exc:
+        raise _bad_request("RESOURCE_MODEL_ANALYSIS_INVALID", str(exc)) from exc
+    return envelope(result, list(result.get("morris", {}).get("warnings") or []))
+
+
 @router.post("/runs", status_code=status.HTTP_202_ACCEPTED)
 def start_run(
     request: RunStartRequest,
@@ -498,7 +555,7 @@ def start_run(
 ) -> dict[str, Any]:
     result = services.runs.start(request.model_dump())
     _raise_run_error(result)
-    return envelope(result)
+    return envelope(result, list(result.get("warnings") or []))
 
 
 @router.get("/runs")
@@ -652,6 +709,8 @@ def export_design(
         "Content-Disposition": f'attachment; filename="{result.filename}"',
         "X-Export-Status": result.status,
         "X-Export-Warning-Count": str(len(result.warnings)),
+        "X-Safety-Status": result.safety_status,
+        "X-Safety-Review-Required": str(result.safety_review_required).lower(),
     }
     if is_exchange_export_format(export_format):
         headers.update(claim_boundary_headers())
@@ -758,7 +817,33 @@ def save_design_draft(
     request: DesignDraftUpdateRequest,
     services: ApplicationServices = Depends(get_services),
 ) -> dict[str, Any]:
-    return envelope(services.design_drafts.save(request.model_dump()))
+    from utils.safety_checker import check_safety, log_safety_event
+    intent = request.user_intent or ""
+    host = request.host_organism or ""
+    warnings_list = []
+    if intent:
+        safety_result = check_safety(intent, host)
+        if not safety_result.is_safe:
+            log_safety_event(
+                None,
+                intent,
+                safety_result.status,
+                safety_result.warnings,
+                action="save_design_draft",
+                categories=safety_result.categories,
+            )
+            raise _bad_request("SAFETY_VIOLATION", safety_result.redirection_message)
+        if safety_result.warnings:
+            warnings_list.extend(safety_result.warnings)
+            log_safety_event(
+                None,
+                intent,
+                safety_result.status,
+                safety_result.warnings,
+                action="save_design_draft",
+                categories=safety_result.categories,
+            )
+    return envelope(services.design_drafts.save(request.model_dump()), warnings=warnings_list)
 
 
 @router.delete("/designs/drafts/active")
@@ -799,7 +884,7 @@ def next_elicitation(
         state = call_pm_agent(
             state,
             api_key=api_key,
-            model_name=model_name,
+            model_name=resolve_agent_model("pm", model_name),
             api_base=api_base,
         )
 
@@ -885,7 +970,7 @@ def propose_elicitation(
     state = call_pm_agent(
         state,
         api_key=api_key,
-        model_name=model_name,
+        model_name=resolve_agent_model("pm", model_name),
         api_base=api_base,
     )
 

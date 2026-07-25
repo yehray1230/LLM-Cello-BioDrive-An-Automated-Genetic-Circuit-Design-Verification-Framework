@@ -43,6 +43,7 @@ SUMMARY_TOPOLOGY_KEYS = (
     "simulation_model_version",
     "simulation_spec",
     "simulation_result",
+    "ode_trace",
 )
 
 

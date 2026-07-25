@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/egma-benchmark-dry-run-v1.schema.json",
+  "title": "EGMA visible non-confirmatory benchmark allocation dry run",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "benchmark_id",
+    "generator_version",
+    "seed",
+    "claim_status",
+    "confirmatory_eligible",
+    "sealed_materialized",
+    "description",
+    "tasks",
+    "groups",
+    "allocation_targets",
+    "provenance",
+    "content_hash"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "egma-benchmark-dry-run-v1"
+    },
+    "benchmark_id": {
+      "const": "egma_ecoli_transcriptional_logic_dry_run_v1"
+    },
+    "generator_version": {
+      "const": "egma-dry-run-generator-v1"
+    },
+    "seed": {
+      "type": "integer"
+    },
+    "claim_status": {
+      "const": "offline_fixture_only_not_confirmatory"
+    },
+    "confirmatory_eligible": {
+      "const": false
+    },
+    "sealed_materialized": {
+      "const": false
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 150,
+      "maxItems": 150,
+      "items": {
+        "$ref": "egma-task-v1.schema.json"
+      }
+    },
+    "groups": {
+      "type": "array",
+      "minItems": 46,
+      "maxItems": 46,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "leakage_group",
+          "split",
+          "input_count",
+          "function_signature",
+          "template_id",
+          "task_ids"
+        ],
+        "properties": {
+          "leakage_group": {
+            "type": "string",
+            "pattern": "^(dev|sea)-g[0-9]{3}$"
+          },
+          "split": {
+            "enum": ["development", "sealed_confirmatory"]
+          },
+          "input_count": {
+            "enum": [2, 3]
+          },
+          "function_signature": {
+            "type": "string",
+            "pattern": "^[23]:[01]+$"
+          },
+          "template_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "task_ids": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^(dev|sea)-g[0-9]{3}-v[0-9]{2}$"
+            }
+          }
+        }
+      }
+    },
+    "allocation_targets": {
+      "type": "object"
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_status",
+        "literature_slots_are_placeholders",
+        "public_data_alignment_inspected",
+        "provider_calls",
+        "paid_cost_usd"
+      ],
+      "properties": {
+        "source_status": {
+          "const": "generated_fixture_slots"
+        },
+        "literature_slots_are_placeholders": {
+          "const": true
+        },
+        "public_data_alignment_inspected": {
+          "const": false
+        },
+        "provider_calls": {
+          "const": 0
+        },
+        "paid_cost_usd": {
+          "const": 0.0
+        }
+      }
+    },
+    "content_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

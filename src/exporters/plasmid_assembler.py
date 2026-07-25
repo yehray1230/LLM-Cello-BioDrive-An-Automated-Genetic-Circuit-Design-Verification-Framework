@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from datetime import date
-import re
-import textwrap
 
 from exporters.export_result import ExportResult
+from exporters.genbank_formatting import (
+    incomplete_constructs as _incomplete_constructs,
+    locus_token as _locus_token,
+    origin_lines as _origin_lines,
+    qualifier as _qualifier,
+)
 from exporters.sequence_utils import is_valid_iupac_dna
-from schemas.design_ir import BiologicalPart, DesignIR
+from schemas.design_ir import DesignIR
 
 FEATURE_TYPES = {
     "promoter": "promoter",
@@ -92,7 +96,7 @@ def export_plasmid_genbank(design: DesignIR, backbone_name: str) -> ExportResult
         )
 
     part_map = {part.id: part for part in design.parts}
-    
+
     # 2. 驗證是否遺漏序列
     incomplete = _incomplete_constructs(design, part_map)
     if incomplete:
@@ -156,7 +160,7 @@ def export_plasmid_genbank(design: DesignIR, backbone_name: str) -> ExportResult
     full_sequence_parts = []
     mapped_features = []
     current_offset = 1
-    
+
     # 拼接基因盒並做坐標映射
     for i, construct in enumerate(design.constructs):
         # 如果不是第一個基因盒，加入 Linker/Spacer
@@ -178,7 +182,7 @@ def export_plasmid_genbank(design: DesignIR, backbone_name: str) -> ExportResult
             seq = (part.sequence or "").upper()
             part_len = len(seq)
             full_sequence_parts.append(seq)
-            
+
             mapped_features.append({
                 "name": part.name,
                 "type": part.part_type,
@@ -198,7 +202,7 @@ def export_plasmid_genbank(design: DesignIR, backbone_name: str) -> ExportResult
     backbone_seq = template["sequence"].upper()
     backbone_len = len(backbone_seq)
     full_sequence_parts.append(backbone_seq)
-    
+
     for feat in template["features"]:
         mapped_features.append({
             "name": feat["name"],
@@ -241,22 +245,6 @@ def export_plasmid_genbank(design: DesignIR, backbone_name: str) -> ExportResult
         status="ready",
         warnings=warnings,
     )
-
-
-def _incomplete_constructs(
-    design: DesignIR,
-    part_map: dict[str, BiologicalPart],
-) -> dict[str, list[str]]:
-    missing: dict[str, list[str]] = {}
-    for construct in design.constructs:
-        absent = [
-            part_id
-            for part_id in construct.parts
-            if part_id not in part_map or not part_map[part_id].sequence
-        ]
-        if absent:
-            missing[construct.id] = absent
-    return missing
 
 
 def _generate_genbank_text(
@@ -313,26 +301,3 @@ def _generate_genbank_text(
     lines.extend(_origin_lines(sequence))
     lines.append("//")
     return "\n".join(lines) + "\n"
-
-
-def _origin_lines(sequence: str) -> list[str]:
-    lines = []
-    lower = sequence.lower()
-    for start in range(0, len(lower), 60):
-        chunk = lower[start : start + 60]
-        groups = " ".join(textwrap.wrap(chunk, 10))
-        lines.append(f"{start + 1:>9} {groups}")
-    return lines
-
-
-def _locus_token(value: str) -> str:
-    token = re.sub(r"[^A-Za-z0-9_]", "_", value)
-    return token.strip("_") or "DESIGN"
-
-
-def _single_line(value: str) -> str:
-    return " ".join(str(value).split())
-
-
-def _qualifier(value: str) -> str:
-    return _single_line(value).replace("\\", "\\\\").replace('"', "'")

@@ -1,0 +1,44 @@
+[
+  {
+    "metric_id": "growth_proxy_empty_bio1",
+    "metric_name": "two_point_growth_rate",
+    "value": 0.001939,
+    "unit": "1/s",
+    "construct_id": "empty_vector_capacity",
+    "source_trace_ids": [
+      "exp_m0_synthetic:plate_001:A1:0",
+      "exp_m0_synthetic:plate_001:A1:600"
+    ],
+    "preprocessing_version": "synthetic_preprocessing_0.1.0",
+    "method": "ln(od_end / od_start) / elapsed_time",
+    "biological_replicate": "bio_1"
+  },
+  {
+    "metric_id": "growth_proxy_reference_bio1",
+    "metric_name": "two_point_growth_rate",
+    "value": 0.001593,
+    "unit": "1/s",
+    "construct_id": "load_reference",
+    "source_trace_ids": [
+      "exp_m0_synthetic:plate_001:B1:0",
+      "exp_m0_synthetic:plate_001:B1:600"
+    ],
+    "preprocessing_version": "synthetic_preprocessing_0.1.0",
+    "method": "ln(od_end / od_start) / elapsed_time",
+    "biological_replicate": "bio_1"
+  },
+  {
+    "metric_id": "growth_proxy_heldout_bio1",
+    "metric_name": "two_point_growth_rate",
+    "value": 0.001314,
+    "unit": "1/s",
+    "construct_id": "load_heldout_rbs",
+    "source_trace_ids": [
+      "exp_m0_synthetic:plate_001:C1:0",
+      "exp_m0_synthetic:plate_001:C1:600"
+    ],
+    "preprocessing_version": "synthetic_preprocessing_0.1.0",
+    "method": "ln(od_end / od_start) / elapsed_time",
+    "biological_replicate": "bio_1"
+  }
+]

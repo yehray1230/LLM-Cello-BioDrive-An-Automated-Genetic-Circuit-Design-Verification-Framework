@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/egma-sealed-manifest-v1.schema.json",
+  "title": "EGMA synthetic sealed-package manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "package_id",
+    "payload_contract",
+    "fixture_only",
+    "confirmatory_eligible",
+    "sealed_materialized",
+    "approved_metadata",
+    "cipher",
+    "commitments"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "egma-sealed-manifest-v1"
+    },
+    "package_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
+    },
+    "payload_contract": {
+      "const": "egma-synthetic-sealed-payload-v1"
+    },
+    "fixture_only": {
+      "const": true
+    },
+    "confirmatory_eligible": {
+      "const": false
+    },
+    "sealed_materialized": {
+      "const": false
+    },
+    "approved_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_count", "source_status"],
+      "properties": {
+        "record_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source_status": {
+          "const": "synthetic_throwaway"
+        }
+      }
+    },
+    "cipher": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "kdf",
+        "salt_b64",
+        "nonce_b64",
+        "tag_b64",
+        "ciphertext_file",
+        "ciphertext_bytes",
+        "ciphertext_sha256"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "HMAC-SHA256-ETM-STREAM-v1"
+        },
+        "kdf": {
+          "const": "HMAC-SHA256-LABEL-v1"
+        },
+        "salt_b64": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nonce_b64": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tag_b64": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ciphertext_file": {
+          "const": "payload.enc"
+        },
+        "ciphertext_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ciphertext_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "commitments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["payload_sha256", "aad_sha256", "manifest_sha256"],
+      "properties": {
+        "payload_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "aad_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

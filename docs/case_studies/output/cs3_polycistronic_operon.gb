@@ -1,0 +1,119 @@
+LOCUS       cs3_polycistroni         44 bp    DNA     linear   SYN 21-JUL-2026
+DEFINITION  NOR gate transcriptional unit.
+ACCESSION   cs3_polycistroni
+VERSION     cs3_polycistroni.1
+KEYWORDS    synthetic biology; genetic circuit.
+SOURCE      synthetic DNA construct
+  ORGANISM  synthetic DNA construct
+FEATURES             Location/Qualifiers
+     source          1..44
+                     /organism="synthetic DNA construct"
+                     /design_id="cs3_polycistronic_operon"
+                     /revision="revision_1"
+     promoter        1..12
+                     /label="P_logic_1"
+                     /part_id="logic_promoter_1_n1"
+                     /note="Implements the NOR decision for A, B."
+                     /evidence="measured"
+                     /source_library="conceptual"
+     RBS             13..22
+                     /label="RBS_1"
+                     /part_id="rbs_regulator_1_n1"
+                     /note="Controls translation initiation for the gate regulator."
+                     /evidence="measured"
+                     /source_library="conceptual"
+     CDS             23..34
+                     /label="NOR regulator 1"
+                     /part_id="regulator_1_n1"
+                     /note="Carries the regulatory output signal n1."
+                     /evidence="measured"
+                     /source_library="conceptual"
+     terminator      35..44
+                     /label="T_1"
+                     /part_id="term_regulator_1_n1"
+                     /note="Terminates transcription of the gate transcriptional unit."
+                     /evidence="measured"
+                     /source_library="conceptual"
+ORIGIN
+        1 ttgacagata ctaggaggac aaatgaaacg gtaagccgcc aaaa
+//
+
+LOCUS       cs3_polycistroni         44 bp    DNA     linear   SYN 21-JUL-2026
+DEFINITION  Y1 output transcriptional unit.
+ACCESSION   cs3_polycistroni
+VERSION     cs3_polycistroni.1
+KEYWORDS    synthetic biology; genetic circuit.
+SOURCE      synthetic DNA construct
+  ORGANISM  synthetic DNA construct
+FEATURES             Location/Qualifiers
+     source          1..44
+                     /organism="synthetic DNA construct"
+                     /design_id="cs3_polycistronic_operon"
+                     /revision="revision_1"
+     promoter        1..12
+                     /label="P_Y1"
+                     /part_id="output_promoter_Y1"
+                     /note="Drives the final output Y1."
+                     /evidence="measured"
+                     /source_library="conceptual"
+     RBS             13..22
+                     /label="RBS_Y1"
+                     /part_id="rbs_Y1"
+                     /note="Controls translation of output Y1."
+                     /evidence="measured"
+                     /source_library="conceptual"
+     CDS             23..34
+                     /label="Y1"
+                     /part_id="output_cds_Y1"
+                     /note="Produces the requested output signal Y1."
+                     /evidence="measured"
+                     /source_library="conceptual"
+     terminator      35..44
+                     /label="T_Y1"
+                     /part_id="term_Y1"
+                     /note="Terminates the output transcriptional unit."
+                     /evidence="measured"
+                     /source_library="conceptual"
+ORIGIN
+        1 ttgacagata ctaggaggac aaatgaaacg gtaagccgcc aaaa
+//
+
+LOCUS       cs3_polycistroni         44 bp    DNA     linear   SYN 21-JUL-2026
+DEFINITION  Y2 output transcriptional unit.
+ACCESSION   cs3_polycistroni
+VERSION     cs3_polycistroni.1
+KEYWORDS    synthetic biology; genetic circuit.
+SOURCE      synthetic DNA construct
+  ORGANISM  synthetic DNA construct
+FEATURES             Location/Qualifiers
+     source          1..44
+                     /organism="synthetic DNA construct"
+                     /design_id="cs3_polycistronic_operon"
+                     /revision="revision_1"
+     promoter        1..12
+                     /label="P_Y2"
+                     /part_id="output_promoter_Y2"
+                     /note="Drives the final output Y2."
+                     /evidence="measured"
+                     /source_library="conceptual"
+     RBS             13..22
+                     /label="RBS_Y2"
+                     /part_id="rbs_Y2"
+                     /note="Controls translation of output Y2."
+                     /evidence="measured"
+                     /source_library="conceptual"
+     CDS             23..34
+                     /label="Y2"
+                     /part_id="output_cds_Y2"
+                     /note="Produces the requested output signal Y2."
+                     /evidence="measured"
+                     /source_library="conceptual"
+     terminator      35..44
+                     /label="T_Y2"
+                     /part_id="term_Y2"
+                     /note="Terminates the output transcriptional unit."
+                     /evidence="measured"
+                     /source_library="conceptual"
+ORIGIN
+        1 ttgacagata ctaggaggac aaatgaaacg gtaagccgcc aaaa
+//

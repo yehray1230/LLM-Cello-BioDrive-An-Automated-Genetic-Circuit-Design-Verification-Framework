@@ -1,0 +1,13 @@
+design_id,revision_id,construct_id,construct_name,position,part_id,assigned_part_id,part_name,part_type,sequence_status,sequence_length_bp,source,library_id,confidence,host_compatibility,role,evidence_source
+cs1_inducible_reporter,revision_1,tu_gate_1,NOT gate transcriptional unit,1,logic_promoter_1_n1,,P_logic_1,promoter,available,12,conceptual,,measured,Escherichia coli,Implements the NOT decision for Inducer.,
+cs1_inducible_reporter,revision_1,tu_gate_1,NOT gate transcriptional unit,2,rbs_regulator_1_n1,,RBS_1,RBS,available,10,conceptual,,measured,Escherichia coli,Controls translation initiation for the gate regulator.,
+cs1_inducible_reporter,revision_1,tu_gate_1,NOT gate transcriptional unit,3,regulator_1_n1,,NOT regulator 1,CDS,available,12,conceptual,,measured,Escherichia coli,Carries the regulatory output signal n1.,
+cs1_inducible_reporter,revision_1,tu_gate_1,NOT gate transcriptional unit,4,term_regulator_1_n1,,T_1,terminator,available,10,conceptual,,measured,Escherichia coli,Terminates transcription of the gate transcriptional unit.,
+cs1_inducible_reporter,revision_1,tu_gate_2,NOT gate transcriptional unit,1,logic_promoter_2_GFP,,P_logic_2,promoter,available,12,conceptual,,measured,Escherichia coli,Implements the NOT decision for n1.,
+cs1_inducible_reporter,revision_1,tu_gate_2,NOT gate transcriptional unit,2,rbs_regulator_2_GFP,,RBS_2,RBS,available,10,conceptual,,measured,Escherichia coli,Controls translation initiation for the gate regulator.,
+cs1_inducible_reporter,revision_1,tu_gate_2,NOT gate transcriptional unit,3,regulator_2_GFP,,NOT regulator 2,CDS,available,12,conceptual,,measured,Escherichia coli,Carries the regulatory output signal GFP.,
+cs1_inducible_reporter,revision_1,tu_gate_2,NOT gate transcriptional unit,4,term_regulator_2_GFP,,T_2,terminator,available,10,conceptual,,measured,Escherichia coli,Terminates transcription of the gate transcriptional unit.,
+cs1_inducible_reporter,revision_1,tu_output_1,GFP output transcriptional unit,1,output_promoter_GFP,,P_GFP,promoter,available,12,conceptual,,measured,Escherichia coli,Drives the final output GFP.,
+cs1_inducible_reporter,revision_1,tu_output_1,GFP output transcriptional unit,2,rbs_GFP,,RBS_GFP,RBS,available,10,conceptual,,measured,Escherichia coli,Controls translation of output GFP.,
+cs1_inducible_reporter,revision_1,tu_output_1,GFP output transcriptional unit,3,output_cds_GFP,,GFP,CDS,available,12,conceptual,,measured,Escherichia coli,Produces the requested output signal GFP.,
+cs1_inducible_reporter,revision_1,tu_output_1,GFP output transcriptional unit,4,term_GFP,,T_GFP,terminator,available,10,conceptual,,measured,Escherichia coli,Terminates the output transcriptional unit.,

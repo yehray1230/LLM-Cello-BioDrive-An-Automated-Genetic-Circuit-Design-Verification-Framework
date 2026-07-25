@@ -497,6 +497,15 @@ Human input is expected for biological interpretation, constraint selection, and
   [model_assumptions.md](model_assumptions.md)：ODE 模型範圍與生物學假設。
 - [limitations.md](limitations.md): capabilities, non-goals, and safe claim boundaries.
   [limitations.md](limitations.md)：能力、非目標與安全宣稱邊界。
+- [developer/CANONICAL_IMPLEMENTATIONS.md](developer/CANONICAL_IMPLEMENTATIONS.md): ownership map for behavior and contracts.
+  [developer/CANONICAL_IMPLEMENTATIONS.md](developer/CANONICAL_IMPLEMENTATIONS.md)：行為與契約的權威來源對照。
+- [developer/CHANGE_IMPACT_MAP.md](developer/CHANGE_IMPACT_MAP.md): cross-layer change and verification map.
+  [developer/CHANGE_IMPACT_MAP.md](developer/CHANGE_IMPACT_MAP.md)：跨層變更與驗證對照。
+- [developer/DUPLICATION_POLICY.md](developer/DUPLICATION_POLICY.md): rules for duplicate candidates, adapters, legacy code, and tests.
+  [developer/DUPLICATION_POLICY.md](developer/DUPLICATION_POLICY.md)：重複候選、adapter、legacy 與測試程式的治理規則。
+- [adr/README.md](adr/README.md): accepted architecture decisions and their rationale.
+  [adr/README.md](adr/README.md)：已接受的架構決策與理由。
+
 # Current Design-Data Architecture (2026-06-06)
 # 目前設計資料架構（2026-06-06）
 

@@ -11,7 +11,7 @@ from schemas.design_ir_v2 import DesignIRV2
 SIMULATION_SPEC_SCHEMA_VERSION = "1.0"
 SIMULATION_RESULT_SCHEMA_VERSION = "1.0"
 SIMULATION_MODEL_ID = "resource-aware-regulatory-ode"
-SIMULATION_MODEL_VERSION = "1.9.0"
+SIMULATION_MODEL_VERSION = "1.10.0"
 
 
 def canonical_payload_hash(payload: Any) -> str:
@@ -89,7 +89,9 @@ class SimulationSpec:
     def validate(self) -> list[str]:
         errors: list[str] = []
         if self.model_version != SIMULATION_MODEL_VERSION:
-            errors.append(f"Unsupported simulation model version: {self.model_version}.")
+            errors.append(
+                f"Unsupported simulation model version: {self.model_version}."
+            )
         if self.simulation_time <= 0:
             errors.append("simulation_time must be positive.")
         if self.sample_count < 2:
@@ -174,7 +176,12 @@ def simulation_spec_from_topology(
                 scenario_id=f"scenario_{index + 1}",
                 inputs={
                     name: parse_logic_value(
-                        selected.get(name, selected.get(name.upper(), selected.get(name.lower(), True))),
+                        selected.get(
+                            name,
+                            selected.get(
+                                name.upper(), selected.get(name.lower(), True)
+                            ),
+                        ),
                         True,
                     )
                     for name in inputs
@@ -190,7 +197,16 @@ def simulation_spec_from_topology(
     raw_parameters = topology.get("biokinetic_parameters")
     if not isinstance(raw_parameters, dict):
         raw_parameters = {}
-    chassis = topology.get("chassis") or raw_parameters.get("host") or "Escherichia coli"
+    chassis = (
+        topology.get("chassis") or raw_parameters.get("host") or "Escherichia coli"
+    )
+    resource_model_mode = str(topology.get("resource_model_mode") or "legacy_preview")
+    resource_model_inputs = {
+        "mode": resource_model_mode,
+        "protein_lengths_aa": topology.get("protein_lengths_aa", {}),
+        "cds_lengths_bp": topology.get("cds_lengths_bp", {}),
+        "construct_metadata": topology.get("construct_metadata", {}),
+    }
     return SimulationSpec(
         verilog=str(topology.get("verilog") or topology.get("verilog_code") or ""),
         scenarios=scenarios,
@@ -204,9 +220,11 @@ def simulation_spec_from_topology(
         noise_fraction=max(0.0, float(noise_fraction)),
         random_seed=random_seed,
         temporal_inputs=dict(temporal_inputs or {}),
+        assumptions=[f"resource_model_mode={resource_model_mode}"],
         provenance={
             "source": "topology",
             "parameter_provenance": topology.get("parameter_provenance", {}),
+            "resource_model_inputs": resource_model_inputs,
         },
     )
 
@@ -233,15 +251,18 @@ def simulation_spec_from_design_ir_v2(
 
     # Detect degradation tags on CDS parts
     biokinetic_params = dict(design.extensions.get("biokinetic_parameters", {}))
-    
+
     # Check for UCF path and parse gate parameters
     ucf_path = design.extensions.get("ucf_path") or biokinetic_params.get("ucf_path")
     gate_params = {}
     if ucf_path:
         from tools.cello_artifact_parser import parse_ucf_gate_parameters
+
         gate_params = parse_ucf_gate_parameters(ucf_path)
         if gate_params:
-            assumptions.append(f"Loaded characterized gate parameters from UCF: {ucf_path}")
+            assumptions.append(
+                f"Loaded characterized gate parameters from UCF: {ucf_path}"
+            )
 
     degradation_multipliers = {
         "ssrA_LVA": 8.0,
@@ -250,15 +271,23 @@ def simulation_spec_from_design_ir_v2(
     }
 
     # Map part IDs to logic node IDs (Verilog signal names)
-    assignments = getattr(design, "assignments", []) or design.extensions.get("assignments", [])
+    assignments = getattr(design, "assignments", []) or design.extensions.get(
+        "assignments", []
+    )
     part_to_logic_node = {}
     for asn in assignments:
-        part_id = getattr(asn, "part_id", None) or (asn.get("part_id") if isinstance(asn, dict) else None)
-        node_id = getattr(asn, "logic_node_id", None) or (asn.get("logic_node_id") if isinstance(asn, dict) else None)
-        part_name = getattr(asn, "part_name", None) or (asn.get("part_name") if isinstance(asn, dict) else None)
+        part_id = getattr(asn, "part_id", None) or (
+            asn.get("part_id") if isinstance(asn, dict) else None
+        )
+        node_id = getattr(asn, "logic_node_id", None) or (
+            asn.get("logic_node_id") if isinstance(asn, dict) else None
+        )
+        part_name = getattr(asn, "part_name", None) or (
+            asn.get("part_name") if isinstance(asn, dict) else None
+        )
         if part_id and node_id:
             part_to_logic_node[part_id] = node_id
-            
+
             # Map UCF parameters to this node
             match_entry = None
             for key in (part_id, part_name, node_id):
@@ -266,10 +295,14 @@ def simulation_spec_from_design_ir_v2(
                     match_entry = gate_params[key]
                     break
             if not match_entry and part_id:
-                clean_part_id = part_id.replace("DEMO_", "").replace("_CDS", "").replace("_PROM", "")
+                clean_part_id = (
+                    part_id.replace("DEMO_", "")
+                    .replace("_CDS", "")
+                    .replace("_PROM", "")
+                )
                 if clean_part_id in gate_params:
                     match_entry = gate_params[clean_part_id]
-            
+
             if match_entry:
                 if match_entry.get("K") is not None:
                     biokinetic_params[f"kd_{node_id}"] = match_entry["K"]
@@ -304,7 +337,9 @@ def simulation_spec_from_design_ir_v2(
                 biokinetic_params[f"protein_degradation_rate_{part.id}"] = custom_rate
                 if part.id in part_to_logic_node:
                     logic_node = part_to_logic_node[part.id]
-                    biokinetic_params[f"protein_degradation_rate_{logic_node}"] = custom_rate
+                    biokinetic_params[f"protein_degradation_rate_{logic_node}"] = (
+                        custom_rate
+                    )
                 assumptions.append(
                     f"Degradation tag {tag} detected on part {part.id}. "
                     f"Protein degradation rate adjusted to {custom_rate:.5f} 1/s."
@@ -319,7 +354,9 @@ def simulation_spec_from_design_ir_v2(
             "biokinetic_parameters": biokinetic_params,
         },
         input_signals=design.specification.inputs,
-        target_output=design.specification.outputs[0] if design.specification.outputs else None,
+        target_output=design.specification.outputs[0]
+        if design.specification.outputs
+        else None,
         **overrides,
     )
     spec.assumptions.extend(assumptions)

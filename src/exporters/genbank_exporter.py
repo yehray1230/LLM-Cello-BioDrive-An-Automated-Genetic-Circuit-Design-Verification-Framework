@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 from datetime import date
-import re
-import textwrap
 
 from exporters.export_result import ExportResult
+from exporters.genbank_formatting import (
+    incomplete_constructs as _incomplete_constructs,
+    locus_token as _locus_token,
+    origin_lines as _origin_lines,
+    qualifier as _qualifier,
+    single_line as _single_line,
+)
 from exporters.sequence_utils import is_valid_iupac_dna
 from schemas.design_ir import BiologicalPart, DesignIR, GeneticConstruct
 
@@ -24,7 +29,11 @@ FEATURE_TYPES = {
 }
 
 
-def export_genbank(design: DesignIR) -> ExportResult:
+def export_genbank(
+    design: DesignIR,
+    *,
+    record_date: date | None = None,
+) -> ExportResult:
     part_map = {part.id: part for part in design.parts}
     incomplete = _incomplete_constructs(design, part_map)
     if incomplete:
@@ -71,8 +80,9 @@ def export_genbank(design: DesignIR) -> ExportResult:
             ],
         )
 
+    resolved_record_date = record_date or date.today()
     records = [
-        _construct_record(design, construct, part_map)
+        _construct_record(design, construct, part_map, resolved_record_date)
         for construct in design.constructs
     ]
     if not records:
@@ -95,32 +105,17 @@ def export_genbank(design: DesignIR) -> ExportResult:
     )
 
 
-def _incomplete_constructs(
-    design: DesignIR,
-    part_map: dict[str, BiologicalPart],
-) -> dict[str, list[str]]:
-    missing: dict[str, list[str]] = {}
-    for construct in design.constructs:
-        absent = [
-            part_id
-            for part_id in construct.parts
-            if part_id not in part_map or not part_map[part_id].sequence
-        ]
-        if absent:
-            missing[construct.id] = absent
-    return missing
-
-
 def _construct_record(
     design: DesignIR,
     construct: GeneticConstruct,
     part_map: dict[str, BiologicalPart],
+    record_date: date,
 ) -> str:
     parts = [part_map[part_id] for part_id in construct.parts]
     sequence = "".join(part.sequence or "" for part in parts).upper()
     locus = _locus_token(f"{design.design_id}_{construct.id}")[:16]
     lines = [
-        f"LOCUS       {locus:<16}{len(sequence):>11} bp    DNA     linear   SYN {date.today().strftime('%d-%b-%Y').upper()}",
+        f"LOCUS       {locus:<16}{len(sequence):>11} bp    DNA     linear   SYN {record_date.strftime('%d-%b-%Y').upper()}",
         f"DEFINITION  {_single_line(construct.name)}.",
         f"ACCESSION   {locus}",
         f"VERSION     {locus}.{design.revision.revision_number}",
@@ -160,26 +155,3 @@ def _construct_record(
     lines.extend(_origin_lines(sequence))
     lines.append("//")
     return "\n".join(lines) + "\n"
-
-
-def _origin_lines(sequence: str) -> list[str]:
-    lines = []
-    lower = sequence.lower()
-    for start in range(0, len(lower), 60):
-        chunk = lower[start : start + 60]
-        groups = " ".join(textwrap.wrap(chunk, 10))
-        lines.append(f"{start + 1:>9} {groups}")
-    return lines
-
-
-def _locus_token(value: str) -> str:
-    token = re.sub(r"[^A-Za-z0-9_]", "_", value)
-    return token.strip("_") or "DESIGN"
-
-
-def _single_line(value: str) -> str:
-    return " ".join(str(value).split())
-
-
-def _qualifier(value: str) -> str:
-    return _single_line(value).replace("\\", "\\\\").replace('"', "'")

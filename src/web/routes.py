@@ -22,6 +22,7 @@ from fastapi.responses import FileResponse
 from fastapi.templating import Jinja2Templates
 
 from api.dependencies import get_services
+from api.downloads import assembly_artifact_file_response
 from application.services import ApplicationServices
 from exporters.claim_boundary import (
     claim_boundary_json,
@@ -29,6 +30,10 @@ from exporters.claim_boundary import (
     claim_boundary_payload,
 )
 from schemas.import_draft import FieldEvidence, ImportDraft
+from schemas.workflow_evidence import (
+    is_valid_ode_trace as _valid_ode_trace,
+    project_ode_trace_rows,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -521,14 +526,11 @@ def download_assembly_delivery(
     artifact_key: str,
     services: ApplicationServices = Depends(get_services),
 ) -> FileResponse:
-    artifact = services.assembly_deliverables.artifact(
+    return assembly_artifact_file_response(
+        services.assembly_deliverables,
         deliverable_id,
         artifact_key,
     )
-    if artifact is None:
-        raise HTTPException(status_code=404, detail="Assembly artifact not found.")
-    path, media_type = artifact
-    return FileResponse(path, filename=path.name, media_type=media_type)
 
 
 @router.get("/web/benchmarks", response_class=HTMLResponse)
@@ -577,6 +579,77 @@ def benchmark_detail(
     if result is None:
         raise HTTPException(status_code=404, detail="Benchmark run not found.")
     return _template(request, "benchmark_detail.html", benchmark=result)
+
+
+@router.get("/web/resource-calibrations", response_class=HTMLResponse)
+def resource_calibrations_page(
+    request: Request,
+    services: ApplicationServices = Depends(get_services),
+) -> HTMLResponse:
+    return _template(
+        request,
+        "resource_calibrations.html",
+        workflows=services.evaluations.resource_calibration_workflows(),
+        workflow=None,
+    )
+
+
+@router.post("/web/resource-calibrations")
+async def create_resource_calibration_page(
+    bundle_file: Annotated[UploadFile, File()],
+    services: ApplicationServices = Depends(get_services),
+) -> RedirectResponse:
+    content = await bundle_file.read(2_000_001)
+    if len(content) > 2_000_000:
+        raise HTTPException(status_code=400, detail="Calibration bundle exceeds 2 MB.")
+    try:
+        payload = json.loads(content.decode("utf-8-sig"))
+        if not isinstance(payload, dict):
+            raise ValueError("Calibration bundle must contain one JSON object.")
+        result = services.evaluations.create_resource_calibration_workflow(payload)
+    except (UnicodeDecodeError, json.JSONDecodeError, RuntimeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return RedirectResponse(
+        f"/web/resource-calibrations/{result['workflow_id']}",
+        status_code=303,
+    )
+
+
+@router.get(
+    "/web/resource-calibrations/{workflow_id}",
+    response_class=HTMLResponse,
+)
+def resource_calibration_detail_page(
+    workflow_id: str,
+    request: Request,
+    services: ApplicationServices = Depends(get_services),
+) -> HTMLResponse:
+    workflow = services.evaluations.resource_calibration_workflow(workflow_id)
+    if workflow is None:
+        raise HTTPException(status_code=404, detail="Resource calibration not found.")
+    return _template(
+        request,
+        "resource_calibrations.html",
+        workflows=services.evaluations.resource_calibration_workflows(),
+        workflow=workflow,
+    )
+
+
+@router.post("/web/resource-calibrations/{workflow_id}/model-analysis")
+def resource_calibration_model_analysis_page(
+    workflow_id: str,
+    services: ApplicationServices = Depends(get_services),
+) -> RedirectResponse:
+    try:
+        services.evaluations.analyze_resource_calibration_workflow(workflow_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Resource calibration not found.") from exc
+    except (RuntimeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return RedirectResponse(
+        f"/web/resource-calibrations/{workflow_id}",
+        status_code=303,
+    )
 
 
 @router.get("/web/designs/{design_id}", response_class=HTMLResponse)
@@ -963,8 +1036,15 @@ def runs_page(
 
 
 @router.get("/web/new-design", response_class=HTMLResponse)
-def new_design_page(request: Request) -> HTMLResponse:
-    return _template(request, "new_design.html")
+def new_design_page(
+    request: Request,
+    services: ApplicationServices = Depends(get_services),
+) -> HTMLResponse:
+    return _template(
+        request,
+        "new_design.html",
+        settings=services.settings.get_settings_masked(),
+    )
 
 
 @router.post("/web/runs")
@@ -1015,7 +1095,10 @@ def run_detail(
     request: Request,
     services: ApplicationServices = Depends(get_services),
 ) -> HTMLResponse:
-    status = services.runs.status(run_id)
+    try:
+        status = services.runs.status(run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid run ID.") from exc
     if status.get("status") == "not_found":
         raise HTTPException(status_code=404, detail="Run not found.")
     events = services.runs.events(run_id, limit=100).get("events", [])
@@ -1670,20 +1753,11 @@ def _ode_trace_view(result: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
-def _valid_ode_trace(trace: Any) -> bool:
-    if not isinstance(trace, dict):
-        return False
-    time_values = trace.get("time")
-    output_values = trace.get("output_protein")
-    return (
-        isinstance(time_values, list)
-        and isinstance(output_values, list)
-        and len(time_values) == len(output_values)
-        and len(time_values) > 0
-    )
-
-
 def _ode_series(trace: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = project_ode_trace_rows(trace)
+    if not rows:
+        return []
+    time_values = [row["time"] for row in rows]
     series = []
     for key, label in [
         ("output_protein", "Output protein"),
@@ -1692,23 +1766,19 @@ def _ode_series(trace: dict[str, Any]) -> list[dict[str, Any]]:
         ("rnap_occupancy", "RNAP occupancy"),
         ("ribosome_occupancy", "Ribosome occupancy"),
     ]:
-        values = trace.get(key)
-        if isinstance(values, list) and values:
-            points = _sparkline_points(trace.get("time", []), values)
-            if points:
-                series.append({"key": key, "label": label, "points": points})
+        values = [row[key] for row in rows if key in row]
+        if len(values) != len(rows):
+            continue
+        points = _sparkline_points(time_values, values)
+        if points:
+            series.append({"key": key, "label": label, "points": points})
     return series
 
 
-def _sparkline_points(time_values: Any, values: list[Any]) -> str:
-    pairs = []
-    for index, raw_value in enumerate(values):
-        try:
-            y_value = float(raw_value)
-            x_value = float(time_values[index]) if isinstance(time_values, list) and index < len(time_values) else float(index)
-        except (TypeError, ValueError):
-            continue
-        pairs.append((x_value, y_value))
+def _sparkline_points(
+    time_values: list[float], values: list[float]
+) -> str:
+    pairs = list(zip(time_values, values))
     if not pairs:
         return ""
     min_x = min(x for x, _ in pairs)
@@ -1903,6 +1973,30 @@ def download_project_package(
     if design_v2 is None:
         raise HTTPException(status_code=404, detail="Design not found.")
 
+    from utils.safety_checker import check_design_export_safety, log_safety_event
+
+    safety_result = check_design_export_safety(design_v2.to_dict(), "project_package")
+    if safety_result.status != "safe":
+        log_safety_event(
+            design_id,
+            design_v2.specification.user_intent or design_v2.name,
+            safety_result.status,
+            safety_result.warnings,
+            action="export:project_package",
+            categories=safety_result.categories,
+            metadata={"revision_number": design_v2.revision.revision_number},
+        )
+    if not safety_result.export_allowed:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "EXPORT_BLOCKED_SAFETY_REVIEW",
+                "message": safety_result.redirection_message
+                or "Explicit human safety review is required before export.",
+                "warnings": safety_result.warnings,
+            },
+        )
+
     from application.services import design_ir_from_dict, design_ir_v2_to_v1_payload
     design = design_ir_from_dict(design_ir_v2_to_v1_payload(design_v2.to_dict()))
 
@@ -1986,6 +2080,11 @@ def download_project_package(
 
     headers = {
         "Content-Disposition": f'attachment; filename="{design.design_id}_project_package.zip"',
+        "X-Safety-Status": safety_result.status,
+        "X-Safety-Warning-Count": str(len(safety_result.warnings)),
+        "X-Safety-Review-Required": str(
+            safety_result.requires_human_review
+        ).lower(),
     }
     return Response(
         content=zip_buffer.getvalue(),

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from tools.part_library import PartLibrary
+from utils.scalar_values import optional_float as _optional_float
 
 
 @dataclass
@@ -200,13 +201,6 @@ def _deduplicate_assignments(assignments: list[dict[str, Any]]) -> list[dict[str
         key = (str(assignment.get("logic_node_id")), str(assignment.get("part_id")))
         selected[key] = assignment
     return list(selected.values())
-
-
-def _optional_float(value: Any) -> float | None:
-    try:
-        return None if value is None else float(value)
-    except (TypeError, ValueError):
-        return None
 
 
 def parse_ucf_gate_parameters(ucf_path: str | Path | None) -> dict[str, dict[str, float]]:

@@ -1,0 +1,56 @@
+{
+  "package_id": "publication_case_study_package_v1",
+  "version": "1.0.0",
+  "claim_boundary": "research_only",
+  "disclaimer": "All biophysical metrics and scores are computational screening heuristics.",
+  "genbank_record_date": "2026-07-21",
+  "case_studies": [
+    {
+      "case_id": "cs1_inducible_reporter",
+      "title": "Inducible Sensor-Reporter",
+      "category": "Inducible Logic",
+      "status": "passed",
+      "readiness_status": "primer_ready",
+      "computational_design_score": null,
+      "files": {
+        "genbank": "cs1_inducible_reporter.gb",
+        "sbol3": "cs1_inducible_reporter.ttl",
+        "bom": "cs1_inducible_reporter.csv"
+      }
+    },
+    {
+      "case_id": "cs2_toggle_switch",
+      "title": "Genetic Toggle Switch",
+      "category": "Sequential Logic & Bistability",
+      "status": "passed",
+      "readiness_status": "primer_ready",
+      "computational_design_score": null,
+      "self_healing_repair": {
+        "action": "adjust_copy_number + swap_part_by_affinity",
+        "copy_number_after": 10.0
+      },
+      "files": {
+        "genbank": "cs2_toggle_switch.gb",
+        "sbol3": "cs2_toggle_switch.ttl",
+        "bom": "cs2_toggle_switch.csv"
+      }
+    },
+    {
+      "case_id": "cs3_polycistronic_operon",
+      "title": "Polycistronic Operon Logic",
+      "category": "Prokaryotic Operon Coupling",
+      "status": "passed",
+      "readiness_status": "primer_ready",
+      "computational_design_score": null,
+      "self_healing_repair": {
+        "action": "mutate_intergenic_sequence",
+        "sequence_after": "AGGAGGAAAAATG"
+      },
+      "files": {
+        "genbank": "cs3_polycistronic_operon.gb",
+        "sbol3": "cs3_polycistronic_operon.ttl",
+        "bom": "cs3_polycistronic_operon.csv"
+      }
+    }
+  ]
+}

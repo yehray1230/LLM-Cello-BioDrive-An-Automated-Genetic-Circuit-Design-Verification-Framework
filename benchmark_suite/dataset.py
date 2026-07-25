@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-import hashlib
 import json
 from pathlib import Path
 import re
 from typing import Any
+
+from utils.hashing import stable_json_sha256
+
 
 
 DATASET_SCHEMA_VERSION = "1.0"
@@ -37,13 +39,7 @@ class BenchmarkDataset:
 
     @property
     def content_hash(self) -> str:
-        payload = json.dumps(
-            asdict(self),
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        return stable_json_sha256(asdict(self))
 
     def to_dict(self, *, include_cases: bool = True) -> dict[str, Any]:
         payload = asdict(self)
@@ -112,6 +108,18 @@ def list_benchmark_datasets(
     return datasets
 
 
+VALID_EVIDENCE_STATUSES = {
+    "literature_curated_fixture",
+    "experiment_validated",
+    "synthetic_fixture",
+    "implemented_preview",
+}
+VALID_SPOT_REVIEW_STATUSES = {
+    "pending_independent_review",
+    "verified",
+}
+
+
 def validate_benchmark_dataset(dataset: BenchmarkDataset) -> list[str]:
     errors: list[str] = []
     if dataset.schema_version != DATASET_SCHEMA_VERSION:
@@ -124,6 +132,11 @@ def validate_benchmark_dataset(dataset: BenchmarkDataset) -> list[str]:
         errors.append("version is required.")
     if not dataset.cases:
         errors.append("At least one benchmark case is required.")
+
+    evidence_status = dataset.provenance.get("evidence_status")
+    if evidence_status and evidence_status not in VALID_EVIDENCE_STATUSES:
+        errors.append(f"Invalid evidence_status: '{evidence_status}'. Must be one of {sorted(VALID_EVIDENCE_STATUSES)}.")
+
     case_ids = [case.case_id for case in dataset.cases]
     duplicates = sorted(
         {case_id for case_id in case_ids if case_ids.count(case_id) > 1}
@@ -135,4 +148,29 @@ def validate_benchmark_dataset(dataset: BenchmarkDataset) -> list[str]:
             errors.append("Each benchmark case requires case_id.")
         if not case.candidate:
             errors.append(f"Case {case.case_id} requires candidate data.")
+        if evidence_status == "literature_curated_fixture":
+            if not case.source:
+                errors.append(f"Case {case.case_id} missing record-level literature source provenance.")
+            elif not (case.source.get("doi") or case.source.get("reference")):
+                errors.append(f"Case {case.case_id} missing DOI or reference in source provenance.")
+            for field_name in (
+                "exact_location",
+                "measurement_context",
+                "parameter_derivation",
+                "data_rights",
+                "spot_review_status",
+            ):
+                if not case.source.get(field_name):
+                    errors.append(
+                        f"Case {case.case_id} missing literature provenance field: {field_name}."
+                    )
+            review_status = case.source.get("spot_review_status")
+            if review_status not in VALID_SPOT_REVIEW_STATUSES:
+                errors.append(
+                    f"Case {case.case_id} has invalid spot_review_status: {review_status!r}."
+                )
+            if review_status == "verified" and not case.source.get("review_artifact"):
+                errors.append(
+                    f"Case {case.case_id} claims verified review without review_artifact."
+                )
     return errors

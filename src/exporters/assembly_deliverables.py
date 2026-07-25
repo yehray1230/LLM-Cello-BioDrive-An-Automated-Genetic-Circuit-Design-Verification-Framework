@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+from html import escape
 from io import StringIO
 import json
 from pathlib import Path
@@ -37,6 +38,19 @@ def write_assembly_deliverables(
         _report_markdown(payload),
         "text/markdown",
     )
+
+    # Generate an academic PDF or explicitly report the print-HTML fallback.
+    from exporters.pdf_exporter import export_report_artifact
+
+    pdf_path = output_dir / "assembly_report.pdf"
+    report_html = f"<html><body><pre>{escape(_report_markdown(payload))}</pre></body></html>"
+    report_result = export_report_artifact(report_html, pdf_path)
+    if report_result.generation_status == "failed":
+        raise RuntimeError(
+            "Report exporter failed without producing PDF or print-HTML fallback "
+            f"({report_result.fallback_reason}; {report_result.error_type})."
+        )
+    artifacts["pdf_report"] = report_result.to_manifest_entry()
     artifacts["opentrons"] = _write_text(
         output_dir,
         "opentrons_protocol.py",
@@ -230,7 +244,7 @@ def _opentrons_protocol(payload: dict[str, Any]) -> str:
     fragments = plan.get("fragments") or []
     design_id = plan.get("design_id") or "design"
     method = plan.get("method") or "gibson"
-    
+
     protocol_code = f"""# Opentrons OT-2 Protocol generated for genetic circuit assembly
 from opentrons import protocol_api
 
@@ -245,16 +259,16 @@ def run(protocol: protocol_api.ProtocolContext):
     # Labware
     tiprack_20 = protocol.load_labware('opentrons_96_tiprack_20ul', '1')
     p20 = protocol.load_instrument('p20_single_gen2', 'right', tip_racks=[tiprack_20])
-    
+
     # Plates
     dna_plate = protocol.load_labware('nest_96_wellplate_100ul_pcr_full_skirt', '2')
     assembly_plate = protocol.load_labware('nest_96_wellplate_100ul_pcr_full_skirt', '3')
     reagents = protocol.load_labware('nest_12_reservoir_15ml', '4')
-    
+
     # Reagent Locations
     assembly_mix = reagents.wells_by_name()['A1']
     water = reagents.wells_by_name()['A2']
-    
+
     # DNA fragment transfers (2 uL each into assembly well A1)
 """
     transfer_lines = []
@@ -266,12 +280,12 @@ def run(protocol: protocol_api.ProtocolContext):
         transfer_lines.append(f"    p20.transfer(2.0, dna_plate.wells_by_name()['A{well_idx}'], assembly_plate.wells_by_name()['A1'], new_tip='never')")
         transfer_lines.append("    p20.drop_tip()")
         well_idx += 1
-        
+
     transfer_lines.append("    # Transfer Assembly Master Mix")
     transfer_lines.append("    p20.pick_up_tip()")
     transfer_lines.append("    p20.transfer(10.0, assembly_mix, assembly_plate.wells_by_name()['A1'], mix_after=(3, 10), new_tip='never')")
     transfer_lines.append("    p20.drop_tip()")
-    
+
     protocol_code += "\n".join(transfer_lines)
     protocol_code += "\n"
     return protocol_code

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 
 from api.dependencies import get_services
+from api.downloads import assembly_artifact_file_response
 from api.v2_schemas import (
     AssemblyDeliverableRequest,
     AssemblyPlanRequest,
@@ -373,14 +374,11 @@ def get_assembly_deliverable_artifact(
     artifact_key: str,
     services: ApplicationServices = Depends(get_services),
 ) -> FileResponse:
-    artifact = services.assembly_deliverables.artifact(
+    return assembly_artifact_file_response(
+        services.assembly_deliverables,
         deliverable_id,
         artifact_key,
     )
-    if artifact is None:
-        raise HTTPException(status_code=404, detail="Assembly artifact not found.")
-    path, media_type = artifact
-    return FileResponse(path, filename=path.name, media_type=media_type)
 
 
 @router.post("/research/runs", status_code=status.HTTP_202_ACCEPTED)

@@ -76,13 +76,23 @@ async def validation_error(
     _request: Request,
     exc: RequestValidationError,
 ) -> JSONResponse:
+    details = []
+    for item in exc.errors():
+        detail = dict(item)
+        context = detail.get("ctx")
+        if isinstance(context, dict):
+            detail["ctx"] = {
+                key: str(value) if isinstance(value, BaseException) else value
+                for key, value in context.items()
+            }
+        details.append(detail)
     return JSONResponse(
         status_code=422,
         content={
             "error": {
                 "code": "REQUEST_VALIDATION_FAILED",
                 "message": "The request payload did not match the API contract.",
-                "details": exc.errors(),
+                "details": details,
             }
         },
     )

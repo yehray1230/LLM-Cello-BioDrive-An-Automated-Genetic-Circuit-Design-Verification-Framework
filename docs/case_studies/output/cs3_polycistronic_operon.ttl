@@ -1,0 +1,864 @@
+@prefix sbol: <http://sbols.org/v3#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@base <https://example.org/genetic-circuit/> .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "Conceptual design for Y1, Y2" ;
+    dcterms:identifier "cs3_polycistronic_operon" ;
+    sbol:description "Y1 = n1; Y2 = n1" .
+
+<https://example.org/genetic-circuit/part/sensor_A>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "A input sensor" ;
+    dcterms:identifier "sensor_A" ;
+    sbol:description "Detects the environmental or molecular input A." ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/sensor_A> .
+
+<https://example.org/genetic-circuit/sequence/sensor_A>
+    a sbol:Sequence ;
+    sbol:elements "ATGCCCCAATAA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_sensor_A>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/sensor_A> ;
+    sbol:displayId "cs3_polycistronic_operon_sensor_A" .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_sensor_A> .
+
+<https://example.org/genetic-circuit/part/promoter_A>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "P_A" ;
+    dcterms:identifier "promoter_A" ;
+    sbol:description "Converts input A into a regulatory signal." ;
+    sbol:role <https://identifiers.org/SO:0000167> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/promoter_A> .
+
+<https://example.org/genetic-circuit/sequence/promoter_A>
+    a sbol:Sequence ;
+    sbol:elements "TTGACAGATACT" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_promoter_A>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/promoter_A> ;
+    sbol:displayId "cs3_polycistronic_operon_promoter_A" .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_promoter_A> .
+
+<https://example.org/genetic-circuit/part/sensor_B>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "B input sensor" ;
+    dcterms:identifier "sensor_B" ;
+    sbol:description "Detects the environmental or molecular input B." ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/sensor_B> .
+
+<https://example.org/genetic-circuit/sequence/sensor_B>
+    a sbol:Sequence ;
+    sbol:elements "ATGCCCCAATAA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_sensor_B>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/sensor_B> ;
+    sbol:displayId "cs3_polycistronic_operon_sensor_B" .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_sensor_B> .
+
+<https://example.org/genetic-circuit/part/promoter_B>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "P_B" ;
+    dcterms:identifier "promoter_B" ;
+    sbol:description "Converts input B into a regulatory signal." ;
+    sbol:role <https://identifiers.org/SO:0000167> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/promoter_B> .
+
+<https://example.org/genetic-circuit/sequence/promoter_B>
+    a sbol:Sequence ;
+    sbol:elements "TTGACAGATACT" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_promoter_B>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/promoter_B> ;
+    sbol:displayId "cs3_polycistronic_operon_promoter_B" .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_promoter_B> .
+
+<https://example.org/genetic-circuit/part/logic_promoter_1_n1>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "P_logic_1" ;
+    dcterms:identifier "logic_promoter_1_n1" ;
+    sbol:description "Implements the NOR decision for A, B." ;
+    sbol:role <https://identifiers.org/SO:0000167> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/logic_promoter_1_n1> .
+
+<https://example.org/genetic-circuit/sequence/logic_promoter_1_n1>
+    a sbol:Sequence ;
+    sbol:elements "TTGACAGATACT" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_logic_promoter_1_n1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/logic_promoter_1_n1> ;
+    sbol:displayId "cs3_polycistronic_operon_logic_promoter_1_n1" .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_logic_promoter_1_n1> .
+
+<https://example.org/genetic-circuit/part/rbs_regulator_1_n1>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "RBS_1" ;
+    dcterms:identifier "rbs_regulator_1_n1" ;
+    sbol:description "Controls translation initiation for the gate regulator." ;
+    sbol:role <https://identifiers.org/SO:0000139> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/rbs_regulator_1_n1> .
+
+<https://example.org/genetic-circuit/sequence/rbs_regulator_1_n1>
+    a sbol:Sequence ;
+    sbol:elements "AGGAGGACAA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_rbs_regulator_1_n1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/rbs_regulator_1_n1> ;
+    sbol:displayId "cs3_polycistronic_operon_rbs_regulator_1_n1" .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_rbs_regulator_1_n1> .
+
+<https://example.org/genetic-circuit/part/regulator_1_n1>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "NOR regulator 1" ;
+    dcterms:identifier "regulator_1_n1" ;
+    sbol:description "Carries the regulatory output signal n1." ;
+    sbol:role <https://identifiers.org/SO:0000316> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/regulator_1_n1> .
+
+<https://example.org/genetic-circuit/sequence/regulator_1_n1>
+    a sbol:Sequence ;
+    sbol:elements "ATGAAACGGTAA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_regulator_1_n1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/regulator_1_n1> ;
+    sbol:displayId "cs3_polycistronic_operon_regulator_1_n1" .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_regulator_1_n1> .
+
+<https://example.org/genetic-circuit/part/term_regulator_1_n1>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "T_1" ;
+    dcterms:identifier "term_regulator_1_n1" ;
+    sbol:description "Terminates transcription of the gate transcriptional unit." ;
+    sbol:role <https://identifiers.org/SO:0000141> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/term_regulator_1_n1> .
+
+<https://example.org/genetic-circuit/sequence/term_regulator_1_n1>
+    a sbol:Sequence ;
+    sbol:elements "GCCGCCAAAA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_term_regulator_1_n1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/term_regulator_1_n1> ;
+    sbol:displayId "cs3_polycistronic_operon_term_regulator_1_n1" .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_term_regulator_1_n1> .
+
+<https://example.org/genetic-circuit/part/output_promoter_Y1>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "P_Y1" ;
+    dcterms:identifier "output_promoter_Y1" ;
+    sbol:description "Drives the final output Y1." ;
+    sbol:role <https://identifiers.org/SO:0000167> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/output_promoter_Y1> .
+
+<https://example.org/genetic-circuit/sequence/output_promoter_Y1>
+    a sbol:Sequence ;
+    sbol:elements "TTGACAGATACT" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_output_promoter_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/output_promoter_Y1> ;
+    sbol:displayId "cs3_polycistronic_operon_output_promoter_Y1" .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_output_promoter_Y1> .
+
+<https://example.org/genetic-circuit/part/rbs_Y1>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "RBS_Y1" ;
+    dcterms:identifier "rbs_Y1" ;
+    sbol:description "Controls translation of output Y1." ;
+    sbol:role <https://identifiers.org/SO:0000139> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/rbs_Y1> .
+
+<https://example.org/genetic-circuit/sequence/rbs_Y1>
+    a sbol:Sequence ;
+    sbol:elements "AGGAGGACAA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_rbs_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/rbs_Y1> ;
+    sbol:displayId "cs3_polycistronic_operon_rbs_Y1" .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_rbs_Y1> .
+
+<https://example.org/genetic-circuit/part/output_cds_Y1>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "Y1" ;
+    dcterms:identifier "output_cds_Y1" ;
+    sbol:description "Produces the requested output signal Y1." ;
+    sbol:role <https://identifiers.org/SO:0000316> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/output_cds_Y1> .
+
+<https://example.org/genetic-circuit/sequence/output_cds_Y1>
+    a sbol:Sequence ;
+    sbol:elements "ATGAAACGGTAA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_output_cds_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/output_cds_Y1> ;
+    sbol:displayId "cs3_polycistronic_operon_output_cds_Y1" .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_output_cds_Y1> .
+
+<https://example.org/genetic-circuit/part/term_Y1>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "T_Y1" ;
+    dcterms:identifier "term_Y1" ;
+    sbol:description "Terminates the output transcriptional unit." ;
+    sbol:role <https://identifiers.org/SO:0000141> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/term_Y1> .
+
+<https://example.org/genetic-circuit/sequence/term_Y1>
+    a sbol:Sequence ;
+    sbol:elements "GCCGCCAAAA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_term_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/term_Y1> ;
+    sbol:displayId "cs3_polycistronic_operon_term_Y1" .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_term_Y1> .
+
+<https://example.org/genetic-circuit/part/output_promoter_Y2>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "P_Y2" ;
+    dcterms:identifier "output_promoter_Y2" ;
+    sbol:description "Drives the final output Y2." ;
+    sbol:role <https://identifiers.org/SO:0000167> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/output_promoter_Y2> .
+
+<https://example.org/genetic-circuit/sequence/output_promoter_Y2>
+    a sbol:Sequence ;
+    sbol:elements "TTGACAGATACT" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_output_promoter_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/output_promoter_Y2> ;
+    sbol:displayId "cs3_polycistronic_operon_output_promoter_Y2" .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_output_promoter_Y2> .
+
+<https://example.org/genetic-circuit/part/rbs_Y2>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "RBS_Y2" ;
+    dcterms:identifier "rbs_Y2" ;
+    sbol:description "Controls translation of output Y2." ;
+    sbol:role <https://identifiers.org/SO:0000139> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/rbs_Y2> .
+
+<https://example.org/genetic-circuit/sequence/rbs_Y2>
+    a sbol:Sequence ;
+    sbol:elements "AGGAGGACAA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_rbs_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/rbs_Y2> ;
+    sbol:displayId "cs3_polycistronic_operon_rbs_Y2" .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_rbs_Y2> .
+
+<https://example.org/genetic-circuit/part/output_cds_Y2>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "Y2" ;
+    dcterms:identifier "output_cds_Y2" ;
+    sbol:description "Produces the requested output signal Y2." ;
+    sbol:role <https://identifiers.org/SO:0000316> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/output_cds_Y2> .
+
+<https://example.org/genetic-circuit/sequence/output_cds_Y2>
+    a sbol:Sequence ;
+    sbol:elements "ATGAAACGGTAA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_output_cds_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/output_cds_Y2> ;
+    sbol:displayId "cs3_polycistronic_operon_output_cds_Y2" .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_output_cds_Y2> .
+
+<https://example.org/genetic-circuit/part/term_Y2>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "T_Y2" ;
+    dcterms:identifier "term_Y2" ;
+    sbol:description "Terminates the output transcriptional unit." ;
+    sbol:role <https://identifiers.org/SO:0000141> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/term_Y2> .
+
+<https://example.org/genetic-circuit/sequence/term_Y2>
+    a sbol:Sequence ;
+    sbol:elements "GCCGCCAAAA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_term_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/term_Y2> ;
+    sbol:displayId "cs3_polycistronic_operon_term_Y2" .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_term_Y2> .
+
+<https://example.org/genetic-circuit/construct/tu_gate_1>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "NOR gate transcriptional unit" ;
+    dcterms:identifier "tu_gate_1" ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/tu_gate_1> .
+
+<https://example.org/genetic-circuit/sequence/tu_gate_1>
+    a sbol:Sequence ;
+    sbol:elements "TTGACAGATACTAGGAGGACAAATGAAACGGTAAGCCGCCAAAA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/location/tu_gate_1_1_logic_promoter_1_n1>
+    a sbol:Range ;
+    sbol:start "1"^^xsd:integer ;
+    sbol:end "12"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_gate_1> .
+
+<https://example.org/genetic-circuit/feature/tu_gate_1_1_logic_promoter_1_n1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/logic_promoter_1_n1> ;
+    sbol:displayId "tu_gate_1_1" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_gate_1_1_logic_promoter_1_n1> .
+
+<https://example.org/genetic-circuit/construct/tu_gate_1>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_gate_1_1_logic_promoter_1_n1> .
+
+<https://example.org/genetic-circuit/location/tu_gate_1_2_rbs_regulator_1_n1>
+    a sbol:Range ;
+    sbol:start "13"^^xsd:integer ;
+    sbol:end "22"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_gate_1> .
+
+<https://example.org/genetic-circuit/feature/tu_gate_1_2_rbs_regulator_1_n1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/rbs_regulator_1_n1> ;
+    sbol:displayId "tu_gate_1_2" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_gate_1_2_rbs_regulator_1_n1> .
+
+<https://example.org/genetic-circuit/construct/tu_gate_1>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_gate_1_2_rbs_regulator_1_n1> .
+
+<https://example.org/genetic-circuit/constraint/tu_gate_1_1_2>
+    a sbol:Constraint ;
+    sbol:subject <https://example.org/genetic-circuit/feature/tu_gate_1_1_logic_promoter_1_n1> ;
+    sbol:object <https://example.org/genetic-circuit/feature/tu_gate_1_2_rbs_regulator_1_n1> ;
+    sbol:restriction sbol:precedes .
+
+<https://example.org/genetic-circuit/construct/tu_gate_1>
+    sbol:hasConstraint <https://example.org/genetic-circuit/constraint/tu_gate_1_1_2> .
+
+<https://example.org/genetic-circuit/location/tu_gate_1_3_regulator_1_n1>
+    a sbol:Range ;
+    sbol:start "23"^^xsd:integer ;
+    sbol:end "34"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_gate_1> .
+
+<https://example.org/genetic-circuit/feature/tu_gate_1_3_regulator_1_n1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/regulator_1_n1> ;
+    sbol:displayId "tu_gate_1_3" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_gate_1_3_regulator_1_n1> .
+
+<https://example.org/genetic-circuit/construct/tu_gate_1>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_gate_1_3_regulator_1_n1> .
+
+<https://example.org/genetic-circuit/constraint/tu_gate_1_2_3>
+    a sbol:Constraint ;
+    sbol:subject <https://example.org/genetic-circuit/feature/tu_gate_1_2_rbs_regulator_1_n1> ;
+    sbol:object <https://example.org/genetic-circuit/feature/tu_gate_1_3_regulator_1_n1> ;
+    sbol:restriction sbol:precedes .
+
+<https://example.org/genetic-circuit/construct/tu_gate_1>
+    sbol:hasConstraint <https://example.org/genetic-circuit/constraint/tu_gate_1_2_3> .
+
+<https://example.org/genetic-circuit/location/tu_gate_1_4_term_regulator_1_n1>
+    a sbol:Range ;
+    sbol:start "35"^^xsd:integer ;
+    sbol:end "44"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_gate_1> .
+
+<https://example.org/genetic-circuit/feature/tu_gate_1_4_term_regulator_1_n1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/term_regulator_1_n1> ;
+    sbol:displayId "tu_gate_1_4" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_gate_1_4_term_regulator_1_n1> .
+
+<https://example.org/genetic-circuit/construct/tu_gate_1>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_gate_1_4_term_regulator_1_n1> .
+
+<https://example.org/genetic-circuit/constraint/tu_gate_1_3_4>
+    a sbol:Constraint ;
+    sbol:subject <https://example.org/genetic-circuit/feature/tu_gate_1_3_regulator_1_n1> ;
+    sbol:object <https://example.org/genetic-circuit/feature/tu_gate_1_4_term_regulator_1_n1> ;
+    sbol:restriction sbol:precedes .
+
+<https://example.org/genetic-circuit/construct/tu_gate_1>
+    sbol:hasConstraint <https://example.org/genetic-circuit/constraint/tu_gate_1_3_4> .
+
+<https://example.org/genetic-circuit/construct/tu_output_1>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "Y1 output transcriptional unit" ;
+    dcterms:identifier "tu_output_1" ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/tu_output_1> .
+
+<https://example.org/genetic-circuit/sequence/tu_output_1>
+    a sbol:Sequence ;
+    sbol:elements "TTGACAGATACTAGGAGGACAAATGAAACGGTAAGCCGCCAAAA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/location/tu_output_1_1_output_promoter_Y1>
+    a sbol:Range ;
+    sbol:start "1"^^xsd:integer ;
+    sbol:end "12"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_output_1> .
+
+<https://example.org/genetic-circuit/feature/tu_output_1_1_output_promoter_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/output_promoter_Y1> ;
+    sbol:displayId "tu_output_1_1" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_output_1_1_output_promoter_Y1> .
+
+<https://example.org/genetic-circuit/construct/tu_output_1>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_output_1_1_output_promoter_Y1> .
+
+<https://example.org/genetic-circuit/location/tu_output_1_2_rbs_Y1>
+    a sbol:Range ;
+    sbol:start "13"^^xsd:integer ;
+    sbol:end "22"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_output_1> .
+
+<https://example.org/genetic-circuit/feature/tu_output_1_2_rbs_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/rbs_Y1> ;
+    sbol:displayId "tu_output_1_2" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_output_1_2_rbs_Y1> .
+
+<https://example.org/genetic-circuit/construct/tu_output_1>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_output_1_2_rbs_Y1> .
+
+<https://example.org/genetic-circuit/constraint/tu_output_1_1_2>
+    a sbol:Constraint ;
+    sbol:subject <https://example.org/genetic-circuit/feature/tu_output_1_1_output_promoter_Y1> ;
+    sbol:object <https://example.org/genetic-circuit/feature/tu_output_1_2_rbs_Y1> ;
+    sbol:restriction sbol:precedes .
+
+<https://example.org/genetic-circuit/construct/tu_output_1>
+    sbol:hasConstraint <https://example.org/genetic-circuit/constraint/tu_output_1_1_2> .
+
+<https://example.org/genetic-circuit/location/tu_output_1_3_output_cds_Y1>
+    a sbol:Range ;
+    sbol:start "23"^^xsd:integer ;
+    sbol:end "34"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_output_1> .
+
+<https://example.org/genetic-circuit/feature/tu_output_1_3_output_cds_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/output_cds_Y1> ;
+    sbol:displayId "tu_output_1_3" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_output_1_3_output_cds_Y1> .
+
+<https://example.org/genetic-circuit/construct/tu_output_1>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_output_1_3_output_cds_Y1> .
+
+<https://example.org/genetic-circuit/constraint/tu_output_1_2_3>
+    a sbol:Constraint ;
+    sbol:subject <https://example.org/genetic-circuit/feature/tu_output_1_2_rbs_Y1> ;
+    sbol:object <https://example.org/genetic-circuit/feature/tu_output_1_3_output_cds_Y1> ;
+    sbol:restriction sbol:precedes .
+
+<https://example.org/genetic-circuit/construct/tu_output_1>
+    sbol:hasConstraint <https://example.org/genetic-circuit/constraint/tu_output_1_2_3> .
+
+<https://example.org/genetic-circuit/location/tu_output_1_4_term_Y1>
+    a sbol:Range ;
+    sbol:start "35"^^xsd:integer ;
+    sbol:end "44"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_output_1> .
+
+<https://example.org/genetic-circuit/feature/tu_output_1_4_term_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/term_Y1> ;
+    sbol:displayId "tu_output_1_4" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_output_1_4_term_Y1> .
+
+<https://example.org/genetic-circuit/construct/tu_output_1>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_output_1_4_term_Y1> .
+
+<https://example.org/genetic-circuit/constraint/tu_output_1_3_4>
+    a sbol:Constraint ;
+    sbol:subject <https://example.org/genetic-circuit/feature/tu_output_1_3_output_cds_Y1> ;
+    sbol:object <https://example.org/genetic-circuit/feature/tu_output_1_4_term_Y1> ;
+    sbol:restriction sbol:precedes .
+
+<https://example.org/genetic-circuit/construct/tu_output_1>
+    sbol:hasConstraint <https://example.org/genetic-circuit/constraint/tu_output_1_3_4> .
+
+<https://example.org/genetic-circuit/construct/tu_output_2>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "Y2 output transcriptional unit" ;
+    dcterms:identifier "tu_output_2" ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/tu_output_2> .
+
+<https://example.org/genetic-circuit/sequence/tu_output_2>
+    a sbol:Sequence ;
+    sbol:elements "TTGACAGATACTAGGAGGACAAATGAAACGGTAAGCCGCCAAAA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/location/tu_output_2_1_output_promoter_Y2>
+    a sbol:Range ;
+    sbol:start "1"^^xsd:integer ;
+    sbol:end "12"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_output_2> .
+
+<https://example.org/genetic-circuit/feature/tu_output_2_1_output_promoter_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/output_promoter_Y2> ;
+    sbol:displayId "tu_output_2_1" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_output_2_1_output_promoter_Y2> .
+
+<https://example.org/genetic-circuit/construct/tu_output_2>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_output_2_1_output_promoter_Y2> .
+
+<https://example.org/genetic-circuit/location/tu_output_2_2_rbs_Y2>
+    a sbol:Range ;
+    sbol:start "13"^^xsd:integer ;
+    sbol:end "22"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_output_2> .
+
+<https://example.org/genetic-circuit/feature/tu_output_2_2_rbs_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/rbs_Y2> ;
+    sbol:displayId "tu_output_2_2" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_output_2_2_rbs_Y2> .
+
+<https://example.org/genetic-circuit/construct/tu_output_2>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_output_2_2_rbs_Y2> .
+
+<https://example.org/genetic-circuit/constraint/tu_output_2_1_2>
+    a sbol:Constraint ;
+    sbol:subject <https://example.org/genetic-circuit/feature/tu_output_2_1_output_promoter_Y2> ;
+    sbol:object <https://example.org/genetic-circuit/feature/tu_output_2_2_rbs_Y2> ;
+    sbol:restriction sbol:precedes .
+
+<https://example.org/genetic-circuit/construct/tu_output_2>
+    sbol:hasConstraint <https://example.org/genetic-circuit/constraint/tu_output_2_1_2> .
+
+<https://example.org/genetic-circuit/location/tu_output_2_3_output_cds_Y2>
+    a sbol:Range ;
+    sbol:start "23"^^xsd:integer ;
+    sbol:end "34"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_output_2> .
+
+<https://example.org/genetic-circuit/feature/tu_output_2_3_output_cds_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/output_cds_Y2> ;
+    sbol:displayId "tu_output_2_3" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_output_2_3_output_cds_Y2> .
+
+<https://example.org/genetic-circuit/construct/tu_output_2>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_output_2_3_output_cds_Y2> .
+
+<https://example.org/genetic-circuit/constraint/tu_output_2_2_3>
+    a sbol:Constraint ;
+    sbol:subject <https://example.org/genetic-circuit/feature/tu_output_2_2_rbs_Y2> ;
+    sbol:object <https://example.org/genetic-circuit/feature/tu_output_2_3_output_cds_Y2> ;
+    sbol:restriction sbol:precedes .
+
+<https://example.org/genetic-circuit/construct/tu_output_2>
+    sbol:hasConstraint <https://example.org/genetic-circuit/constraint/tu_output_2_2_3> .
+
+<https://example.org/genetic-circuit/location/tu_output_2_4_term_Y2>
+    a sbol:Range ;
+    sbol:start "35"^^xsd:integer ;
+    sbol:end "44"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_output_2> .
+
+<https://example.org/genetic-circuit/feature/tu_output_2_4_term_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/term_Y2> ;
+    sbol:displayId "tu_output_2_4" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_output_2_4_term_Y2> .
+
+<https://example.org/genetic-circuit/construct/tu_output_2>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_output_2_4_term_Y2> .
+
+<https://example.org/genetic-circuit/constraint/tu_output_2_3_4>
+    a sbol:Constraint ;
+    sbol:subject <https://example.org/genetic-circuit/feature/tu_output_2_3_output_cds_Y2> ;
+    sbol:object <https://example.org/genetic-circuit/feature/tu_output_2_4_term_Y2> ;
+    sbol:restriction sbol:precedes .
+
+<https://example.org/genetic-circuit/construct/tu_output_2>
+    sbol:hasConstraint <https://example.org/genetic-circuit/constraint/tu_output_2_3_4> .
+
+<https://example.org/genetic-circuit/interaction/cs3_polycistronic_operon_1>
+    a sbol:Interaction ;
+    sbol:type <https://identifiers.org/SBO:0000170> ;
+    sbol:name "A activates its input promoter" ;
+    sbol:description "activation" ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_1_source> ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_1_target> .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasInteraction <https://example.org/genetic-circuit/interaction/cs3_polycistronic_operon_1> .
+
+<https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_1_source>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_sensor_A> ;
+    sbol:role <https://identifiers.org/SBO:0000459> .
+
+<https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_1_target>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_promoter_A> ;
+    sbol:role <https://identifiers.org/SBO:0000643> .
+
+<https://example.org/genetic-circuit/interaction/cs3_polycistronic_operon_2>
+    a sbol:Interaction ;
+    sbol:type <https://identifiers.org/SBO:0000170> ;
+    sbol:name "B activates its input promoter" ;
+    sbol:description "activation" ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_2_source> ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_2_target> .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasInteraction <https://example.org/genetic-circuit/interaction/cs3_polycistronic_operon_2> .
+
+<https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_2_source>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_sensor_B> ;
+    sbol:role <https://identifiers.org/SBO:0000459> .
+
+<https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_2_target>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_promoter_B> ;
+    sbol:role <https://identifiers.org/SBO:0000643> .
+
+<https://example.org/genetic-circuit/interaction/cs3_polycistronic_operon_3>
+    a sbol:Interaction ;
+    sbol:type <https://identifiers.org/SBO:0000169> ;
+    sbol:name "A enters NOR" ;
+    sbol:description "repression" ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_3_source> ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_3_target> .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasInteraction <https://example.org/genetic-circuit/interaction/cs3_polycistronic_operon_3> .
+
+<https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_3_source>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_promoter_A> ;
+    sbol:role <https://identifiers.org/SBO:0000020> .
+
+<https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_3_target>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_logic_promoter_1_n1> ;
+    sbol:role <https://identifiers.org/SBO:0000642> .
+
+<https://example.org/genetic-circuit/interaction/cs3_polycistronic_operon_4>
+    a sbol:Interaction ;
+    sbol:type <https://identifiers.org/SBO:0000169> ;
+    sbol:name "B enters NOR" ;
+    sbol:description "repression" ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_4_source> ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_4_target> .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasInteraction <https://example.org/genetic-circuit/interaction/cs3_polycistronic_operon_4> .
+
+<https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_4_source>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_promoter_B> ;
+    sbol:role <https://identifiers.org/SBO:0000020> .
+
+<https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_4_target>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_logic_promoter_1_n1> ;
+    sbol:role <https://identifiers.org/SBO:0000642> .
+
+<https://example.org/genetic-circuit/interaction/cs3_polycistronic_operon_5>
+    a sbol:Interaction ;
+    sbol:type <https://identifiers.org/SBO:0000589> ;
+    sbol:name "Produces n1" ;
+    sbol:description "expression" ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_5_source> ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_5_target> .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasInteraction <https://example.org/genetic-circuit/interaction/cs3_polycistronic_operon_5> .
+
+<https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_5_source>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_logic_promoter_1_n1> ;
+    sbol:role <https://identifiers.org/SBO:0000645> .
+
+<https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_5_target>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_regulator_1_n1> ;
+    sbol:role <https://identifiers.org/SBO:0000011> .
+
+<https://example.org/genetic-circuit/interaction/cs3_polycistronic_operon_6>
+    a sbol:Interaction ;
+    sbol:type <https://identifiers.org/SBO:0000170> ;
+    sbol:name "Logic controls Y1" ;
+    sbol:description "activation" ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_6_source> ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_6_target> .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasInteraction <https://example.org/genetic-circuit/interaction/cs3_polycistronic_operon_6> .
+
+<https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_6_source>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_regulator_1_n1> ;
+    sbol:role <https://identifiers.org/SBO:0000459> .
+
+<https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_6_target>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_output_promoter_Y1> ;
+    sbol:role <https://identifiers.org/SBO:0000643> .
+
+<https://example.org/genetic-circuit/interaction/cs3_polycistronic_operon_7>
+    a sbol:Interaction ;
+    sbol:type <https://identifiers.org/SBO:0000589> ;
+    sbol:name "Expresses Y1" ;
+    sbol:description "expression" ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_7_source> ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_7_target> .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasInteraction <https://example.org/genetic-circuit/interaction/cs3_polycistronic_operon_7> .
+
+<https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_7_source>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_output_promoter_Y1> ;
+    sbol:role <https://identifiers.org/SBO:0000645> .
+
+<https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_7_target>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_output_cds_Y1> ;
+    sbol:role <https://identifiers.org/SBO:0000011> .
+
+<https://example.org/genetic-circuit/interaction/cs3_polycistronic_operon_8>
+    a sbol:Interaction ;
+    sbol:type <https://identifiers.org/SBO:0000170> ;
+    sbol:name "Logic controls Y2" ;
+    sbol:description "activation" ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_8_source> ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_8_target> .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasInteraction <https://example.org/genetic-circuit/interaction/cs3_polycistronic_operon_8> .
+
+<https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_8_source>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_regulator_1_n1> ;
+    sbol:role <https://identifiers.org/SBO:0000459> .
+
+<https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_8_target>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_output_promoter_Y2> ;
+    sbol:role <https://identifiers.org/SBO:0000643> .
+
+<https://example.org/genetic-circuit/interaction/cs3_polycistronic_operon_9>
+    a sbol:Interaction ;
+    sbol:type <https://identifiers.org/SBO:0000589> ;
+    sbol:name "Expresses Y2" ;
+    sbol:description "expression" ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_9_source> ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_9_target> .
+
+<https://example.org/genetic-circuit/design/cs3_polycistronic_operon>
+    sbol:hasInteraction <https://example.org/genetic-circuit/interaction/cs3_polycistronic_operon_9> .
+
+<https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_9_source>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_output_promoter_Y2> ;
+    sbol:role <https://identifiers.org/SBO:0000645> .
+
+<https://example.org/genetic-circuit/participation/cs3_polycistronic_operon_9_target>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs3_polycistronic_operon_output_cds_Y2> ;
+    sbol:role <https://identifiers.org/SBO:0000011> .
+
+<https://example.org/genetic-circuit/activity/provenance_topology_source>
+    a prov:Activity ;
+    dcterms:identifier "provenance_topology_source" .

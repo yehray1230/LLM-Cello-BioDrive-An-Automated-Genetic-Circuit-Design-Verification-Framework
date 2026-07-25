@@ -493,6 +493,23 @@ def test_web_run_requires_model_credentials(
     assert response.headers["location"] == "/web/settings?credentials_required=1"
 
 
+def test_web_run_detail_rejects_invalid_run_id_without_internal_error(
+    client: TestClient,
+) -> None:
+    response = client.get("/web/runs/not-a-real-run")
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "error": {
+            "code": "HTTP_ERROR",
+            "message": "Invalid run ID.",
+            "details": [],
+        }
+    }
+    assert "Traceback" not in response.text
+    assert "C:\\Users\\" not in response.text
+
+
 def test_new_design_surfaces_preflight_without_false_draft_banner(
     client: TestClient,
 ) -> None:

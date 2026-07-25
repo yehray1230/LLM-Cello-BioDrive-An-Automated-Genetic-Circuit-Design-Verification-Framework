@@ -1,0 +1,1118 @@
+@prefix sbol: <http://sbols.org/v3#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@base <https://example.org/genetic-circuit/> .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "Conceptual design for Y1, Y2" ;
+    dcterms:identifier "cs2_toggle_switch" ;
+    sbol:description "Y1 = NOR(IPTG, Y2); Y2 = NOR(aTc, Y1)" .
+
+<https://example.org/genetic-circuit/part/sensor_IPTG>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "IPTG input sensor" ;
+    dcterms:identifier "sensor_IPTG" ;
+    sbol:description "Detects the environmental or molecular input IPTG." ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/sensor_IPTG> .
+
+<https://example.org/genetic-circuit/sequence/sensor_IPTG>
+    a sbol:Sequence ;
+    sbol:elements "ATGAAATAA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs2_toggle_switch_sensor_IPTG>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/sensor_IPTG> ;
+    sbol:displayId "cs2_toggle_switch_sensor_IPTG" .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs2_toggle_switch_sensor_IPTG> .
+
+<https://example.org/genetic-circuit/part/promoter_IPTG>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "P_IPTG" ;
+    dcterms:identifier "promoter_IPTG" ;
+    sbol:description "Converts input IPTG into a regulatory signal." ;
+    sbol:role <https://identifiers.org/SO:0000167> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/promoter_IPTG> .
+
+<https://example.org/genetic-circuit/sequence/promoter_IPTG>
+    a sbol:Sequence ;
+    sbol:elements "TTGACA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs2_toggle_switch_promoter_IPTG>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/promoter_IPTG> ;
+    sbol:displayId "cs2_toggle_switch_promoter_IPTG" .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs2_toggle_switch_promoter_IPTG> .
+
+<https://example.org/genetic-circuit/part/sensor_aTc>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "aTc input sensor" ;
+    dcterms:identifier "sensor_aTc" ;
+    sbol:description "Detects the environmental or molecular input aTc." ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/sensor_aTc> .
+
+<https://example.org/genetic-circuit/sequence/sensor_aTc>
+    a sbol:Sequence ;
+    sbol:elements "ATGAAATAA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs2_toggle_switch_sensor_aTc>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/sensor_aTc> ;
+    sbol:displayId "cs2_toggle_switch_sensor_aTc" .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs2_toggle_switch_sensor_aTc> .
+
+<https://example.org/genetic-circuit/part/promoter_aTc>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "P_aTc" ;
+    dcterms:identifier "promoter_aTc" ;
+    sbol:description "Converts input aTc into a regulatory signal." ;
+    sbol:role <https://identifiers.org/SO:0000167> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/promoter_aTc> .
+
+<https://example.org/genetic-circuit/sequence/promoter_aTc>
+    a sbol:Sequence ;
+    sbol:elements "TTGACA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs2_toggle_switch_promoter_aTc>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/promoter_aTc> ;
+    sbol:displayId "cs2_toggle_switch_promoter_aTc" .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs2_toggle_switch_promoter_aTc> .
+
+<https://example.org/genetic-circuit/part/logic_promoter_1_Y1>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "P_logic_1" ;
+    dcterms:identifier "logic_promoter_1_Y1" ;
+    sbol:description "Implements the NOR decision for IPTG, Y2." ;
+    sbol:role <https://identifiers.org/SO:0000167> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/logic_promoter_1_Y1> .
+
+<https://example.org/genetic-circuit/sequence/logic_promoter_1_Y1>
+    a sbol:Sequence ;
+    sbol:elements "TTGACA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs2_toggle_switch_logic_promoter_1_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/logic_promoter_1_Y1> ;
+    sbol:displayId "cs2_toggle_switch_logic_promoter_1_Y1" .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs2_toggle_switch_logic_promoter_1_Y1> .
+
+<https://example.org/genetic-circuit/part/rbs_regulator_1_Y1>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "RBS_1" ;
+    dcterms:identifier "rbs_regulator_1_Y1" ;
+    sbol:description "Controls translation initiation for the gate regulator." ;
+    sbol:role <https://identifiers.org/SO:0000139> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/rbs_regulator_1_Y1> .
+
+<https://example.org/genetic-circuit/sequence/rbs_regulator_1_Y1>
+    a sbol:Sequence ;
+    sbol:elements "AGGAGG" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs2_toggle_switch_rbs_regulator_1_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/rbs_regulator_1_Y1> ;
+    sbol:displayId "cs2_toggle_switch_rbs_regulator_1_Y1" .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs2_toggle_switch_rbs_regulator_1_Y1> .
+
+<https://example.org/genetic-circuit/part/regulator_1_Y1>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "NOR regulator 1" ;
+    dcterms:identifier "regulator_1_Y1" ;
+    sbol:description "Carries the regulatory output signal Y1." ;
+    sbol:role <https://identifiers.org/SO:0000316> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/regulator_1_Y1> .
+
+<https://example.org/genetic-circuit/sequence/regulator_1_Y1>
+    a sbol:Sequence ;
+    sbol:elements "ATGAAATAA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs2_toggle_switch_regulator_1_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/regulator_1_Y1> ;
+    sbol:displayId "cs2_toggle_switch_regulator_1_Y1" .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs2_toggle_switch_regulator_1_Y1> .
+
+<https://example.org/genetic-circuit/part/term_regulator_1_Y1>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "T_1" ;
+    dcterms:identifier "term_regulator_1_Y1" ;
+    sbol:description "Terminates transcription of the gate transcriptional unit." ;
+    sbol:role <https://identifiers.org/SO:0000141> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/term_regulator_1_Y1> .
+
+<https://example.org/genetic-circuit/sequence/term_regulator_1_Y1>
+    a sbol:Sequence ;
+    sbol:elements "GCCGCC" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs2_toggle_switch_term_regulator_1_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/term_regulator_1_Y1> ;
+    sbol:displayId "cs2_toggle_switch_term_regulator_1_Y1" .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs2_toggle_switch_term_regulator_1_Y1> .
+
+<https://example.org/genetic-circuit/part/logic_promoter_2_Y2>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "P_logic_2" ;
+    dcterms:identifier "logic_promoter_2_Y2" ;
+    sbol:description "Implements the NOR decision for aTc, Y1." ;
+    sbol:role <https://identifiers.org/SO:0000167> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/logic_promoter_2_Y2> .
+
+<https://example.org/genetic-circuit/sequence/logic_promoter_2_Y2>
+    a sbol:Sequence ;
+    sbol:elements "TTGACA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs2_toggle_switch_logic_promoter_2_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/logic_promoter_2_Y2> ;
+    sbol:displayId "cs2_toggle_switch_logic_promoter_2_Y2" .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs2_toggle_switch_logic_promoter_2_Y2> .
+
+<https://example.org/genetic-circuit/part/rbs_regulator_2_Y2>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "RBS_2" ;
+    dcterms:identifier "rbs_regulator_2_Y2" ;
+    sbol:description "Controls translation initiation for the gate regulator." ;
+    sbol:role <https://identifiers.org/SO:0000139> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/rbs_regulator_2_Y2> .
+
+<https://example.org/genetic-circuit/sequence/rbs_regulator_2_Y2>
+    a sbol:Sequence ;
+    sbol:elements "AGGAGG" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs2_toggle_switch_rbs_regulator_2_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/rbs_regulator_2_Y2> ;
+    sbol:displayId "cs2_toggle_switch_rbs_regulator_2_Y2" .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs2_toggle_switch_rbs_regulator_2_Y2> .
+
+<https://example.org/genetic-circuit/part/regulator_2_Y2>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "NOR regulator 2" ;
+    dcterms:identifier "regulator_2_Y2" ;
+    sbol:description "Carries the regulatory output signal Y2." ;
+    sbol:role <https://identifiers.org/SO:0000316> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/regulator_2_Y2> .
+
+<https://example.org/genetic-circuit/sequence/regulator_2_Y2>
+    a sbol:Sequence ;
+    sbol:elements "ATGAAATAA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs2_toggle_switch_regulator_2_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/regulator_2_Y2> ;
+    sbol:displayId "cs2_toggle_switch_regulator_2_Y2" .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs2_toggle_switch_regulator_2_Y2> .
+
+<https://example.org/genetic-circuit/part/term_regulator_2_Y2>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "T_2" ;
+    dcterms:identifier "term_regulator_2_Y2" ;
+    sbol:description "Terminates transcription of the gate transcriptional unit." ;
+    sbol:role <https://identifiers.org/SO:0000141> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/term_regulator_2_Y2> .
+
+<https://example.org/genetic-circuit/sequence/term_regulator_2_Y2>
+    a sbol:Sequence ;
+    sbol:elements "GCCGCC" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs2_toggle_switch_term_regulator_2_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/term_regulator_2_Y2> ;
+    sbol:displayId "cs2_toggle_switch_term_regulator_2_Y2" .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs2_toggle_switch_term_regulator_2_Y2> .
+
+<https://example.org/genetic-circuit/part/output_promoter_Y1>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "P_Y1" ;
+    dcterms:identifier "output_promoter_Y1" ;
+    sbol:description "Drives the final output Y1." ;
+    sbol:role <https://identifiers.org/SO:0000167> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/output_promoter_Y1> .
+
+<https://example.org/genetic-circuit/sequence/output_promoter_Y1>
+    a sbol:Sequence ;
+    sbol:elements "TTGACA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs2_toggle_switch_output_promoter_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/output_promoter_Y1> ;
+    sbol:displayId "cs2_toggle_switch_output_promoter_Y1" .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs2_toggle_switch_output_promoter_Y1> .
+
+<https://example.org/genetic-circuit/part/rbs_Y1>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "RBS_Y1" ;
+    dcterms:identifier "rbs_Y1" ;
+    sbol:description "Controls translation of output Y1." ;
+    sbol:role <https://identifiers.org/SO:0000139> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/rbs_Y1> .
+
+<https://example.org/genetic-circuit/sequence/rbs_Y1>
+    a sbol:Sequence ;
+    sbol:elements "AGGAGG" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs2_toggle_switch_rbs_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/rbs_Y1> ;
+    sbol:displayId "cs2_toggle_switch_rbs_Y1" .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs2_toggle_switch_rbs_Y1> .
+
+<https://example.org/genetic-circuit/part/output_cds_Y1>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "Y1" ;
+    dcterms:identifier "output_cds_Y1" ;
+    sbol:description "Produces the requested output signal Y1." ;
+    sbol:role <https://identifiers.org/SO:0000316> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/output_cds_Y1> .
+
+<https://example.org/genetic-circuit/sequence/output_cds_Y1>
+    a sbol:Sequence ;
+    sbol:elements "ATGAAATAA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs2_toggle_switch_output_cds_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/output_cds_Y1> ;
+    sbol:displayId "cs2_toggle_switch_output_cds_Y1" .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs2_toggle_switch_output_cds_Y1> .
+
+<https://example.org/genetic-circuit/part/term_Y1>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "T_Y1" ;
+    dcterms:identifier "term_Y1" ;
+    sbol:description "Terminates the output transcriptional unit." ;
+    sbol:role <https://identifiers.org/SO:0000141> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/term_Y1> .
+
+<https://example.org/genetic-circuit/sequence/term_Y1>
+    a sbol:Sequence ;
+    sbol:elements "GCCGCC" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs2_toggle_switch_term_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/term_Y1> ;
+    sbol:displayId "cs2_toggle_switch_term_Y1" .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs2_toggle_switch_term_Y1> .
+
+<https://example.org/genetic-circuit/part/output_promoter_Y2>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "P_Y2" ;
+    dcterms:identifier "output_promoter_Y2" ;
+    sbol:description "Drives the final output Y2." ;
+    sbol:role <https://identifiers.org/SO:0000167> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/output_promoter_Y2> .
+
+<https://example.org/genetic-circuit/sequence/output_promoter_Y2>
+    a sbol:Sequence ;
+    sbol:elements "TTGACA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs2_toggle_switch_output_promoter_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/output_promoter_Y2> ;
+    sbol:displayId "cs2_toggle_switch_output_promoter_Y2" .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs2_toggle_switch_output_promoter_Y2> .
+
+<https://example.org/genetic-circuit/part/rbs_Y2>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "RBS_Y2" ;
+    dcterms:identifier "rbs_Y2" ;
+    sbol:description "Controls translation of output Y2." ;
+    sbol:role <https://identifiers.org/SO:0000139> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/rbs_Y2> .
+
+<https://example.org/genetic-circuit/sequence/rbs_Y2>
+    a sbol:Sequence ;
+    sbol:elements "AGGAGG" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs2_toggle_switch_rbs_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/rbs_Y2> ;
+    sbol:displayId "cs2_toggle_switch_rbs_Y2" .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs2_toggle_switch_rbs_Y2> .
+
+<https://example.org/genetic-circuit/part/output_cds_Y2>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "Y2" ;
+    dcterms:identifier "output_cds_Y2" ;
+    sbol:description "Produces the requested output signal Y2." ;
+    sbol:role <https://identifiers.org/SO:0000316> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/output_cds_Y2> .
+
+<https://example.org/genetic-circuit/sequence/output_cds_Y2>
+    a sbol:Sequence ;
+    sbol:elements "ATGAAATAA" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs2_toggle_switch_output_cds_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/output_cds_Y2> ;
+    sbol:displayId "cs2_toggle_switch_output_cds_Y2" .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs2_toggle_switch_output_cds_Y2> .
+
+<https://example.org/genetic-circuit/part/term_Y2>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "T_Y2" ;
+    dcterms:identifier "term_Y2" ;
+    sbol:description "Terminates the output transcriptional unit." ;
+    sbol:role <https://identifiers.org/SO:0000141> ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/term_Y2> .
+
+<https://example.org/genetic-circuit/sequence/term_Y2>
+    a sbol:Sequence ;
+    sbol:elements "GCCGCC" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/feature/cs2_toggle_switch_term_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/term_Y2> ;
+    sbol:displayId "cs2_toggle_switch_term_Y2" .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/cs2_toggle_switch_term_Y2> .
+
+<https://example.org/genetic-circuit/construct/tu_gate_1>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "NOR gate transcriptional unit" ;
+    dcterms:identifier "tu_gate_1" ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/tu_gate_1> .
+
+<https://example.org/genetic-circuit/sequence/tu_gate_1>
+    a sbol:Sequence ;
+    sbol:elements "TTGACAAGGAGGATGAAATAAGCCGCC" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/location/tu_gate_1_1_logic_promoter_1_Y1>
+    a sbol:Range ;
+    sbol:start "1"^^xsd:integer ;
+    sbol:end "6"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_gate_1> .
+
+<https://example.org/genetic-circuit/feature/tu_gate_1_1_logic_promoter_1_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/logic_promoter_1_Y1> ;
+    sbol:displayId "tu_gate_1_1" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_gate_1_1_logic_promoter_1_Y1> .
+
+<https://example.org/genetic-circuit/construct/tu_gate_1>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_gate_1_1_logic_promoter_1_Y1> .
+
+<https://example.org/genetic-circuit/location/tu_gate_1_2_rbs_regulator_1_Y1>
+    a sbol:Range ;
+    sbol:start "7"^^xsd:integer ;
+    sbol:end "12"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_gate_1> .
+
+<https://example.org/genetic-circuit/feature/tu_gate_1_2_rbs_regulator_1_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/rbs_regulator_1_Y1> ;
+    sbol:displayId "tu_gate_1_2" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_gate_1_2_rbs_regulator_1_Y1> .
+
+<https://example.org/genetic-circuit/construct/tu_gate_1>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_gate_1_2_rbs_regulator_1_Y1> .
+
+<https://example.org/genetic-circuit/constraint/tu_gate_1_1_2>
+    a sbol:Constraint ;
+    sbol:subject <https://example.org/genetic-circuit/feature/tu_gate_1_1_logic_promoter_1_Y1> ;
+    sbol:object <https://example.org/genetic-circuit/feature/tu_gate_1_2_rbs_regulator_1_Y1> ;
+    sbol:restriction sbol:precedes .
+
+<https://example.org/genetic-circuit/construct/tu_gate_1>
+    sbol:hasConstraint <https://example.org/genetic-circuit/constraint/tu_gate_1_1_2> .
+
+<https://example.org/genetic-circuit/location/tu_gate_1_3_regulator_1_Y1>
+    a sbol:Range ;
+    sbol:start "13"^^xsd:integer ;
+    sbol:end "21"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_gate_1> .
+
+<https://example.org/genetic-circuit/feature/tu_gate_1_3_regulator_1_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/regulator_1_Y1> ;
+    sbol:displayId "tu_gate_1_3" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_gate_1_3_regulator_1_Y1> .
+
+<https://example.org/genetic-circuit/construct/tu_gate_1>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_gate_1_3_regulator_1_Y1> .
+
+<https://example.org/genetic-circuit/constraint/tu_gate_1_2_3>
+    a sbol:Constraint ;
+    sbol:subject <https://example.org/genetic-circuit/feature/tu_gate_1_2_rbs_regulator_1_Y1> ;
+    sbol:object <https://example.org/genetic-circuit/feature/tu_gate_1_3_regulator_1_Y1> ;
+    sbol:restriction sbol:precedes .
+
+<https://example.org/genetic-circuit/construct/tu_gate_1>
+    sbol:hasConstraint <https://example.org/genetic-circuit/constraint/tu_gate_1_2_3> .
+
+<https://example.org/genetic-circuit/location/tu_gate_1_4_term_regulator_1_Y1>
+    a sbol:Range ;
+    sbol:start "22"^^xsd:integer ;
+    sbol:end "27"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_gate_1> .
+
+<https://example.org/genetic-circuit/feature/tu_gate_1_4_term_regulator_1_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/term_regulator_1_Y1> ;
+    sbol:displayId "tu_gate_1_4" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_gate_1_4_term_regulator_1_Y1> .
+
+<https://example.org/genetic-circuit/construct/tu_gate_1>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_gate_1_4_term_regulator_1_Y1> .
+
+<https://example.org/genetic-circuit/constraint/tu_gate_1_3_4>
+    a sbol:Constraint ;
+    sbol:subject <https://example.org/genetic-circuit/feature/tu_gate_1_3_regulator_1_Y1> ;
+    sbol:object <https://example.org/genetic-circuit/feature/tu_gate_1_4_term_regulator_1_Y1> ;
+    sbol:restriction sbol:precedes .
+
+<https://example.org/genetic-circuit/construct/tu_gate_1>
+    sbol:hasConstraint <https://example.org/genetic-circuit/constraint/tu_gate_1_3_4> .
+
+<https://example.org/genetic-circuit/construct/tu_gate_2>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "NOR gate transcriptional unit" ;
+    dcterms:identifier "tu_gate_2" ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/tu_gate_2> .
+
+<https://example.org/genetic-circuit/sequence/tu_gate_2>
+    a sbol:Sequence ;
+    sbol:elements "TTGACAAGGAGGATGAAATAAGCCGCC" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/location/tu_gate_2_1_logic_promoter_2_Y2>
+    a sbol:Range ;
+    sbol:start "1"^^xsd:integer ;
+    sbol:end "6"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_gate_2> .
+
+<https://example.org/genetic-circuit/feature/tu_gate_2_1_logic_promoter_2_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/logic_promoter_2_Y2> ;
+    sbol:displayId "tu_gate_2_1" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_gate_2_1_logic_promoter_2_Y2> .
+
+<https://example.org/genetic-circuit/construct/tu_gate_2>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_gate_2_1_logic_promoter_2_Y2> .
+
+<https://example.org/genetic-circuit/location/tu_gate_2_2_rbs_regulator_2_Y2>
+    a sbol:Range ;
+    sbol:start "7"^^xsd:integer ;
+    sbol:end "12"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_gate_2> .
+
+<https://example.org/genetic-circuit/feature/tu_gate_2_2_rbs_regulator_2_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/rbs_regulator_2_Y2> ;
+    sbol:displayId "tu_gate_2_2" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_gate_2_2_rbs_regulator_2_Y2> .
+
+<https://example.org/genetic-circuit/construct/tu_gate_2>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_gate_2_2_rbs_regulator_2_Y2> .
+
+<https://example.org/genetic-circuit/constraint/tu_gate_2_1_2>
+    a sbol:Constraint ;
+    sbol:subject <https://example.org/genetic-circuit/feature/tu_gate_2_1_logic_promoter_2_Y2> ;
+    sbol:object <https://example.org/genetic-circuit/feature/tu_gate_2_2_rbs_regulator_2_Y2> ;
+    sbol:restriction sbol:precedes .
+
+<https://example.org/genetic-circuit/construct/tu_gate_2>
+    sbol:hasConstraint <https://example.org/genetic-circuit/constraint/tu_gate_2_1_2> .
+
+<https://example.org/genetic-circuit/location/tu_gate_2_3_regulator_2_Y2>
+    a sbol:Range ;
+    sbol:start "13"^^xsd:integer ;
+    sbol:end "21"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_gate_2> .
+
+<https://example.org/genetic-circuit/feature/tu_gate_2_3_regulator_2_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/regulator_2_Y2> ;
+    sbol:displayId "tu_gate_2_3" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_gate_2_3_regulator_2_Y2> .
+
+<https://example.org/genetic-circuit/construct/tu_gate_2>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_gate_2_3_regulator_2_Y2> .
+
+<https://example.org/genetic-circuit/constraint/tu_gate_2_2_3>
+    a sbol:Constraint ;
+    sbol:subject <https://example.org/genetic-circuit/feature/tu_gate_2_2_rbs_regulator_2_Y2> ;
+    sbol:object <https://example.org/genetic-circuit/feature/tu_gate_2_3_regulator_2_Y2> ;
+    sbol:restriction sbol:precedes .
+
+<https://example.org/genetic-circuit/construct/tu_gate_2>
+    sbol:hasConstraint <https://example.org/genetic-circuit/constraint/tu_gate_2_2_3> .
+
+<https://example.org/genetic-circuit/location/tu_gate_2_4_term_regulator_2_Y2>
+    a sbol:Range ;
+    sbol:start "22"^^xsd:integer ;
+    sbol:end "27"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_gate_2> .
+
+<https://example.org/genetic-circuit/feature/tu_gate_2_4_term_regulator_2_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/term_regulator_2_Y2> ;
+    sbol:displayId "tu_gate_2_4" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_gate_2_4_term_regulator_2_Y2> .
+
+<https://example.org/genetic-circuit/construct/tu_gate_2>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_gate_2_4_term_regulator_2_Y2> .
+
+<https://example.org/genetic-circuit/constraint/tu_gate_2_3_4>
+    a sbol:Constraint ;
+    sbol:subject <https://example.org/genetic-circuit/feature/tu_gate_2_3_regulator_2_Y2> ;
+    sbol:object <https://example.org/genetic-circuit/feature/tu_gate_2_4_term_regulator_2_Y2> ;
+    sbol:restriction sbol:precedes .
+
+<https://example.org/genetic-circuit/construct/tu_gate_2>
+    sbol:hasConstraint <https://example.org/genetic-circuit/constraint/tu_gate_2_3_4> .
+
+<https://example.org/genetic-circuit/construct/tu_output_1>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "Y1 output transcriptional unit" ;
+    dcterms:identifier "tu_output_1" ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/tu_output_1> .
+
+<https://example.org/genetic-circuit/sequence/tu_output_1>
+    a sbol:Sequence ;
+    sbol:elements "TTGACAAGGAGGATGAAATAAGCCGCC" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/location/tu_output_1_1_output_promoter_Y1>
+    a sbol:Range ;
+    sbol:start "1"^^xsd:integer ;
+    sbol:end "6"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_output_1> .
+
+<https://example.org/genetic-circuit/feature/tu_output_1_1_output_promoter_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/output_promoter_Y1> ;
+    sbol:displayId "tu_output_1_1" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_output_1_1_output_promoter_Y1> .
+
+<https://example.org/genetic-circuit/construct/tu_output_1>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_output_1_1_output_promoter_Y1> .
+
+<https://example.org/genetic-circuit/location/tu_output_1_2_rbs_Y1>
+    a sbol:Range ;
+    sbol:start "7"^^xsd:integer ;
+    sbol:end "12"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_output_1> .
+
+<https://example.org/genetic-circuit/feature/tu_output_1_2_rbs_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/rbs_Y1> ;
+    sbol:displayId "tu_output_1_2" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_output_1_2_rbs_Y1> .
+
+<https://example.org/genetic-circuit/construct/tu_output_1>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_output_1_2_rbs_Y1> .
+
+<https://example.org/genetic-circuit/constraint/tu_output_1_1_2>
+    a sbol:Constraint ;
+    sbol:subject <https://example.org/genetic-circuit/feature/tu_output_1_1_output_promoter_Y1> ;
+    sbol:object <https://example.org/genetic-circuit/feature/tu_output_1_2_rbs_Y1> ;
+    sbol:restriction sbol:precedes .
+
+<https://example.org/genetic-circuit/construct/tu_output_1>
+    sbol:hasConstraint <https://example.org/genetic-circuit/constraint/tu_output_1_1_2> .
+
+<https://example.org/genetic-circuit/location/tu_output_1_3_output_cds_Y1>
+    a sbol:Range ;
+    sbol:start "13"^^xsd:integer ;
+    sbol:end "21"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_output_1> .
+
+<https://example.org/genetic-circuit/feature/tu_output_1_3_output_cds_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/output_cds_Y1> ;
+    sbol:displayId "tu_output_1_3" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_output_1_3_output_cds_Y1> .
+
+<https://example.org/genetic-circuit/construct/tu_output_1>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_output_1_3_output_cds_Y1> .
+
+<https://example.org/genetic-circuit/constraint/tu_output_1_2_3>
+    a sbol:Constraint ;
+    sbol:subject <https://example.org/genetic-circuit/feature/tu_output_1_2_rbs_Y1> ;
+    sbol:object <https://example.org/genetic-circuit/feature/tu_output_1_3_output_cds_Y1> ;
+    sbol:restriction sbol:precedes .
+
+<https://example.org/genetic-circuit/construct/tu_output_1>
+    sbol:hasConstraint <https://example.org/genetic-circuit/constraint/tu_output_1_2_3> .
+
+<https://example.org/genetic-circuit/location/tu_output_1_4_term_Y1>
+    a sbol:Range ;
+    sbol:start "22"^^xsd:integer ;
+    sbol:end "27"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_output_1> .
+
+<https://example.org/genetic-circuit/feature/tu_output_1_4_term_Y1>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/term_Y1> ;
+    sbol:displayId "tu_output_1_4" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_output_1_4_term_Y1> .
+
+<https://example.org/genetic-circuit/construct/tu_output_1>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_output_1_4_term_Y1> .
+
+<https://example.org/genetic-circuit/constraint/tu_output_1_3_4>
+    a sbol:Constraint ;
+    sbol:subject <https://example.org/genetic-circuit/feature/tu_output_1_3_output_cds_Y1> ;
+    sbol:object <https://example.org/genetic-circuit/feature/tu_output_1_4_term_Y1> ;
+    sbol:restriction sbol:precedes .
+
+<https://example.org/genetic-circuit/construct/tu_output_1>
+    sbol:hasConstraint <https://example.org/genetic-circuit/constraint/tu_output_1_3_4> .
+
+<https://example.org/genetic-circuit/construct/tu_output_2>
+    a sbol:Component ;
+    sbol:type <https://identifiers.org/SBO:0000251> ;
+    sbol:name "Y2 output transcriptional unit" ;
+    dcterms:identifier "tu_output_2" ;
+    sbol:hasSequence <https://example.org/genetic-circuit/sequence/tu_output_2> .
+
+<https://example.org/genetic-circuit/sequence/tu_output_2>
+    a sbol:Sequence ;
+    sbol:elements "TTGACAAGGAGGATGAAATAAGCCGCC" ;
+    sbol:encoding <https://identifiers.org/edam:format_1207> .
+
+<https://example.org/genetic-circuit/location/tu_output_2_1_output_promoter_Y2>
+    a sbol:Range ;
+    sbol:start "1"^^xsd:integer ;
+    sbol:end "6"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_output_2> .
+
+<https://example.org/genetic-circuit/feature/tu_output_2_1_output_promoter_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/output_promoter_Y2> ;
+    sbol:displayId "tu_output_2_1" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_output_2_1_output_promoter_Y2> .
+
+<https://example.org/genetic-circuit/construct/tu_output_2>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_output_2_1_output_promoter_Y2> .
+
+<https://example.org/genetic-circuit/location/tu_output_2_2_rbs_Y2>
+    a sbol:Range ;
+    sbol:start "7"^^xsd:integer ;
+    sbol:end "12"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_output_2> .
+
+<https://example.org/genetic-circuit/feature/tu_output_2_2_rbs_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/rbs_Y2> ;
+    sbol:displayId "tu_output_2_2" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_output_2_2_rbs_Y2> .
+
+<https://example.org/genetic-circuit/construct/tu_output_2>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_output_2_2_rbs_Y2> .
+
+<https://example.org/genetic-circuit/constraint/tu_output_2_1_2>
+    a sbol:Constraint ;
+    sbol:subject <https://example.org/genetic-circuit/feature/tu_output_2_1_output_promoter_Y2> ;
+    sbol:object <https://example.org/genetic-circuit/feature/tu_output_2_2_rbs_Y2> ;
+    sbol:restriction sbol:precedes .
+
+<https://example.org/genetic-circuit/construct/tu_output_2>
+    sbol:hasConstraint <https://example.org/genetic-circuit/constraint/tu_output_2_1_2> .
+
+<https://example.org/genetic-circuit/location/tu_output_2_3_output_cds_Y2>
+    a sbol:Range ;
+    sbol:start "13"^^xsd:integer ;
+    sbol:end "21"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_output_2> .
+
+<https://example.org/genetic-circuit/feature/tu_output_2_3_output_cds_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/output_cds_Y2> ;
+    sbol:displayId "tu_output_2_3" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_output_2_3_output_cds_Y2> .
+
+<https://example.org/genetic-circuit/construct/tu_output_2>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_output_2_3_output_cds_Y2> .
+
+<https://example.org/genetic-circuit/constraint/tu_output_2_2_3>
+    a sbol:Constraint ;
+    sbol:subject <https://example.org/genetic-circuit/feature/tu_output_2_2_rbs_Y2> ;
+    sbol:object <https://example.org/genetic-circuit/feature/tu_output_2_3_output_cds_Y2> ;
+    sbol:restriction sbol:precedes .
+
+<https://example.org/genetic-circuit/construct/tu_output_2>
+    sbol:hasConstraint <https://example.org/genetic-circuit/constraint/tu_output_2_2_3> .
+
+<https://example.org/genetic-circuit/location/tu_output_2_4_term_Y2>
+    a sbol:Range ;
+    sbol:start "22"^^xsd:integer ;
+    sbol:end "27"^^xsd:integer ;
+    sbol:orientation sbol:inline ;
+    sbol:sequence <https://example.org/genetic-circuit/sequence/tu_output_2> .
+
+<https://example.org/genetic-circuit/feature/tu_output_2_4_term_Y2>
+    a sbol:SubComponent ;
+    sbol:instanceOf <https://example.org/genetic-circuit/part/term_Y2> ;
+    sbol:displayId "tu_output_2_4" ;
+    sbol:hasLocation <https://example.org/genetic-circuit/location/tu_output_2_4_term_Y2> .
+
+<https://example.org/genetic-circuit/construct/tu_output_2>
+    sbol:hasFeature <https://example.org/genetic-circuit/feature/tu_output_2_4_term_Y2> .
+
+<https://example.org/genetic-circuit/constraint/tu_output_2_3_4>
+    a sbol:Constraint ;
+    sbol:subject <https://example.org/genetic-circuit/feature/tu_output_2_3_output_cds_Y2> ;
+    sbol:object <https://example.org/genetic-circuit/feature/tu_output_2_4_term_Y2> ;
+    sbol:restriction sbol:precedes .
+
+<https://example.org/genetic-circuit/construct/tu_output_2>
+    sbol:hasConstraint <https://example.org/genetic-circuit/constraint/tu_output_2_3_4> .
+
+<https://example.org/genetic-circuit/interaction/cs2_toggle_switch_1>
+    a sbol:Interaction ;
+    sbol:type <https://identifiers.org/SBO:0000170> ;
+    sbol:name "IPTG activates its input promoter" ;
+    sbol:description "activation" ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_1_source> ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_1_target> .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasInteraction <https://example.org/genetic-circuit/interaction/cs2_toggle_switch_1> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_1_source>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_sensor_IPTG> ;
+    sbol:role <https://identifiers.org/SBO:0000459> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_1_target>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_promoter_IPTG> ;
+    sbol:role <https://identifiers.org/SBO:0000643> .
+
+<https://example.org/genetic-circuit/interaction/cs2_toggle_switch_2>
+    a sbol:Interaction ;
+    sbol:type <https://identifiers.org/SBO:0000170> ;
+    sbol:name "aTc activates its input promoter" ;
+    sbol:description "activation" ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_2_source> ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_2_target> .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasInteraction <https://example.org/genetic-circuit/interaction/cs2_toggle_switch_2> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_2_source>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_sensor_aTc> ;
+    sbol:role <https://identifiers.org/SBO:0000459> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_2_target>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_promoter_aTc> ;
+    sbol:role <https://identifiers.org/SBO:0000643> .
+
+<https://example.org/genetic-circuit/interaction/cs2_toggle_switch_3>
+    a sbol:Interaction ;
+    sbol:type <https://identifiers.org/SBO:0000169> ;
+    sbol:name "IPTG enters NOR" ;
+    sbol:description "repression" ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_3_source> ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_3_target> .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasInteraction <https://example.org/genetic-circuit/interaction/cs2_toggle_switch_3> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_3_source>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_promoter_IPTG> ;
+    sbol:role <https://identifiers.org/SBO:0000020> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_3_target>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_logic_promoter_1_Y1> ;
+    sbol:role <https://identifiers.org/SBO:0000642> .
+
+<https://example.org/genetic-circuit/interaction/cs2_toggle_switch_4>
+    a sbol:Interaction ;
+    sbol:type <https://identifiers.org/SBO:0000169> ;
+    sbol:name "Y2 enters NOR" ;
+    sbol:description "repression" ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_4_source> ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_4_target> .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasInteraction <https://example.org/genetic-circuit/interaction/cs2_toggle_switch_4> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_4_source>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_promoter_Y2> ;
+    sbol:role <https://identifiers.org/SBO:0000020> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_4_target>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_logic_promoter_1_Y1> ;
+    sbol:role <https://identifiers.org/SBO:0000642> .
+
+<https://example.org/genetic-circuit/interaction/cs2_toggle_switch_5>
+    a sbol:Interaction ;
+    sbol:type <https://identifiers.org/SBO:0000589> ;
+    sbol:name "Produces Y1" ;
+    sbol:description "expression" ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_5_source> ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_5_target> .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasInteraction <https://example.org/genetic-circuit/interaction/cs2_toggle_switch_5> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_5_source>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_logic_promoter_1_Y1> ;
+    sbol:role <https://identifiers.org/SBO:0000645> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_5_target>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_regulator_1_Y1> ;
+    sbol:role <https://identifiers.org/SBO:0000011> .
+
+<https://example.org/genetic-circuit/interaction/cs2_toggle_switch_6>
+    a sbol:Interaction ;
+    sbol:type <https://identifiers.org/SBO:0000169> ;
+    sbol:name "aTc enters NOR" ;
+    sbol:description "repression" ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_6_source> ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_6_target> .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasInteraction <https://example.org/genetic-circuit/interaction/cs2_toggle_switch_6> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_6_source>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_promoter_aTc> ;
+    sbol:role <https://identifiers.org/SBO:0000020> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_6_target>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_logic_promoter_2_Y2> ;
+    sbol:role <https://identifiers.org/SBO:0000642> .
+
+<https://example.org/genetic-circuit/interaction/cs2_toggle_switch_7>
+    a sbol:Interaction ;
+    sbol:type <https://identifiers.org/SBO:0000169> ;
+    sbol:name "Y1 enters NOR" ;
+    sbol:description "repression" ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_7_source> ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_7_target> .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasInteraction <https://example.org/genetic-circuit/interaction/cs2_toggle_switch_7> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_7_source>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_regulator_1_Y1> ;
+    sbol:role <https://identifiers.org/SBO:0000020> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_7_target>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_logic_promoter_2_Y2> ;
+    sbol:role <https://identifiers.org/SBO:0000642> .
+
+<https://example.org/genetic-circuit/interaction/cs2_toggle_switch_8>
+    a sbol:Interaction ;
+    sbol:type <https://identifiers.org/SBO:0000589> ;
+    sbol:name "Produces Y2" ;
+    sbol:description "expression" ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_8_source> ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_8_target> .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasInteraction <https://example.org/genetic-circuit/interaction/cs2_toggle_switch_8> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_8_source>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_logic_promoter_2_Y2> ;
+    sbol:role <https://identifiers.org/SBO:0000645> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_8_target>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_regulator_2_Y2> ;
+    sbol:role <https://identifiers.org/SBO:0000011> .
+
+<https://example.org/genetic-circuit/interaction/cs2_toggle_switch_9>
+    a sbol:Interaction ;
+    sbol:type <https://identifiers.org/SBO:0000170> ;
+    sbol:name "Logic controls Y1" ;
+    sbol:description "activation" ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_9_source> ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_9_target> .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasInteraction <https://example.org/genetic-circuit/interaction/cs2_toggle_switch_9> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_9_source>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_regulator_1_Y1> ;
+    sbol:role <https://identifiers.org/SBO:0000459> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_9_target>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_output_promoter_Y1> ;
+    sbol:role <https://identifiers.org/SBO:0000643> .
+
+<https://example.org/genetic-circuit/interaction/cs2_toggle_switch_10>
+    a sbol:Interaction ;
+    sbol:type <https://identifiers.org/SBO:0000589> ;
+    sbol:name "Expresses Y1" ;
+    sbol:description "expression" ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_10_source> ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_10_target> .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasInteraction <https://example.org/genetic-circuit/interaction/cs2_toggle_switch_10> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_10_source>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_output_promoter_Y1> ;
+    sbol:role <https://identifiers.org/SBO:0000645> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_10_target>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_output_cds_Y1> ;
+    sbol:role <https://identifiers.org/SBO:0000011> .
+
+<https://example.org/genetic-circuit/interaction/cs2_toggle_switch_11>
+    a sbol:Interaction ;
+    sbol:type <https://identifiers.org/SBO:0000170> ;
+    sbol:name "Logic controls Y2" ;
+    sbol:description "activation" ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_11_source> ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_11_target> .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasInteraction <https://example.org/genetic-circuit/interaction/cs2_toggle_switch_11> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_11_source>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_regulator_2_Y2> ;
+    sbol:role <https://identifiers.org/SBO:0000459> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_11_target>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_output_promoter_Y2> ;
+    sbol:role <https://identifiers.org/SBO:0000643> .
+
+<https://example.org/genetic-circuit/interaction/cs2_toggle_switch_12>
+    a sbol:Interaction ;
+    sbol:type <https://identifiers.org/SBO:0000589> ;
+    sbol:name "Expresses Y2" ;
+    sbol:description "expression" ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_12_source> ;
+    sbol:hasParticipation <https://example.org/genetic-circuit/participation/cs2_toggle_switch_12_target> .
+
+<https://example.org/genetic-circuit/design/cs2_toggle_switch>
+    sbol:hasInteraction <https://example.org/genetic-circuit/interaction/cs2_toggle_switch_12> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_12_source>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_output_promoter_Y2> ;
+    sbol:role <https://identifiers.org/SBO:0000645> .
+
+<https://example.org/genetic-circuit/participation/cs2_toggle_switch_12_target>
+    a sbol:Participation ;
+    sbol:participant <https://example.org/genetic-circuit/feature/cs2_toggle_switch_output_cds_Y2> ;
+    sbol:role <https://identifiers.org/SBO:0000011> .
+
+<https://example.org/genetic-circuit/activity/provenance_topology_source>
+    a prov:Activity ;
+    dcterms:identifier "provenance_topology_source" .
