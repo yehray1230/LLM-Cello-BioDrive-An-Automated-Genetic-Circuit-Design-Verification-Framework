@@ -4,6 +4,8 @@ from dataclasses import asdict, dataclass, field
 import re
 from typing import Any
 
+from utils.scalar_values import optional_float as _optional_float, optional_trimmed_text as _optional_string
+
 
 @dataclass
 class ProvenanceRecord:
@@ -157,6 +159,7 @@ def topology_to_design_ir(
     *,
     host_organism: str = "Escherichia coli",
     design_id: str = "candidate",
+    user_intent: str = "",
 ) -> DesignIR:
     verilog = str(topology.get("verilog", "") or "")
     code = _strip_comments(verilog)
@@ -319,6 +322,9 @@ def topology_to_design_ir(
 
     _link_part_neighbors(parts, constructs)
     _apply_part_assignments(parts, part_assignments, provenance)
+    from utils.safety_checker import check_safety
+    safety_result = check_safety(user_intent or str(topology.get("user_intent", "")), host_organism)
+
     return DesignIR(
         design_id=design_id,
         name=f"Conceptual design for {', '.join(sorted(outputs)) or 'circuit output'}",
@@ -329,7 +335,7 @@ def topology_to_design_ir(
         interactions=interactions,
         constructs=constructs,
         validation_status=_design_validation_status(topology, parts),
-        warnings=_design_warnings(topology, parts),
+        warnings=_design_warnings(topology, parts) + safety_result.warnings,
         provenance=provenance,
         assignments=part_assignments,
         revision=revision,
@@ -461,20 +467,6 @@ def _normalized_sequence(value: Any) -> str | None:
         return None
     sequence = re.sub(r"\s+", "", str(value)).upper()
     return sequence or None
-
-
-def _optional_string(value: Any) -> str | None:
-    if value is None:
-        return None
-    text = str(value).strip()
-    return text or None
-
-
-def _optional_float(value: Any) -> float | None:
-    try:
-        return None if value is None else float(value)
-    except (TypeError, ValueError):
-        return None
 
 
 def _strip_comments(verilog: str) -> str:

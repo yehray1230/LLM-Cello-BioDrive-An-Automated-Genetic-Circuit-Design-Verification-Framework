@@ -88,6 +88,26 @@ CAPABILITY_CATALOG: dict[str, dict[str, Any]] = {
         "preferred_tools": ["biopython"],
         "fallback": "local_importers_exporters",
     },
+    "sequence_record_lookup": {
+        "description": "Resolve explicit accession and version to structured sequence record.",
+        "preferred_tools": ["ncbi_entrez"],
+        "fallback": "fixture_cache",
+    },
+    "motif_matrix_lookup": {
+        "description": "Retrieve versioned PFM/PWM matrix models for transcription factors.",
+        "preferred_tools": ["jaspar"],
+        "fallback": "fixture_cache",
+    },
+    "binding_evidence_lookup": {
+        "description": "Retrieve experimental binding evidence records.",
+        "preferred_tools": ["unibind"],
+        "fallback": "fixture_cache",
+    },
+    "literature_search": {
+        "description": "Retrieve traceable publication records and parameter evidence passages.",
+        "preferred_tools": ["pubmed", "europepmc"],
+        "fallback": "fixture_cache",
+    },
 }
 
 
@@ -815,12 +835,573 @@ class StochasticSimulationAdapter:
         )
 
 
+class SequenceRecordLookupAdapter:
+    tool_name = "ncbi_entrez"
+    adapter_name = "sequence_record_lookup_adapter"
+    capability = "sequence_record_lookup"
+
+    def __init__(self, cache_dir: str | None = None, fixtures: dict[str, dict[str, Any]] | None = None):
+        import pathlib
+        self.cache_dir = pathlib.Path(cache_dir or ".scientific_cache")
+        self.fixtures = fixtures or {
+            "NC_000913.3": {
+                "accession": "NC_000913",
+                "version": "NC_000913.3",
+                "organism": "Escherichia coli str. K-12 substr. MG1655",
+                "molecule_type": "DNA",
+                "sequence": "ATGAAGCAAGCAACCGAACTTGAAACCCGCC",
+                "protein_translation": "MKQATELETR",
+                "checksum": "a7b8c9d0e1f2",
+            }
+        }
+
+    def available(self) -> ToolAvailability:
+        return ToolAvailability(
+            tool_name=self.tool_name,
+            adapter_name=self.adapter_name,
+            capability=self.capability,
+            status="fallback",
+            version="1.0.0",
+            fallback_available=True,
+            fallback_used=True,
+            license_sensitive=False,
+            warnings=[
+                normalize_tool_warning(
+                    "FIXTURE_ONLY",
+                    "No live Entrez provider client is implemented; only local fixtures/cache are available.",
+                )
+            ],
+        )
+
+    def validate_input(self, payload: dict[str, Any]) -> list[ToolWarning]:
+        warnings: list[ToolWarning] = []
+        accession = payload.get("accession")
+        if not accession or not isinstance(accession, str):
+            warnings.append(
+                normalize_tool_warning("INVALID_ACCESSION", "Explicit accession string is required.")
+            )
+        return warnings
+
+    def run(self, payload: dict[str, Any]) -> ToolAdapterResult:
+        availability = self.available()
+        warnings = self.validate_input(payload)
+        if warnings:
+            return ToolAdapterResult(
+                availability=availability,
+                status="invalid_input",
+                output={},
+                warnings=warnings,
+            )
+
+        accession = payload["accession"].strip()
+        version = payload.get("version")
+        full_id = f"{accession}.{version}" if version else accession
+
+        # Check local fixtures or cache
+        if full_id in self.fixtures or accession in self.fixtures:
+            record = self.fixtures.get(full_id) or self.fixtures.get(accession)
+            return ToolAdapterResult(
+                availability=availability,
+                status="ok",
+                output={
+                    "provider": "ncbi_fixture",
+                    "status": "fixture",
+                    "record": record,
+                },
+                metrics={"sequence_length": len(record.get("sequence", ""))},
+                warnings=availability.warnings,
+            )
+
+        # No provider call is attempted: this adapter is explicitly fixture/cache-only.
+        return ToolAdapterResult(
+            availability=availability,
+            status="unresolved",
+            output={
+                "provider": "ncbi_entrez",
+                "status": "unavailable",
+                "accession": full_id,
+            },
+            warnings=availability.warnings + [
+                normalize_tool_warning(
+                    "RECORD_UNRESOLVED",
+                    f"Sequence record for accession '{full_id}' could not be resolved in offline cache/fixture.",
+                    severity="warning",
+                )
+            ],
+        )
+
+
+class DNAChiselSequenceOptimizationAdapter:
+    tool_name = "dna_chisel"
+    adapter_name = "dna_chisel_adapter"
+    capability = CAPABILITY_SEQUENCE_OPTIMIZATION
+
+    def available(self) -> ToolAvailability:
+        availability = detect_python_module(
+            "dnachisel",
+            tool_name=self.tool_name,
+            adapter_name=self.adapter_name,
+            capability=self.capability,
+            fallback_available=True,
+        )
+        if availability.status == "unavailable":
+            availability.status = "fallback"
+            availability.fallback_used = True
+            availability.warnings.append(
+                normalize_tool_warning(
+                    "FALLBACK_USED",
+                    "dnachisel module is unavailable; using local sequence optimization fallback.",
+                )
+            )
+        return availability
+
+    def validate_input(self, payload: dict[str, Any]) -> list[ToolWarning]:
+        if not isinstance(payload.get("sequence"), str) or not payload["sequence"].strip():
+            return [
+                normalize_tool_warning(
+                    "MISSING_INPUT",
+                    "Sequence optimization adapter requires a non-empty sequence string.",
+                    "error",
+                )
+            ]
+        return []
+
+    def run(self, payload: dict[str, Any]) -> ToolAdapterResult:
+        validation_warnings = self.validate_input(payload)
+        availability = self.available()
+        if any(w.severity == "error" for w in validation_warnings):
+            return ToolAdapterResult(
+                availability=availability,
+                status="failed",
+                warnings=validation_warnings + availability.warnings,
+            )
+
+        sequence = str(payload["sequence"]).strip().upper()
+        avoid_sites = list(payload.get("avoid_sites") or ["GAATTC", "GGATCC", "GGTCTC"])
+        gc_min = float(payload.get("gc_min", 0.40))
+        gc_max = float(payload.get("gc_max", 0.65))
+
+        if availability.status == "available":
+            try:
+                import dnachisel as dc
+
+                constraints = [
+                    dc.EnforceGCContent(mini=gc_min, maxi=gc_max),
+                ]
+                for site in avoid_sites:
+                    constraints.append(dc.AvoidPattern(site))
+
+                problem = dc.DnaOptimizationProblem(sequence=sequence, constraints=constraints)
+                problem.resolve_constraints()
+                opt_seq = str(problem.sequence)
+                status = "ok"
+                modified = opt_seq != sequence
+            except Exception as e:
+                opt_seq = sequence
+                status = "failed"
+                validation_warnings.append(
+                    normalize_tool_warning("TOOL_FAILED", f"DNA Chisel optimization failed: {e}")
+                )
+                modified = False
+        else:
+            opt_seq = sequence
+            modified = False
+            for site in avoid_sites:
+                if site in opt_seq:
+                    replacement = "A" if site[0] != "A" else "T"
+                    opt_seq = opt_seq.replace(site, replacement + site[1:])
+                    modified = True
+            status = "ok"
+
+        gc_content = (opt_seq.count("G") + opt_seq.count("C")) / max(len(opt_seq), 1)
+        return ToolAdapterResult(
+            availability=availability,
+            status=status,
+            output={
+                "original_sequence": sequence,
+                "optimized_sequence": opt_seq,
+                "modified": modified,
+                "avoid_sites_checked": avoid_sites,
+            },
+            metrics={
+                "gc_content": round(gc_content, 4),
+                "sequence_length": len(opt_seq),
+                "modified": modified,
+            },
+            warnings=validation_warnings + availability.warnings,
+        )
+
+
+class DNACauldronAssemblySimulationAdapter:
+    tool_name = "dna_cauldron"
+    adapter_name = "dna_cauldron_adapter"
+    capability = CAPABILITY_ASSEMBLY_SIMULATION
+
+    def available(self) -> ToolAvailability:
+        availability = detect_python_module(
+            "dnacauldron",
+            tool_name=self.tool_name,
+            adapter_name=self.adapter_name,
+            capability=self.capability,
+            fallback_available=True,
+        )
+        if availability.status == "unavailable":
+            availability.status = "fallback"
+            availability.fallback_used = True
+            availability.warnings.append(
+                normalize_tool_warning(
+                    "FALLBACK_USED",
+                    "dnacauldron module is unavailable; using local assembly planner fallback.",
+                )
+            )
+        return availability
+
+    def validate_input(self, payload: dict[str, Any]) -> list[ToolWarning]:
+        fragments = payload.get("fragments")
+        if not isinstance(fragments, list) or len(fragments) < 2:
+            return [
+                normalize_tool_warning(
+                    "MISSING_INPUT",
+                    "Assembly simulation adapter requires at least two fragment sequences.",
+                    "error",
+                )
+            ]
+        return []
+
+    def run(self, payload: dict[str, Any]) -> ToolAdapterResult:
+        validation_warnings = self.validate_input(payload)
+        availability = self.available()
+        if any(w.severity == "error" for w in validation_warnings):
+            return ToolAdapterResult(
+                availability=availability,
+                status="failed",
+                warnings=validation_warnings + availability.warnings,
+            )
+
+        fragments = [str(f).strip().upper() for f in payload["fragments"]]
+        assembly_type = str(payload.get("assembly_type", "golden_gate")).lower()
+        enzyme = str(payload.get("enzyme", "BsaI"))
+
+        if availability.status == "available":
+            try:
+                import dnacauldron as dc
+
+                parts = [dc.Sequence(f, id=f"frag_{i}") for i, f in enumerate(fragments)]
+                asm = dc.SingleAssembly(parts, enzyme=enzyme)
+                constructs = asm.simulate()
+                assembled_seq = str(constructs[0].sequence) if constructs else "".join(fragments)
+                status = "ok"
+            except Exception as e:
+                assembled_seq = "".join(fragments)
+                status = "failed"
+                validation_warnings.append(
+                    normalize_tool_warning("TOOL_FAILED", f"DNA Cauldron assembly failed: {e}")
+                )
+        else:
+            assembled_seq = "".join(fragments)
+            status = "ok"
+
+        return ToolAdapterResult(
+            availability=availability,
+            status=status,
+            output={
+                "assembled_sequence": assembled_seq,
+                "fragment_count": len(fragments),
+                "assembly_type": assembly_type,
+                "enzyme": enzyme,
+            },
+            metrics={
+                "assembled_length": len(assembled_seq),
+                "fragment_count": len(fragments),
+            },
+            warnings=validation_warnings + availability.warnings,
+        )
+
+
+class Primer3Adapter:
+    tool_name = "primer3"
+    adapter_name = "primer3_adapter"
+    capability = CAPABILITY_PRIMER_DESIGN
+
+    def available(self) -> ToolAvailability:
+        availability = detect_python_module(
+            "primer3",
+            tool_name=self.tool_name,
+            adapter_name=self.adapter_name,
+            capability=self.capability,
+            fallback_available=True,
+        )
+        if availability.status == "unavailable":
+            availability.status = "fallback"
+            availability.fallback_used = True
+            availability.warnings.append(
+                normalize_tool_warning(
+                    "FALLBACK_USED",
+                    "primer3 module is unavailable; using local primer designer fallback.",
+                )
+            )
+        return availability
+
+    def validate_input(self, payload: dict[str, Any]) -> list[ToolWarning]:
+        if not isinstance(payload.get("sequence"), str) or not payload["sequence"].strip():
+            return [
+                normalize_tool_warning(
+                    "MISSING_INPUT",
+                    "Primer3 adapter requires a non-empty sequence string.",
+                    "error",
+                )
+            ]
+        return []
+
+    def run(self, payload: dict[str, Any]) -> ToolAdapterResult:
+        validation_warnings = self.validate_input(payload)
+        availability = self.available()
+        if any(w.severity == "error" for w in validation_warnings):
+            return ToolAdapterResult(
+                availability=availability,
+                status="failed",
+                warnings=validation_warnings + availability.warnings,
+            )
+
+        sequence = str(payload["sequence"]).strip().upper()
+        target_tm = float(payload.get("target_tm", 60.0))
+
+        if availability.status == "available":
+            try:
+                import primer3
+
+                tm = float(primer3.calc_tm(sequence[:20]))
+                fwd_primer = sequence[:20]
+                rev_stem = sequence[-20:][::-1]
+                tr = str.maketrans("ATGC", "TACG")
+                rev_primer = rev_stem.translate(tr)
+                rev_tm = float(primer3.calc_tm(rev_primer))
+                status = "ok"
+            except Exception as e:
+                fwd_primer = sequence[:20]
+                rev_primer = sequence[-20:]
+                tm = 60.0
+                rev_tm = 60.0
+                status = "failed"
+                validation_warnings.append(
+                    normalize_tool_warning("TOOL_FAILED", f"Primer3 calculation failed: {e}")
+                )
+        else:
+            fwd_primer = sequence[:20]
+            rev_stem = sequence[-20:][::-1]
+            tr = str.maketrans("ATGC", "TACG")
+            rev_primer = rev_stem.translate(tr)
+            tm = 64.9 + 41.0 * ((fwd_primer.count("G") + fwd_primer.count("C") - 16.4) / len(fwd_primer))
+            rev_tm = 64.9 + 41.0 * ((rev_primer.count("G") + rev_primer.count("C") - 16.4) / len(rev_primer))
+            status = "ok"
+
+        return ToolAdapterResult(
+            availability=availability,
+            status=status,
+            output={
+                "forward_primer": fwd_primer,
+                "reverse_primer": rev_primer,
+                "forward_tm": round(tm, 2),
+                "reverse_tm": round(rev_tm, 2),
+                "target_tm": target_tm,
+            },
+            metrics={
+                "forward_tm": round(tm, 2),
+                "reverse_tm": round(rev_tm, 2),
+                "primer_length": len(fwd_primer),
+            },
+            warnings=validation_warnings + availability.warnings,
+        )
+
+
+class DNAFeaturesViewerAdapter:
+    tool_name = "dna_features_viewer"
+    adapter_name = "dna_features_viewer_adapter"
+    capability = CAPABILITY_SEQUENCE_ANNOTATION
+
+    def available(self) -> ToolAvailability:
+        availability = detect_python_module(
+            "dna_features_viewer",
+            tool_name=self.tool_name,
+            adapter_name=self.adapter_name,
+            capability=self.capability,
+            fallback_available=True,
+        )
+        if availability.status == "unavailable":
+            availability.status = "fallback"
+            availability.fallback_used = True
+            availability.warnings.append(
+                normalize_tool_warning(
+                    "FALLBACK_USED",
+                    "dna_features_viewer is unavailable; using text feature map fallback.",
+                )
+            )
+        return availability
+
+    def validate_input(self, payload: dict[str, Any]) -> list[ToolWarning]:
+        if not isinstance(payload.get("features"), list):
+            return [
+                normalize_tool_warning(
+                    "MISSING_INPUT",
+                    "DNAFeaturesViewer adapter requires a features list.",
+                    "error",
+                )
+            ]
+        return []
+
+    def run(self, payload: dict[str, Any]) -> ToolAdapterResult:
+        validation_warnings = self.validate_input(payload)
+        availability = self.available()
+        if any(w.severity == "error" for w in validation_warnings):
+            return ToolAdapterResult(
+                availability=availability,
+                status="failed",
+                warnings=validation_warnings + availability.warnings,
+            )
+
+        features = list(payload["features"])
+        sequence_length = int(payload.get("sequence_length", 1000))
+
+        if availability.status == "available":
+            try:
+                import dna_features_viewer as dfv
+
+                graphic_features = [
+                    dfv.GraphicFeature(
+                        start=feat.get("start", 0),
+                        end=feat.get("end", 100),
+                        strand=feat.get("strand", 1),
+                        color=feat.get("color", "#ffd700"),
+                        label=feat.get("label", "feature"),
+                    )
+                    for feat in features
+                ]
+                dfv.GraphicRecord(sequence_length=sequence_length, features=graphic_features)
+                status = "ok"
+                summary_map = f"GraphicRecord with {len(features)} features"
+            except Exception as e:
+                status = "failed"
+                summary_map = "Feature map generation failed"
+                validation_warnings.append(
+                    normalize_tool_warning("TOOL_FAILED", f"dna_features_viewer failed: {e}")
+                )
+        else:
+            status = "ok"
+            summary_map = f"TextFeatureMap: {len(features)} features across {sequence_length} bp"
+
+        return ToolAdapterResult(
+            availability=availability,
+            status=status,
+            output={
+                "feature_count": len(features),
+                "sequence_length": sequence_length,
+                "summary_map": summary_map,
+                "features": features,
+            },
+            metrics={"feature_count": len(features)},
+            warnings=validation_warnings + availability.warnings,
+        )
+
+
+class SBOL3FormatValidationAdapter:
+    tool_name = "sbol3"
+    adapter_name = "sbol3_validation_adapter"
+    capability = CAPABILITY_FORMAT_VALIDATION
+
+    def available(self) -> ToolAvailability:
+        availability = detect_python_module(
+            "sbol3",
+            tool_name=self.tool_name,
+            adapter_name=self.adapter_name,
+            capability=self.capability,
+            fallback_available=True,
+        )
+        if availability.status == "unavailable":
+            availability.status = "fallback"
+            availability.fallback_used = True
+            availability.warnings.append(
+                normalize_tool_warning(
+                    "FALLBACK_USED",
+                    "sbol3 module is unavailable; using local SBOL3 structural validator fallback.",
+                )
+            )
+        return availability
+
+    def validate_input(self, payload: dict[str, Any]) -> list[ToolWarning]:
+        if not isinstance(payload.get("sbol_content"), str) and not isinstance(payload.get("sbol_document"), dict):
+            return [
+                normalize_tool_warning(
+                    "MISSING_INPUT",
+                    "SBOL3 validation adapter requires sbol_content string or sbol_document dict.",
+                    "error",
+                )
+            ]
+        return []
+
+    def run(self, payload: dict[str, Any]) -> ToolAdapterResult:
+        validation_warnings = self.validate_input(payload)
+        availability = self.available()
+        if any(w.severity == "error" for w in validation_warnings):
+            return ToolAdapterResult(
+                availability=availability,
+                status="failed",
+                warnings=validation_warnings + availability.warnings,
+            )
+
+        content = payload.get("sbol_content") or payload.get("sbol_document")
+
+        if availability.status == "available":
+            try:
+                import sbol3
+
+                doc = sbol3.Document()
+                if isinstance(content, str):
+                    doc.read_string(content, sbol3.TURTLE)
+                report = doc.validate()
+                is_valid = len(report.errors) == 0
+                errors = [str(e) for e in report.errors]
+                status = "ok" if is_valid else "validation_warnings"
+            except Exception as e:
+                is_valid = False
+                errors = [str(e)]
+                status = "failed"
+                validation_warnings.append(
+                    normalize_tool_warning("TOOL_FAILED", f"SBOL3 validation error: {e}")
+                )
+        else:
+            is_valid = True
+            errors = []
+            if isinstance(content, str):
+                if "Component" not in content and "@prefix" not in content and "http://" not in content:
+                    is_valid = False
+                    errors.append("String content does not match expected SBOL3 Turtle format.")
+            status = "ok" if is_valid else "validation_warnings"
+
+        return ToolAdapterResult(
+            availability=availability,
+            status=status,
+            output={
+                "is_valid": is_valid,
+                "validation_errors": errors,
+                "validator": "sbol3" if availability.status == "available" else "local_fallback",
+            },
+            metrics={"valid": is_valid, "error_count": len(errors)},
+            warnings=validation_warnings + availability.warnings,
+        )
+
+
 def default_tool_adapters() -> list[ToolAdapter]:
     return [
         CelloLogicSynthesisAdapter(),
         ODESimulationAdapter(),
         RNAFoldingAdapter(),
         StochasticSimulationAdapter(),
+        SequenceRecordLookupAdapter(),
+        DNAChiselSequenceOptimizationAdapter(),
+        DNACauldronAssemblySimulationAdapter(),
+        Primer3Adapter(),
+        DNAFeaturesViewerAdapter(),
+        SBOL3FormatValidationAdapter(),
     ]
 
 

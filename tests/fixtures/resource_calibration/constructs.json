@@ -1,0 +1,55 @@
+[
+  {
+    "construct_id": "empty_vector_capacity",
+    "backbone_id": "p15a_capacity_reference",
+    "origin": "p15A",
+    "promoter_id": "J23101",
+    "rbs_id": "B0034",
+    "cds_id": "mScarlet-I",
+    "terminator_id": "B0015",
+    "copy_number_source": "literature_prior",
+    "sequence_available": true,
+    "cds_length_bp": 711,
+    "protein_length_aa": 236,
+    "declared_copy_number": 15.0,
+    "reporter_maturation_prior_s": 1080.0,
+    "sequence_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "metadata": {
+      "control_role": "empty_vector_baseline"
+    }
+  },
+  {
+    "construct_id": "load_reference",
+    "backbone_id": "p15a_capacity_reference",
+    "origin": "p15A",
+    "promoter_id": "pTet",
+    "rbs_id": "RBS_medium",
+    "cds_id": "competitor_reference",
+    "terminator_id": "B0015",
+    "copy_number_source": "literature_prior",
+    "sequence_available": false,
+    "cds_length_bp": 900,
+    "protein_length_aa": 299,
+    "declared_copy_number": 15.0,
+    "metadata": {
+      "control_role": "training_load"
+    }
+  },
+  {
+    "construct_id": "load_heldout_rbs",
+    "backbone_id": "p15a_capacity_reference",
+    "origin": "p15A",
+    "promoter_id": "pTet",
+    "rbs_id": "RBS_strong",
+    "cds_id": "competitor_reference",
+    "terminator_id": "B0015",
+    "copy_number_source": "literature_prior",
+    "sequence_available": false,
+    "cds_length_bp": 900,
+    "protein_length_aa": 299,
+    "declared_copy_number": 15.0,
+    "metadata": {
+      "control_role": "heldout_load"
+    }
+  }
+]

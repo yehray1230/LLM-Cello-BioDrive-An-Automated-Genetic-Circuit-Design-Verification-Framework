@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/egma-claim-audit-v1.schema.json",
+  "title": "EGMA deterministic claim audit",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "unsupported_claim",
+    "unsupported_count",
+    "detected_summary_claim_types",
+    "decisions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "egma-claim-audit-v1"
+    },
+    "status": {
+      "enum": ["parsed", "fail_closed"]
+    },
+    "unsupported_claim": {
+      "type": "boolean"
+    },
+    "unsupported_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "detected_summary_claim_types": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/claimType"
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "claim_type",
+          "text",
+          "source",
+          "supported",
+          "evidence_refs",
+          "reason_codes"
+        ],
+        "properties": {
+          "claim_type": {
+            "$ref": "#/$defs/claimType"
+          },
+          "text": {
+            "type": "string"
+          },
+          "source": {
+            "enum": ["structured", "unstructured_summary"]
+          },
+          "supported": {
+            "type": "boolean"
+          },
+          "evidence_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "reason_codes": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "claimType": {
+      "enum": [
+        "computational_screening",
+        "formal_functional_success",
+        "simulation_completed",
+        "external_cello_mapping",
+        "experimental_validation",
+        "wet_lab_ready",
+        "quantitative_in_vivo_prediction",
+        "comparative_superiority"
+      ]
+    }
+  }
+}

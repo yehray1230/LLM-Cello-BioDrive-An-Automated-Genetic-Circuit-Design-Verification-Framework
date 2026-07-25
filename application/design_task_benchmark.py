@@ -7,7 +7,7 @@ from pathlib import Path
 import time
 from typing import Any
 
-from application.demo_baseline import DEMO_BASELINE_VERILOG
+from application.demo_constants import DEMO_BASELINE_VERILOG
 from benchmark_suite.design_task_dataset import (
     DesignTask,
     load_design_task_set,

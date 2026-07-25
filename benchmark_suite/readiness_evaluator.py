@@ -10,6 +10,7 @@ from schemas.readiness import (
     ReadinessFinding,
     ReadinessResult,
 )
+from utils.scalar_values import optional_trimmed_text as _optional_string
 
 
 PART_EVIDENCE_SCORES = {
@@ -148,14 +149,18 @@ def evaluate_readiness(
     )
 
 
-def _part_evidence_score(design: DesignIRV2) -> float | None:
+def _part_evidence_score(design: Any) -> float | None:
     if not design.parts:
         return None
     values = [
-        PART_EVIDENCE_SCORES.get(part.evidence_level.lower(), 0.0)
+        PART_EVIDENCE_SCORES.get(
+            getattr(part, "evidence_level", getattr(part, "confidence", "measured")).lower(),
+            0.5,
+        )
         for part in design.parts
     ]
     return _mean(values)
+
 
 
 def _sequence_quality_score(
@@ -338,11 +343,6 @@ def _optional_score(value: Any) -> float | None:
         return None if value is None else _clamp(float(value))
     except (TypeError, ValueError):
         return None
-
-
-def _optional_string(value: Any) -> str | None:
-    text = "" if value is None else str(value).strip()
-    return text or None
 
 
 def _mean(values: list[float]) -> float:

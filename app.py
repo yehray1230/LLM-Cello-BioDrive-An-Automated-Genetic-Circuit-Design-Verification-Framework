@@ -25,7 +25,12 @@ from schemas.design_diff import compare_designs
 from schemas.design_ir import DesignIR, topology_to_design_ir
 from schemas.design_operations import replace_part_immutable, validate_replacement
 from schemas.state import DesignState, SearchNode
+from schemas.workflow_evidence import (
+    is_valid_ode_trace as _valid_ode_trace,
+    project_ode_trace_rows as _ode_trace_rows,
+)
 from agents.pm_agent import call_pm_agent
+from utils import llm_utils
 from mcp_server.ode_explainer import explain_ode_topology
 from tools.part_library import PartLibrary
 from exporters.bom_exporter import export_bom_csv
@@ -858,7 +863,7 @@ def _render_human_loop_panel(state: DesignState) -> None:
             api_key = config.get("api_key", "").strip() or None
             model_name = config.get("model_name", "gpt-4o-mini").strip()
             api_base = config.get("api_base", "").strip() or None
-            call_pm_agent(state, api_key=api_key, model_name=model_name, api_base=api_base)
+            call_pm_agent(state, api_key=api_key, model_name=llm_utils.resolve_agent_model("pm", model_name), api_base=api_base)
 
     if getattr(state, "pm_stage", None) == "hitl_dialogue" and getattr(state, "pending_proposal", None) and "options" in state.pending_proposal:
         proposal = state.pending_proposal
@@ -1877,24 +1882,25 @@ def _render_topology_card(index: int, topology: dict[str, Any], best_topology: d
             if topology.get("verilog"):
                 st.markdown(f'<div class="code-panel">{_escape_html(str(topology["verilog"]))}</div>', unsafe_allow_html=True)
 
-def _list_host_profiles() -> list[dict[str, Any]]:
+def _list_json_repository_records(base_dir: str | Path) -> list[dict[str, Any]]:
     try:
         from repositories.json_repository import JsonRepository
-        from pathlib import Path
-        repo = JsonRepository(Path("outputs") / "api_data" / "host_profiles")
-        return repo.list()
+
+        return JsonRepository(base_dir).list()
     except Exception:
         return []
+
+
+def _list_host_profiles() -> list[dict[str, Any]]:
+    return _list_json_repository_records(
+        Path("outputs") / "api_data" / "host_profiles"
+    )
 
 
 def _list_parameter_fit_snapshots() -> list[dict[str, Any]]:
-    try:
-        from repositories.json_repository import JsonRepository
-        from pathlib import Path
-        repo = JsonRepository(Path("outputs") / "api_data" / "parameter_fit_snapshots")
-        return repo.list()
-    except Exception:
-        return []
+    return _list_json_repository_records(
+        Path("outputs") / "api_data" / "parameter_fit_snapshots"
+    )
 
 
 def _render_layout_audit(node: SearchNode, state: DesignState, topology: dict[str, Any]) -> None:
@@ -2486,27 +2492,6 @@ def _render_ode_metric_summary(topology: dict[str, Any]) -> None:
             st.warning(w)
 
 
-def _valid_ode_trace(trace: Any) -> bool:
-    if not isinstance(trace, dict):
-        return False
-    time_values = trace.get("time")
-    output_values = trace.get("output_protein")
-    return isinstance(time_values, list) and isinstance(output_values, list) and len(time_values) == len(output_values) and len(time_values) > 0
-
-
-def _ode_trace_rows(trace: dict[str, list[float]]) -> list[dict[str, float]]:
-    time_values = trace.get("time", [])
-    rows = []
-    for index, time_value in enumerate(time_values):
-        row = {"time": float(time_value)}
-        for key in ["output_protein", "total_mrna", "total_protein", "rnap_occupancy", "ribosome_occupancy"]:
-            values = trace.get(key, [])
-            if index < len(values):
-                row[key] = float(values[index])
-        rows.append(row)
-    return rows
-
-
 def _topology_candidate_label(index: int, topology: dict[str, Any]) -> str:
     candidate_number = int(topology.get("verilog_index", index)) + 1
     score = topology.get("score")
@@ -2997,8 +2982,8 @@ def _run_byok_workflow(state: DesignState) -> None:
     try:
         result_state = run_reflexion_workflow(
             state=state,
-            builder=BuilderAgent(api_key=api_key, model_name=model_name, api_base=api_base),
-            translator=TranslatorRunner(api_key=api_key, model_name=model_name, api_base=api_base),
+            builder=BuilderAgent(api_key=api_key, model_name=llm_utils.resolve_agent_model("builder", model_name), api_base=api_base),
+            translator=TranslatorRunner(api_key=api_key, model_name=llm_utils.resolve_agent_model("translator", model_name), api_base=api_base),
             cello_wrapper=CelloWrapper(
                 cello_command=options.get("cello_command") or None,
                 ucf_path=options.get("ucf_path") or None,
@@ -3007,7 +2992,7 @@ def _run_byok_workflow(state: DesignState) -> None:
                 device_path=options.get("device_path") or None,
             ),
             batch_ode_simulator=BatchODESimulator() if options["enable_ode"] else _NoOpODESimulator(),
-            critic=CriticAgent(api_key=api_key, model_name=model_name, api_base=api_base),
+            critic=CriticAgent(api_key=api_key, model_name=llm_utils.resolve_agent_model("critic", model_name), api_base=api_base),
             consolidator=ConsolidatorAgent(),
             skill_retriever=SkillRetriever.from_json_file(include_extracted=True) if options["enable_skill_context"] else None,
             data_miner=DataMinerAgent() if options["enable_ode"] else None,
@@ -3803,7 +3788,7 @@ def _render_pm_elicitation_dashboard(state: DesignState) -> None:
 
         # 顯示載入中
         with st.spinner("設計經理正在分析意圖並規劃生物學預設推薦..."):
-            call_pm_agent(state, api_key=api_key, model_name=model_name, api_base=api_base)
+            call_pm_agent(state, api_key=api_key, model_name=llm_utils.resolve_agent_model("pm", model_name), api_base=api_base)
         st.rerun()
 
     # 3. 呈現對話歷史
@@ -3857,7 +3842,7 @@ def _render_pm_elicitation_dashboard(state: DesignState) -> None:
                 api_key = config.get("api_key", "").strip() or None
                 model_name = config.get("model_name", "gpt-4o-mini").strip()
                 api_base = config.get("api_base", "").strip() or None
-                call_pm_agent(state, api_key=api_key, model_name=model_name, api_base=api_base)
+                call_pm_agent(state, api_key=api_key, model_name=llm_utils.resolve_agent_model("pm", model_name), api_base=api_base)
                 st.rerun()
 
         with col2:
@@ -3891,7 +3876,7 @@ def _render_pm_elicitation_dashboard(state: DesignState) -> None:
                     api_key = config.get("api_key", "").strip() or None
                     model_name = config.get("model_name", "gpt-4o-mini").strip()
                     api_base = config.get("api_base", "").strip() or None
-                    call_pm_agent(state, api_key=api_key, model_name=model_name, api_base=api_base)
+                    call_pm_agent(state, api_key=api_key, model_name=llm_utils.resolve_agent_model("pm", model_name), api_base=api_base)
                     st.rerun()
 
     # 呈現電路視覺化流程圖預覽

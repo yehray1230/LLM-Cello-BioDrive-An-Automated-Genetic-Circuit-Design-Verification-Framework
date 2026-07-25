@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from benchmark_suite.candidate_values import candidate_float as _candidate_float
+from benchmark_suite.candidate_values import candidate_int as _candidate_int
 from benchmark_suite.cello_constraint_evaluator import score_cello_constraints
 from benchmark_suite.functional_scorer import score_functional
 from benchmark_suite.kinetic_scorer import score_kinetic
 from benchmark_suite.metabolic_scorer import score_metabolic_burden
+from benchmark_suite.score_values import clamp01 as _clamp_score
 from benchmark_suite.static_plausibility_evaluator import score_static_plausibility
 from benchmark_suite.temporal_scorer import score_temporal
 from benchmark_suite.scoring_profiles import (
@@ -14,6 +17,7 @@ from benchmark_suite.scoring_profiles import (
     SIMULATION_RESEARCH_PROFILE,
     get_scoring_profile,
 )
+from utils.boolean_values import defaulted_bool
 
 SCORE_WEIGHTS = LEGACY_PROFILE.dimension_weights
 
@@ -22,38 +26,8 @@ RESEARCH_V2_BIOPHYSICAL_WEIGHTS = dict(
 )
 
 
-def _clamp_score(score: float) -> float:
-    return max(0.0, min(1.0, float(score)))
-
-
-def _candidate_float(candidate: dict[str, Any], key: str, default: float) -> float:
-    try:
-        return default if candidate.get(key) is None else float(candidate[key])
-    except (TypeError, ValueError):
-        return default
-
-
-def _candidate_int(candidate: dict[str, Any], key: str, default: int) -> int:
-    try:
-        return default if candidate.get(key) is None else int(candidate[key])
-    except (TypeError, ValueError):
-        return default
-
-
 def _candidate_bool(candidate: dict[str, Any], key: str, default: bool) -> bool:
-    value = candidate.get(key)
-    if value is None:
-        return default
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        lowered = value.strip().lower()
-        if lowered in {"1", "true", "yes", "y"}:
-            return True
-        if lowered in {"0", "false", "no", "n"}:
-            return False
-        return default
-    return bool(value)
+    return defaulted_bool(candidate.get(key), default)
 
 
 def _candidate_str_list(candidate: dict[str, Any], key: str, default: list[str]) -> list[str]:

@@ -1,0 +1,193 @@
+{
+  "known_good": {
+    "schema_version": "egma-task-v1",
+    "task_id": "fixture_good_a_and_not_b",
+    "request": "Design a two-input E. coli transcriptional logic circuit where GFP is active only when A is high and B is low.",
+    "source": {
+      "family": "procedural_boolean",
+      "locator": "generator://egma-fixtures/a-and-not-b",
+      "license_status": "generated",
+      "lineage_id": "logic-a-and-not-b"
+    },
+    "intent_status": "feasible",
+    "expected_response_class": "design",
+    "language": {
+      "stratum": "canonical_direct",
+      "paraphrase_parent_id": null
+    },
+    "formal_spec": {
+      "input_symbols": ["A", "B"],
+      "output_symbol": "GFP",
+      "boolean_expression": "A AND NOT B",
+      "canonical_expression": "(A AND (NOT B))",
+      "allowed_operators": ["NOT", "AND", "OR"],
+      "truth_table": [
+        {"A": 0, "B": 0, "GFP": 0},
+        {"A": 0, "B": 1, "GFP": 0},
+        {"A": 1, "B": 0, "GFP": 1},
+        {"A": 1, "B": 1, "GFP": 0}
+      ],
+      "topology_invariants": [
+        "unique_node_ids",
+        "unique_edges",
+        "edge_endpoints_exist",
+        "declared_inputs_exact",
+        "one_declared_output",
+        "supported_operators_only",
+        "gate_arity_valid",
+        "acyclic_combinational",
+        "all_declared_inputs_reach_output",
+        "all_gates_reach_output",
+        "output_has_single_driver"
+      ]
+    },
+    "split": "development",
+    "leakage_group": "logic-a-and-not-b",
+    "generation": {
+      "generator_version": "egma-fixture-generator-v1",
+      "seed": 271828
+    }
+  },
+  "known_bad": {
+    "schema_version": "egma-task-v1",
+    "task_id": "fixture_bad_truth_table",
+    "request": "Design a two-input circuit implementing A AND NOT B.",
+    "source": {
+      "family": "procedural_boolean",
+      "locator": "generator://egma-fixtures/bad-table",
+      "license_status": "generated"
+    },
+    "intent_status": "feasible",
+    "expected_response_class": "design",
+    "language": {
+      "stratum": "canonical_direct",
+      "paraphrase_parent_id": null
+    },
+    "formal_spec": {
+      "input_symbols": ["A", "B"],
+      "output_symbol": "Y",
+      "boolean_expression": "A AND NOT B",
+      "canonical_expression": "(A AND (NOT B))",
+      "allowed_operators": ["NOT", "AND", "OR"],
+      "truth_table": [
+        {"A": 0, "B": 0, "Y": 0},
+        {"A": 0, "B": 1, "Y": 0},
+        {"A": 1, "B": 0, "Y": 0},
+        {"A": 1, "B": 1, "Y": 0}
+      ],
+      "topology_invariants": [
+        "unique_node_ids",
+        "unique_edges",
+        "edge_endpoints_exist",
+        "declared_inputs_exact",
+        "one_declared_output",
+        "supported_operators_only",
+        "gate_arity_valid",
+        "acyclic_combinational",
+        "all_declared_inputs_reach_output",
+        "all_gates_reach_output",
+        "output_has_single_driver"
+      ]
+    },
+    "split": "development",
+    "leakage_group": "logic-a-and-not-b-bad",
+    "generation": {
+      "generator_version": "egma-fixture-generator-v1",
+      "seed": 271828
+    }
+  },
+  "malformed": {
+    "schema_version": "egma-task-v1",
+    "task_id": "fixture_malformed_expression",
+    "request": "Design a circuit implementing A AND (B.",
+    "source": {
+      "family": "repair_or_invalid_input",
+      "locator": "fixture://malformed-expression",
+      "license_status": "generated"
+    },
+    "intent_status": "feasible",
+    "expected_response_class": "design",
+    "language": {
+      "stratum": "noisy_incomplete_conflicting",
+      "paraphrase_parent_id": null
+    },
+    "formal_spec": {
+      "input_symbols": ["A", "B"],
+      "output_symbol": "Y",
+      "boolean_expression": "A AND (B",
+      "canonical_expression": "(A AND B)",
+      "allowed_operators": ["NOT", "AND", "OR"],
+      "truth_table": [
+        {"A": 0, "B": 0, "Y": 0},
+        {"A": 0, "B": 1, "Y": 0},
+        {"A": 1, "B": 0, "Y": 0},
+        {"A": 1, "B": 1, "Y": 1}
+      ],
+      "topology_invariants": [
+        "unique_node_ids",
+        "unique_edges",
+        "edge_endpoints_exist",
+        "declared_inputs_exact",
+        "one_declared_output",
+        "supported_operators_only",
+        "gate_arity_valid",
+        "acyclic_combinational",
+        "all_declared_inputs_reach_output",
+        "all_gates_reach_output",
+        "output_has_single_driver"
+      ]
+    },
+    "split": "development",
+    "leakage_group": "malformed-parenthesis",
+    "generation": {
+      "generator_version": "egma-fixture-generator-v1",
+      "seed": 271828
+    }
+  },
+  "ambiguous": {
+    "schema_version": "egma-task-v1",
+    "task_id": "fixture_ambiguous_wrong_response",
+    "request": "Make GFP respond to stress, but keep it low when appropriate.",
+    "source": {
+      "family": "repair_or_invalid_input",
+      "locator": "fixture://ambiguous-request",
+      "license_status": "generated"
+    },
+    "intent_status": "underspecified",
+    "expected_response_class": "design",
+    "language": {
+      "stratum": "noisy_incomplete_conflicting",
+      "paraphrase_parent_id": null
+    },
+    "formal_spec": null,
+    "split": "development",
+    "leakage_group": "ambiguous-stress",
+    "generation": {
+      "generator_version": "egma-fixture-generator-v1",
+      "seed": 271828
+    }
+  },
+  "contradictory": {
+    "schema_version": "egma-task-v1",
+    "task_id": "fixture_contradictory_wrong_response",
+    "request": "For identical inputs, require GFP to be both ON and OFF.",
+    "source": {
+      "family": "repair_or_invalid_input",
+      "locator": "fixture://contradictory-output",
+      "license_status": "generated"
+    },
+    "intent_status": "contradictory_or_infeasible",
+    "expected_response_class": "design",
+    "language": {
+      "stratum": "noisy_incomplete_conflicting",
+      "paraphrase_parent_id": null
+    },
+    "formal_spec": null,
+    "split": "development",
+    "leakage_group": "contradictory-output",
+    "generation": {
+      "generator_version": "egma-fixture-generator-v1",
+      "seed": 271828
+    }
+  }
+}

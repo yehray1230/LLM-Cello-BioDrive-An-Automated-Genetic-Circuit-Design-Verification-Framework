@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-import hashlib
 import json
 from pathlib import Path
 import re
 from typing import Any
+
+from utils.hashing import stable_json_sha256
 
 
 DESIGN_TASK_SCHEMA_VERSION = "1.0"
@@ -42,13 +43,7 @@ class DesignTaskSet:
 
     @property
     def content_hash(self) -> str:
-        payload = json.dumps(
-            asdict(self),
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        return stable_json_sha256(asdict(self))
 
     def task(self, task_id: str) -> DesignTask:
         for task in self.tasks:

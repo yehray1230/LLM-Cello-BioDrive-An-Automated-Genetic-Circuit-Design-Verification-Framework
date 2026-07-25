@@ -91,7 +91,11 @@
 {% if view.warnings %}
 <section class="section-space" style="margin-bottom: 24px; display: flex; flex-direction: column; gap: 8px;">
   {% for w in view.warnings %}
-    {% if w.level == "error" %}
+    {% if w.category == "safety" %}
+      <div class="error-box" style="margin: 0; display: flex; align-items: center; gap: 10px; border: 1px solid #f5c6cb; background-color: #f8d7da; color: #721c24; padding: 12px 16px; border-radius: 8px;">
+        <span>🛡️</span> <span><strong>[SAFETY / 生物安全評估]</strong> {{ w.message }}</span>
+      </div>
+    {% elif w.level == "error" %}
       <div class="error-box" style="margin: 0; display: flex; align-items: center; gap: 10px; border: 1px solid #fee4e2;">
         <span>🛑</span> <span><strong>[{{ w.category | upper }}]</strong> {{ w.message }}</span>
       </div>

@@ -17,6 +17,14 @@
       padding: 40px 24px;
     }
 
+    @media print {
+      body { background: #fff !important; padding: 0 !important; font-family: Georgia, 'Times New Roman', serif; }
+      .page { max-width: 100% !important; box-shadow: none !important; padding: 0 !important; }
+      .no-print, .action-btn { display: none !important; }
+      .section { page-break-inside: avoid; }
+      h1, h2 { color: #000 !important; border-bottom-color: #333 !important; }
+    }
+
     .page {
       max-width: 820px;
       margin: 0 auto;
@@ -413,19 +421,35 @@
       {% endif %}
     </section>
 
-    {# ── Field Provenance ────────────────────────── #}
+    {# ── Computational evidence boundary ───────────── #}
     <section class="section">
-      <h2>欄位來源追蹤</h2>
-      {% if design_v2 and design_v2.field_provenance %}
-        {% for fp in design_v2.field_provenance %}
-        <div class="prov-entry">
-          <code>{{ fp.field_path }}</code>
-          <span class="prov-badge">{{ fp.status }}</span>
-        </div>
-        {% endfor %}
-      {% else %}
-        <p class="muted">無欄位級別來源資訊。</p>
-      {% endif %}
+      <h2>計算證據邊界 (Computational Evidence Boundary)</h2>
+      <div style="margin-bottom: 12px; font-weight: 600;">
+        計算紀錄欄位完整度 (Computational Record Completeness):
+        {% if explanation and explanation.evidence_lineage and explanation.evidence_lineage.evidence_completeness_index is not none %}
+        <span style="color: #1570ef; font-size: 16px;">{{ explanation.evidence_lineage.evidence_completeness_index }}%</span>
+        {% else %}
+        <span class="muted">未提供</span>
+        {% endif %}
+      </div>
+      <div style="background: #f0f9ff; padding: 12px; border-radius: 6px;">
+        <strong style="color: #026aa2; font-size: 12px;">已執行的計算檢查（非實驗驗證）</strong>
+        <p style="margin: 8px 0 0; color: #026aa2;">
+          本摘要只彙整專案內可用的結構、模擬與匯出紀錄。欄位完整度不衡量模型正確性、
+          Cello/UCF 外部對應、資料庫權威性、生物活性或濕實驗表現。任何外部來源或工具
+          只有在另附可稽核的來源、版本、授權與產物紀錄時，才可作為個別主張的證據。
+        </p>
+      </div>
+    </section>
+
+    {# ── External validation boundary ─────────────── #}
+    <section class="section">
+      <h2>外部驗證邊界 (External Validation Boundary)</h2>
+      <p>
+        此研究預覽未經濕實驗驗證，也不提供可直接執行的實驗方案。任何後續生物實驗、
+        對照組、量測時程與安全程序，均須由具資格的人員依實際宿主、設施、法規與
+        機構審查要求另行設計、批准與記錄。
+      </p>
     </section>
 
     {# ── Footer ──────────────────────────────────── #}

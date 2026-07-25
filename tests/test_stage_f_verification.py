@@ -196,6 +196,11 @@ def test_share_summary_renders(client, test_services):
     response = client.get(f"/web/designs/{design_id}/share_summary")
     assert response.status_code == 200
     assert "text/html" in response.headers.get("content-type", "")
+    assert "已執行的計算檢查（非實驗驗證）" in response.text
+    assert "此研究預覽未經濕實驗驗證" in response.text
+    assert "已實證與驗證項目 (Verified)" not in response.text
+    assert "pUC19-J23100-sfGFP" not in response.text
+    assert "Cello UCF Library (Eco1C1G1T1)" not in response.text
 
 
 def test_share_summary_masks_paths_and_nested_credentials():

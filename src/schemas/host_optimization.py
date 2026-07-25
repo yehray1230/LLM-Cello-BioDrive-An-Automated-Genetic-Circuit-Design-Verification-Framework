@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
+from utils.scalar_values import optional_float as _optional_float
+from utils.scalar_values import optional_trimmed_text as _optional_string
+
 
 HOST_OPTIMIZATION_SCHEMA_VERSION = "1.0.0"
 
@@ -83,8 +86,6 @@ def measurement_from_dict(payload: dict[str, Any]) -> ExperimentalMeasurement:
         units=dict(payload.get("units") or {}),
         metadata=dict(payload.get("metadata") or {}),
     )
-
-
 def calibration_from_dict(payload: dict[str, Any]) -> HostCalibrationResult:
     return HostCalibrationResult(
         calibration_id=str(payload.get("calibration_id") or ""),
@@ -103,15 +104,3 @@ def calibration_from_dict(payload: dict[str, Any]) -> HostCalibrationResult:
             payload.get("schema_version") or HOST_OPTIMIZATION_SCHEMA_VERSION
         ),
     )
-
-
-def _optional_float(value: Any) -> float | None:
-    try:
-        return None if value is None else float(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _optional_string(value: Any) -> str | None:
-    text = "" if value is None else str(value).strip()
-    return text or None

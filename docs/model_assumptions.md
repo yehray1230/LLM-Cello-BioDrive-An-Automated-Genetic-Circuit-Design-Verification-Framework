@@ -193,6 +193,66 @@ ribosome_occupancy = 1.0 - ribosome_free / ribosome_total
 
 This resource model is useful for detecting candidates that may demand too much transcriptional or translational capacity, and now couples growth dilution dynamically to ribosome occupancy. It does not model full cell division cycle, energy metabolism, amino-acid availability, stress responses, or detailed metabolic feedback.
 
+### 6.1 Baseline-relative resource model (opt-in research preview)
+
+Model version `1.10.0` adds the deterministic ODE mode `baseline_relative_v0.1`. The legacy preview remains the default. This mode represents host background demand explicitly and reports the candidate's free RNAP and ribosome fractions relative to a host-only/empty-vector baseline. Therefore, zero synthetic load has relative growth `1.0` and synthetic capacity loss `0.0`, even though the host background still occupies resources.
+
+模型版本 `1.10.0` 新增確定性 ODE 模式 `baseline_relative_v0.1`；既有 legacy preview 仍是預設。此模式明確表示宿主背景需求，並將候選設計的游離 RNAP 與核糖體比例，正規化到 host-only／empty-vector 基準。因此，在合成負載為零時，相對生長率為 `1.0`、合成容量損失為 `0.0`，但宿主背景仍會占用資源。
+
+Until a host calibration is supplied, the default baseline-free fractions are fixed assumptions (`0.80` for RNAP and `0.70` for ribosomes), not experimentally measured values. Callers may override them, and the resolved values and sources are returned in the resource-model contract. Outputs are relative screening indicators; they are not absolute growth-rate or proteome-allocation predictions.
+
+在尚未提供宿主校準資料前，預設基準游離比例是固定假設（RNAP `0.80`、核糖體 `0.70`），不是實驗量測值。呼叫端可覆寫這些值，而解析後的數值與來源會記錄於 resource-model contract。輸出僅適合作為相對篩選指標，不代表絕對生長速率或蛋白質體資源分配預測。
+
+Translation demand is weighted by mRNA abundance, RBS/translation strength, and ribosome residence time (`protein_length_aa / elongation_rate_aa_s`). Protein length is resolved from a biokinetic override, topology-level amino-acid or CDS-base-pair metadata, construct metadata, or—only as an explicitly warned fallback—a fixed `250 aa` assumption.
+
+轉譯需求會依 mRNA 量、RBS／translation strength，以及核糖體停留時間（`protein_length_aa / elongation_rate_aa_s`）加權。蛋白質長度依序可來自 biokinetic override、topology 的胺基酸或 CDS bp metadata、construct metadata；若皆缺少，才使用明確警告的固定 `250 aa` 假設。
+
+This baseline-relative mode currently applies to deterministic and noisy ODE simulations. The stochastic path rejects it explicitly until calibrated propensities are implemented. Both the legacy occupancy output and the new baseline-relative summary are returned side by side to support comparison and rollback.
+
+目前 baseline-relative 模式適用於 deterministic 與 noisy ODE 模擬。stochastic 路徑會明確拒絕此模式，直到完成校準過的 propensity 實作。輸出會並列保留 legacy occupancy 與新的 baseline-relative summary，以便比較與回退。
+
+### 6.2 Plate-reader preprocessing assumptions (M2 research preview)
+
+Resource-calibration preprocessing version `0.1.0` expects long-format raw measurements and a separate, frozen plate map. Blank correction uses the median of all wells marked `blank` within the same experiment, plate, and timepoint. Negative blank-corrected values are clamped to zero and reported as warnings; raw and corrected channel values remain available in trace provenance.
+
+資源校準 preprocessing `0.1.0` 預期使用長格式原始量測與獨立、固定的 plate map。Blank correction 使用同一 experiment、plate 與 timepoint 內所有 `blank` wells 的中位數。校正後的負值會截為零並產生警告；原始值、blank 值與校正值仍保留於 trace provenance。
+
+The exponential-growth window is selected by configurable blank-corrected OD600 bounds. Growth rate is the slope of `log(OD600)` against time in hours, and wells are excluded when too few points remain, growth is non-positive, or the log-linear fit falls below the configured R-squared threshold. These rules are QC heuristics, not proof that cells were in a biologically ideal steady exponential phase.
+
+指數生長區間依可設定的 blank-corrected OD600 範圍選取。生長率由 `log(OD600)` 對小時時間的斜率估計；若有效點數不足、生長率非正，或 log-linear fit 低於設定的 R-squared 門檻，該 well 會被排除。這些規則是 QC heuristic，不代表細胞已被證明處於理想、穩態的指數生長期。
+
+Replicate QC groups samples by construct and inducer condition, identifies growth-rate deviations from the group median, and checks the coefficient of variation after outlier filtering. Capacity and output signals are reported relative to blank-corrected OD600. Capacity-loss metrics use the empty-vector capacity median from the same experiment and plate; they do not normalize across incompatible instruments, gains, hosts, media, or protocols.
+
+Replicate QC 依 construct 與 inducer condition 分組，先檢查相對於組內生長率中位數的偏離，再檢查 outlier filtering 後的變異係數。Capacity 與 output signal 以 blank-corrected OD600 正規化。Capacity-loss metric 使用同一 experiment 與 plate 的 empty-vector capacity 中位數，不跨不相容的儀器、gain、宿主、培養基或 protocol 正規化。
+
+### 6.3 Resource parameter-fitting assumptions (M3 research preview)
+
+Fitting model `resource_competition_fit_v0.1` estimates two positive combined parameters in log space: `aggregate_demand_coefficient` and `normalized_growth_coupling`. Its fixed observation equations are `capacity_loss = k_d d / (1 + k_d d)` and `relative_growth = exp(-k_g capacity_loss)`. This first slice does not separately identify transcriptional and translational demand, nor fit RNAP/ribosome totals, Km values, elongation rates, degradation, or maturation.
+
+Fitting model `resource_competition_fit_v0.1` 以 log space 估計兩個正值合併參數：`aggregate_demand_coefficient` 與 `normalized_growth_coupling`。固定觀測方程為 `capacity_loss = k_d d / (1 + k_d d)` 與 `relative_growth = exp(-k_g capacity_loss)`。此切片不會分別辨識 transcriptional／translational demand，也不擬合 RNAP／ribosome totals、Km、elongation rate、degradation 或 maturation。
+
+The optimizer is bounded SciPy trust-region least squares with replicate-level uncertainty weights. A fit is publishable as an immutable research-preview profile only when the optimizer succeeds, at least three distinct positive demand levels span a two-fold range, the Jacobian has full rank and acceptable conditioning, no estimate is pinned to a bound, and a deterministic replicate-stratified bootstrap produces enough successful samples for 95% intervals.
+
+Optimizer 使用有界的 SciPy trust-region least squares，並以 replicate-level uncertainty 加權。只有在 optimizer 成功、至少三個正 demand levels 且涵蓋兩倍 dynamic range、Jacobian full rank 且 conditioning 可接受、估計值未卡在 bound，以及 deterministic replicate-stratified bootstrap 能產生足夠成功樣本與 95% interval 時，才會建立可用的 immutable research-preview profile。
+
+Failure of any identifiability gate yields `non_identifiable`, suppresses confidence intervals, and sets `usable_for_prediction=false`. Even an identifiable profile is labelled `fitted_to_synthetic_or_local_dataset_not_heldout_validated`; held-out predictive claims require M4. Default-versus-fitted deltas are diagnostic comparisons and are never applied automatically to the ODE model.
+
+任何 identifiability gate 未通過時，結果會標為 `non_identifiable`、不發布 confidence interval，並設定 `usable_for_prediction=false`。即使可辨識，profile 仍標示為 `fitted_to_synthetic_or_local_dataset_not_heldout_validated`；預測性主張必須等到 M4 held-out validation。Default-versus-fitted 差異只作診斷，不會自動套用到 ODE model。
+
+### 6.4 Held-out validation assumptions (M4 research preview)
+
+Validation version `heldout_validation_v0.1` accepts a frozen M0 `ValidationSplit`, the exact M3 training observations, and separate held-out observations. It verifies the immutable profile's source IDs and input fingerprint before prediction, rejects observation overlap, enforces construct membership in the declared partitions, and blocks context mismatch. The validation path never refits parameters.
+
+Validation version `heldout_validation_v0.1` 使用 frozen M0 `ValidationSplit`、與 M3 完全相同的 training observations，以及獨立 held-out observations。執行前會核對 immutable profile 的 source IDs 與 input fingerprint、拒絕 observation overlap、強制 construct 符合宣告 partition，並阻擋 context mismatch。Validation path 絕不重新擬合參數。
+
+Versioned engineering gates are: held-out burden Spearman correlation at least `0.70`, relative-growth median absolute percentage error at most `0.20`, output fold-change direction accuracy at least `0.80`, combined capacity/growth prediction-interval coverage at least `0.80`, and improved growth error over a training-median baseline. Prediction intervals propagate the M3 marginal bootstrap bounds and add the declared observation sigma; they are an engineering coverage check, not a full posterior predictive distribution.
+
+版本化工程 gates 包含：held-out burden Spearman correlation 至少 `0.70`、relative-growth median absolute percentage error 至多 `0.20`、output fold-change direction accuracy 至少 `0.80`、capacity／growth 合併 prediction-interval coverage 至少 `0.80`，以及 growth error 必須優於 training-median baseline。Prediction interval 會傳播 M3 marginal bootstrap bounds 並加入宣告的 observation sigma；這是工程 coverage check，不是完整 posterior predictive distribution。
+
+Capacity and growth predictions come directly from the frozen M3 profile. Output fold-change validation requires a separate explicit prediction mapping and `output_prediction_model_id`; missing output predictions make that gate `not_evaluable` and force an overall no-go. A go report permits only `calibrated_comparative_predictor_for_stated_context`. Failed gates retain the narrower fitted-only claim, and a non-identifiable M3 profile can never be promoted by favorable held-out observations.
+
+Capacity 與 growth prediction 直接來自 frozen M3 profile。Output fold-change validation 必須提供獨立 prediction mapping 與 `output_prediction_model_id`；缺少時該 gate 為 `not_evaluable`，整體必須 no-go。Go report 只允許 `calibrated_comparative_predictor_for_stated_context`。未通過 gates 時維持較窄的 fitted-only claim；non-identifiable M3 profile 不會因 held-out observations 看似良好而被升級。
+
 此資源模型有助於檢測可能需求過多轉錄或翻譯能力的候選方案，且現在將生長稀釋率與核糖體佔用率進行了動態耦合。它並不模擬完整的細胞分裂週期、能量代謝、胺基酸可用性、應激反應或詳細的代謝反饋。
 
 ## 7. Parameter Assumptions/參數假設
@@ -496,3 +556,23 @@ To maintain rigorous academic boundary limits, the following biophysical assumpt
 4. Baig, H. et al. “Synthetic biology open language (SBOL) version 3.0.0.”
    *Journal of Integrative Bioinformatics* 17 (2020).
    https://doi.org/10.1515/jib-2020-0017
+
+## Resource calibration workflow assumptions (M5 research preview)
+
+Workflow version `resource_calibration_workflow_v0.1` orchestrates context review, optional raw plate-reader preprocessing, observation partitioning, M3 fitting, and M4 frozen held-out validation. `raw_plate_reader` inputs retain plate-map fingerprints and raw trace counts. `derived_observations` inputs are accepted only as a governed research path and are explicitly labelled `not_run_prederived_input`; this path does not imply that raw plate-reader QC occurred.
+
+工作流會把 `raw_plate_reader` 與 `derived_observations` 分開呈現。後者僅供受控研究資料使用，必須保留 observation ID 與 source metric ID，且不得宣稱已完成原始 plate-reader QC。
+
+Each persisted workflow reports stage status, the dominant limiting layer, observed/calibrated/defaulted/inferred counts, provenance, warnings, default-versus-fitted parameter deltas, and held-out candidate comparisons when available. Invalid experimental designs are saved as explainable `blocked` or `no_go` reports rather than promoted profiles.
+
+Even a `go` decision is limited to `calibrated_comparative_predictor_for_stated_context`. The workflow sets `automatic_application.allowed=false`; no API or UI operation in M5 updates the production ODE model or part library. A separate manual review and future promotion contract would be required.
+
+## Global sensitivity and model-comparison assumptions (M6 research preview)
+
+Morris screening uses deterministic normalized one-at-a-time trajectories across the two combined M3 parameters. Its `mu`, `mu_star`, and `sigma` values are screening diagnostics, not a variance decomposition. Rankings are conditional on the recorded parameter ranges; changing those ranges can change the ranking.
+
+The Sobol path is a low-cost Saltelli-style Monte Carlo pilot. It reports finite-sample raw indices and clipped values for ranking, but it does not yet provide convergence intervals. Negative raw first-order indices can occur from Monte Carlo error and must not be interpreted as negative biological influence.
+
+Model comparison uses one immutable training/validation split and compares constant-training-median, clipped linear-demand, and `resource_competition_fit_v0.1` predictions. A win on one synthetic or local holdout does not establish universal model superiority. The current SBML/BioCRNpyler gate remains no-go until the same real pilot data can test predictive improvement, identifiability, runtime cost, and external-solver equivalence.
+
+M6 sets `automatic_model_promotion.allowed=false`. Its output is a model-selection diagnostic and research-planning aid, not permission to replace the production simulator.

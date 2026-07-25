@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
 try:
@@ -15,6 +14,7 @@ from schemas.assembly_deliverables import (
     PrimerDesignResult,
     PrimerWarning,
 )
+from utils.package_metadata import package_version as _package_version
 
 
 MIN_PCR_TEMPLATE_LENGTH = 60
@@ -257,10 +257,3 @@ def _warning(code: str, value: float, minimum: float, maximum: float) -> PrimerW
 
 def _dna(value: Any) -> str:
     return str(value or "").strip().upper()
-
-
-def _package_version(package: str) -> str:
-    try:
-        return version(package)
-    except PackageNotFoundError:
-        return "unavailable"

@@ -1,0 +1,38 @@
+[
+  {"well": "A1", "role": "blank"},
+  {"well": "A2", "role": "blank"},
+  {
+    "well": "B1",
+    "role": "sample",
+    "construct_id": "empty_vector_capacity",
+    "biological_replicate": "bio_1",
+    "technical_replicate": "tech_1"
+  },
+  {
+    "well": "B2",
+    "role": "sample",
+    "construct_id": "empty_vector_capacity",
+    "biological_replicate": "bio_2",
+    "technical_replicate": "tech_1"
+  },
+  {
+    "well": "C1",
+    "role": "sample",
+    "construct_id": "load_reference",
+    "biological_replicate": "bio_1",
+    "technical_replicate": "tech_1",
+    "inducer_name": "aTc",
+    "inducer_concentration": 10.0,
+    "inducer_unit": "nM"
+  },
+  {
+    "well": "C2",
+    "role": "sample",
+    "construct_id": "load_reference",
+    "biological_replicate": "bio_2",
+    "technical_replicate": "tech_1",
+    "inducer_name": "aTc",
+    "inducer_concentration": 10.0,
+    "inducer_unit": "nM"
+  }
+]

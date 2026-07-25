@@ -14,6 +14,9 @@ from benchmark_suite.benchmark_controller import evaluate_candidate
 from mcp_server.artifact_writer import create_run_dir, write_json, write_state_artifacts, write_text
 from mcp_server.chart_renderer import render_charts
 from mcp_server.explainer import build_design_explanation, validate_explanation_options
+from mcp_server.result_access import (
+    best_topology_from_result as _best_topology_from_result,
+)
 from mcp_server.run_store import RunStore
 from mcp_server.serializers import design_state_from_dict, summarize_state, summarize_topology
 from schemas.design_diff import compare_designs
@@ -30,6 +33,7 @@ from exporters.genbank_exporter import export_genbank
 from exporters.sbol3_exporter import export_sbol3_turtle
 from vector_db import InMemoryVectorDB
 from workflows.reflexion_controller import run_reflexion_workflow
+from utils.llm_utils import resolve_agent_model
 
 
 DEFAULT_MODEL = "gpt-5.4-mini"
@@ -109,6 +113,24 @@ def design_circuit_quick(
     user_intent = str(user_intent or "").strip()
     if not user_intent:
         return _error_response("user_intent is required.", ERROR_VALIDATION)
+    from utils.safety_checker import check_safety, log_safety_event
+    safety_result = check_safety(user_intent, host_organism)
+    if safety_result.status != "safe":
+        log_safety_event(
+            None,
+            user_intent,
+            safety_result.status,
+            safety_result.warnings,
+            action="design_circuit_quick",
+            categories=safety_result.categories,
+        )
+    if not safety_result.is_safe:
+        return _error_response(safety_result.redirection_message, "SAFETY_VIOLATION")
+    if not safety_result.automation_allowed:
+        return _error_response(
+            safety_result.redirection_message,
+            "SAFETY_REVIEW_REQUIRED",
+        )
     compute_budget_result = _coerce_min_int(compute_budget, "compute_budget")
     if compute_budget_result["status"] == "error":
         return compute_budget_result
@@ -173,8 +195,8 @@ def design_circuit_quick(
     try:
         result_state = run_reflexion_workflow(
             state=state,
-            builder=BuilderAgent(api_key=resolved_api_key, model_name=resolved_model, api_base=resolved_api_base),
-            translator=TranslatorRunner(api_key=resolved_api_key, model_name=resolved_model, api_base=resolved_api_base),
+            builder=BuilderAgent(api_key=resolved_api_key, model_name=resolve_agent_model("builder", resolved_model), api_base=resolved_api_base),
+            translator=TranslatorRunner(api_key=resolved_api_key, model_name=resolve_agent_model("translator", resolved_model), api_base=resolved_api_base),
             cello_wrapper=CelloWrapper(
                 cello_command=options.cello_command,
                 ucf_path=options.ucf_path,
@@ -183,7 +205,7 @@ def design_circuit_quick(
                 artifact_dir=Path(options.output_dir) / "cello_artifacts" if options.output_dir else None,
             ),
             batch_ode_simulator=batch_ode_simulator,
-            critic=CriticAgent(api_key=resolved_api_key, model_name=resolved_model, api_base=resolved_api_base),
+            critic=CriticAgent(api_key=resolved_api_key, model_name=resolve_agent_model("critic", resolved_model), api_base=resolved_api_base),
             consolidator=ConsolidatorAgent(),
             skill_retriever=skill_retriever,
             data_miner=DataMinerAgent() if options.enable_ode else None,
@@ -202,6 +224,8 @@ def design_circuit_quick(
         "run_dir": str(run_dir.resolve()),
         "summary": summary,
         "artifacts": artifacts,
+        "warnings": safety_result.warnings,
+        "safety": safety_result.to_dict(),
     })
 
 
@@ -226,6 +250,31 @@ def start_design_run(
     user_intent = str(user_intent or "").strip()
     if not user_intent:
         return _error_response("user_intent is required.", ERROR_VALIDATION)
+    from utils.safety_checker import check_safety, log_safety_event
+    safety_result = check_safety(user_intent, host_organism)
+    if not safety_result.is_safe:
+        log_safety_event(
+            None,
+            user_intent,
+            safety_result.status,
+            safety_result.warnings,
+            action="start_design_run",
+            categories=safety_result.categories,
+        )
+        return _error_response(safety_result.redirection_message, "SAFETY_VIOLATION")
+    if not safety_result.automation_allowed:
+        log_safety_event(
+            None,
+            user_intent,
+            safety_result.status,
+            safety_result.warnings,
+            action="start_design_run",
+            categories=safety_result.categories,
+        )
+        return _error_response(
+            safety_result.redirection_message,
+            "SAFETY_REVIEW_REQUIRED",
+        )
     compute_budget_result = _coerce_min_int(compute_budget, "compute_budget")
     if compute_budget_result["status"] == "error":
         return compute_budget_result
@@ -249,10 +298,11 @@ def start_design_run(
         "ucf_path": ucf_path,
         "sensor_path": sensor_path,
         "device_path": device_path,
+        "safety": safety_result.to_dict(),
     }
     selected_store = run_store or DEFAULT_RUN_STORE
     run_id = f"run_{uuid.uuid4().hex[:12]}"
-    return selected_store.start(
+    response = selected_store.start(
         task=lambda: design_circuit_quick(
             user_intent=user_intent,
             host_organism=host_organism,
@@ -276,6 +326,9 @@ def start_design_run(
         request=request,
         run_id=run_id,
     )
+    response["warnings"] = safety_result.warnings
+    response["safety"] = safety_result.to_dict()
+    return response
 
 
 def get_design_run_status(run_id: str, run_store: RunStore | None = None) -> dict[str, Any]:
@@ -1179,18 +1232,6 @@ def _comparison_entry(run_id: str, result: dict[str, Any]) -> dict[str, Any]:
         "run_dir": result.get("run_dir") or result.get("workflow_run_dir"),
         "best_topology": best_topology,
     }
-
-
-def _best_topology_from_result(result: dict[str, Any]) -> dict[str, Any]:
-    direct = result.get("best_topology")
-    if isinstance(direct, dict) and direct:
-        return direct
-    summary = result.get("summary", {})
-    if isinstance(summary, dict):
-        best_topology = summary.get("best_topology")
-        if isinstance(best_topology, dict):
-            return best_topology
-    return {}
 
 
 def _metric(best_topology: dict[str, Any], summary: dict[str, Any], key: str) -> Any:

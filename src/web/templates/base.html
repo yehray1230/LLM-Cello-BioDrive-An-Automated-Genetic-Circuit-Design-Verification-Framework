@@ -25,6 +25,7 @@
     <aside class="sidebar">
       <div class="brand">Genetic Circuit<br>Research Studio</div>
       <nav class="nav">
+        <a href="/web/resource-calibrations" class="{{ 'active' if active_path.startswith('/web/resource-calibrations') else '' }}">{{ _tr('資源校正', 'Resource Calibration') }}</a>
         <a href="/web" class="{{ 'active' if active_path == '/web' or active_path == '/' else '' }}" style="display: flex; align-items: center; justify-content: space-between;">
           <span>{{ _tr('儀表板', 'Dashboard') }}</span>
           {% if unread_notifications > 0 %}

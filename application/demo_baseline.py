@@ -7,6 +7,13 @@ from pathlib import Path
 from typing import Any
 
 from application.case01_evidence import build_case01_evidence_manifest
+from application.demo_constants import (
+    DEMO_BASELINE_CLAIM,
+    DEMO_BASELINE_TASK_ID,
+    DEMO_BASELINE_TASK_SET_ID,
+    DEMO_BASELINE_TRUTH_TABLE,
+    DEMO_BASELINE_VERILOG,
+)
 from benchmark_suite.design_task_dataset import load_design_task_set
 from benchmark_suite.readiness_evaluator import evaluate_readiness
 from schemas.assembly_plan import AssemblyFragment, AssemblyJunction, AssemblyPlan
@@ -17,27 +24,10 @@ from tools.sequence_analyzer import analyze_design_sequences
 from tools.tool_adapters import inspect_capabilities
 
 
-DEMO_BASELINE_TASK_SET_ID = "exp003_design_tasks_v1"
-DEMO_BASELINE_TASK_ID = "cello_a_and_not_b_gfp_v1"
 _DEMO_TASK_SET = load_design_task_set(DEMO_BASELINE_TASK_SET_ID)
 _DEMO_TASK = _DEMO_TASK_SET.task(DEMO_BASELINE_TASK_ID)
 
 DEMO_BASELINE_INTENT = _DEMO_TASK.request
-DEMO_BASELINE_CLAIM = (
-    "This packet is computational screening evidence for a fixed demo intent. "
-    "It is not wet-lab validation and it is not an experimental protocol."
-)
-DEMO_BASELINE_VERILOG = (
-    "module demo_a_and_not_b(input A, input B, output GFP); "
-    "assign GFP = A & ~B; "
-    "endmodule"
-)
-DEMO_BASELINE_TRUTH_TABLE = [
-    {"A": 0, "B": 0, "GFP": 0},
-    {"A": 0, "B": 1, "GFP": 0},
-    {"A": 1, "B": 0, "GFP": 1},
-    {"A": 1, "B": 1, "GFP": 0},
-]
 
 
 def demo_baseline_topology() -> dict[str, Any]:

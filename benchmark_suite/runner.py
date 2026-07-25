@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-import hashlib
-import json
 from pathlib import Path
 import statistics
 from typing import Any
@@ -12,6 +10,7 @@ from benchmark_suite.benchmark_controller import evaluate_candidate
 from benchmark_suite.dataset import BenchmarkDataset
 from benchmark_suite.reporting import write_benchmark_report
 from tools.tool_adapters import inspect_capabilities
+from utils.hashing import stable_json_sha256
 
 
 def run_benchmark_dataset(
@@ -85,6 +84,7 @@ def run_benchmark_dataset(
                 else 0.0
             ),
             "grade_counts": _grade_counts(case_results),
+            "calibration": _calibration_metrics(case_results),
             "dimensions": dimension_summary,
         },
         "cases": case_results,
@@ -158,6 +158,42 @@ def compare_benchmark_runs(
     }
 
 
+def _calibration_metrics(case_results: list[dict[str, Any]]) -> dict[str, Any]:
+    tp = fp = tn = fn = 0
+    for case in case_results:
+        expected_score = case.get("expected", {}).get("functional_score", 1.0)
+        expected_functional = expected_score >= 0.70
+        actual_passed = case.get("passed", False)
+
+        if expected_functional and actual_passed:
+            tp += 1
+        elif expected_functional and not actual_passed:
+            fn += 1
+        elif not expected_functional and actual_passed:
+            fp += 1
+        else:
+            tn += 1
+
+    total = tp + fp + tn + fn
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 1.0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 1.0
+    fpr = fp / (fp + tn) if (fp + tn) > 0 else 0.0
+    fnr = fn / (fn + tp) if (fn + tp) > 0 else 0.0
+    accuracy = (tp + tn) / total if total > 0 else 1.0
+
+    return {
+        "true_positives": tp,
+        "false_positives": fp,
+        "true_negatives": tn,
+        "false_negatives": fn,
+        "precision": round(precision, 4),
+        "recall": round(recall, 4),
+        "false_positive_rate": round(fpr, 4),
+        "false_negative_rate": round(fnr, 4),
+        "accuracy": round(accuracy, 4),
+    }
+
+
 def _check_expectations(
     evaluation: dict[str, Any],
     expected: dict[str, Any],
@@ -211,10 +247,4 @@ def _grade_counts(results: list[dict[str, Any]]) -> dict[str, int]:
 
 
 def _payload_hash(payload: dict[str, Any]) -> str:
-    encoded = json.dumps(
-        payload,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
+    return stable_json_sha256(payload)

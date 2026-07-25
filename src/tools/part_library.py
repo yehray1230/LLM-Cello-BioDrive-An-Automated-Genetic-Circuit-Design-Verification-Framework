@@ -5,6 +5,9 @@ import json
 from pathlib import Path
 from typing import Any
 
+from utils.scalar_values import optional_float as _optional_float
+from utils.scalar_values import optional_trimmed_text as _optional_string
+
 
 DEFAULT_DEMO_LIBRARY = (
     Path(__file__).resolve().parent.parent
@@ -131,15 +134,3 @@ def _normalize_sequence(value: Any) -> str | None:
         return None
     sequence = "".join(str(value).split()).upper()
     return sequence or None
-
-
-def _optional_string(value: Any) -> str | None:
-    text = "" if value is None else str(value).strip()
-    return text or None
-
-
-def _optional_float(value: Any) -> float | None:
-    try:
-        return None if value is None else float(value)
-    except (TypeError, ValueError):
-        return None

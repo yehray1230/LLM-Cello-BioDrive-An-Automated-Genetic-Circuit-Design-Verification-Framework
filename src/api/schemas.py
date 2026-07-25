@@ -115,6 +115,75 @@ class ParameterFitRequest(BaseModel):
     measurement_context: dict[str, Any] = Field(default_factory=dict)
 
 
+class ResourceCalibrationWorkflowRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    workflow_id: str | None = Field(default=None, max_length=128)
+    input_mode: Literal["raw_plate_reader", "derived_observations"]
+    dataset_id: str = Field(min_length=1, max_length=128)
+    validation_dataset_id: str = Field(min_length=1, max_length=128)
+    context: dict[str, Any]
+    constructs: list[dict[str, Any]] = Field(min_length=1, max_length=512)
+    validation_split: dict[str, Any]
+    raw_csv: str | None = Field(default=None, max_length=2_000_000)
+    plate_map: list[dict[str, Any]] = Field(default_factory=list, max_length=384)
+    preprocessing_config: dict[str, Any] = Field(default_factory=dict)
+    baseline_construct_id: str | None = Field(default=None, max_length=128)
+    demand_index_by_construct: dict[str, float] = Field(default_factory=dict)
+    demand_index_by_condition: dict[str, float] = Field(default_factory=dict)
+    observations: list[dict[str, Any]] = Field(default_factory=list, max_length=20_000)
+    defaults: dict[str, float] = Field(default_factory=dict)
+    bounds: dict[str, list[float]] = Field(default_factory=dict)
+    bootstrap_samples: int = Field(default=100, ge=0, le=10_000)
+    bootstrap_seed: int = 1729
+    observed_output_fold_changes: dict[str, float] = Field(default_factory=dict)
+    predicted_output_fold_changes: dict[str, float] = Field(default_factory=dict)
+    output_prediction_model_id: str = Field(default="", max_length=256)
+
+    @model_validator(mode="after")
+    def validate_input_mode(self) -> "ResourceCalibrationWorkflowRequest":
+        if self.input_mode == "raw_plate_reader":
+            if not (self.raw_csv or "").strip():
+                raise ValueError("raw_csv is required for raw_plate_reader input.")
+            if not self.plate_map:
+                raise ValueError("plate_map is required for raw_plate_reader input.")
+            if not (self.baseline_construct_id or "").strip():
+                raise ValueError(
+                    "baseline_construct_id is required for raw_plate_reader input."
+                )
+        elif not self.observations:
+            raise ValueError(
+                "observations are required for derived_observations input."
+            )
+        if bool(self.observed_output_fold_changes) != bool(
+            self.predicted_output_fold_changes
+        ):
+            raise ValueError(
+                "Observed and predicted output fold-change mappings must be supplied together."
+            )
+        return self
+
+
+class ResourceModelAnalysisRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    parameter_ranges: dict[str, list[float]] = Field(default_factory=dict)
+    morris_trajectories: int = Field(default=24, ge=4, le=10_000)
+    morris_levels: int = Field(default=6, ge=4, le=100)
+    sobol_sample_count: int = Field(default=512, ge=128, le=100_000)
+    fit_bootstrap_samples: int = Field(default=20, ge=10, le=10_000)
+    random_seed: int = 2606
+
+    @model_validator(mode="after")
+    def validate_morris_levels(self) -> "ResourceModelAnalysisRequest":
+        if self.morris_levels % 2:
+            raise ValueError("morris_levels must be even.")
+        for name, bounds in self.parameter_ranges.items():
+            if len(bounds) != 2 or bounds[0] <= 0 or bounds[1] <= bounds[0]:
+                raise ValueError(f"Invalid positive ordered range for {name!r}.")
+        return self
+
+
 class TemporalStageInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

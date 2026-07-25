@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}{{ _tr('資源競爭校正', 'Resource Competition Calibration') }}{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>{{ _tr('資源競爭校正診斷', 'Resource Competition Calibration Diagnostics') }}</h1>
+  <p class="muted">{{ _tr('追蹤輸入資料、前處理、參數可辨識性與留出驗證；此頁不會自動更新正式模擬參數。', 'Trace input data, preprocessing, parameter identifiability, and held-out validation. This page never updates production simulation parameters automatically.') }}</p>
+</header>
+
+<section class="grid grid-2">
+  <article class="card">
+    <h2>{{ _tr('上傳校正 bundle', 'Upload calibration bundle') }}</h2>
+    <form method="post" action="/web/resource-calibrations" enctype="multipart/form-data">
+      <label>JSON bundle
+        <input type="file" name="bundle_file" accept="application/json,.json" required>
+      </label>
+      <button type="submit">{{ _tr('執行診斷工作流', 'Run diagnostics workflow') }}</button>
+    </form>
+    <p class="muted">{{ _tr('支援 raw_plate_reader 與 derived_observations。後者會明確標示未執行原始 plate-reader QC。', 'Supports raw_plate_reader and derived_observations. The latter is explicitly marked as bypassing raw plate-reader QC.') }}</p>
+  </article>
+  <article class="card">
+    <h2>{{ _tr('證據邊界', 'Evidence boundary') }}</h2>
+    <p>{{ _tr('這是 0.x research preview 的情境限定計算證據，不代表濕實驗驗證。即使所有 gate 通過，也必須人工審查後才能考慮後續 promotion。', 'This is context-bound computational evidence in a 0.x research preview, not wet-lab validation. Even when all gates pass, a separate manual review is required before any future promotion.') }}</p>
+  </article>
+</section>
+
+{% if workflow %}
+<article class="card" style="margin-top:18px">
+  <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap">
+    <div>
+      <h2>{{ workflow.workflow_id }}</h2>
+      <p class="muted">{{ workflow.dataset_id }} → {{ workflow.validation_dataset_id }} · {{ workflow.input_mode }}</p>
+    </div>
+    <span class="badge">{{ workflow.status }}</span>
+  </div>
+  <p><strong>{{ _tr('主導限制層', 'Dominant limiting layer') }}:</strong> {{ workflow.dominant_layer }}</p>
+  <p><strong>{{ _tr('主張狀態', 'Claim state') }}:</strong> {{ workflow.claim_boundary.claim_state }} / {{ workflow.claim_boundary.decision }}</p>
+  <p class="muted">{{ workflow.claim_boundary.statement }}</p>
+  <form method="post" action="/web/resource-calibrations/{{ workflow.workflow_id }}/model-analysis">
+    <button type="submit">{{ _tr('執行 M6 敏感度與模型比較', 'Run M6 sensitivity and model comparison') }}</button>
+  </form>
+</article>
+
+{% if workflow.model_analysis %}
+{% set analysis = workflow.model_analysis %}
+<section class="grid grid-2" style="margin-top:18px">
+  <article class="card">
+    <h2>{{ _tr('Morris 篩選', 'Morris screening') }}</h2>
+    <p class="muted">{{ analysis.morris.method }} · {{ analysis.morris.trajectories }} trajectories</p>
+    <table>
+      <tr><th>{{ _tr('排名', 'Rank') }}</th><th>{{ _tr('參數', 'Parameter') }}</th><th>{{ _tr('綜合分數', 'Combined score') }}</th></tr>
+      {% for item in analysis.morris.ranking %}
+      <tr><td>{{ item.rank }}</td><td>{{ item.parameter_name }}</td><td>{{ '%.3f'|format(item.combined_score) }}</td></tr>
+      {% endfor %}
+    </table>
+  </article>
+  <article class="card">
+    <h2>{{ _tr('Sobol pilot', 'Sobol pilot') }}</h2>
+    <p><strong>{{ analysis.sobol_pilot.status }}</strong></p>
+    <p class="muted">{{ analysis.sobol_pilot.base_sample_count }} base samples · {{ analysis.sobol_pilot.model_evaluation_count }} evaluations</p>
+    <table>
+      <tr><th>{{ _tr('排名', 'Rank') }}</th><th>{{ _tr('參數', 'Parameter') }}</th><th>{{ _tr('綜合分數', 'Combined score') }}</th></tr>
+      {% for item in analysis.sobol_pilot.ranking %}
+      <tr><td>{{ item.rank }}</td><td>{{ item.parameter_name }}</td><td>{{ '%.3f'|format(item.combined_score) }}</td></tr>
+      {% endfor %}
+    </table>
+  </article>
+</section>
+<article class="card" style="margin-top:18px">
+  <h2>{{ _tr('Frozen holdout 模型比較', 'Frozen-holdout model comparison') }}</h2>
+  <table>
+    <tr><th>{{ _tr('排名', 'Rank') }}</th><th>{{ _tr('模型', 'Model') }}</th><th>capacity RMSE</th><th>growth RMSE</th><th>combined RMSE</th></tr>
+    {% for item in analysis.model_comparison.models %}
+    <tr><td>{{ item.rank }}</td><td>{{ item.model_name }}</td><td>{{ '%.4f'|format(item.capacity_rmse) }}</td><td>{{ '%.4f'|format(item.relative_growth_rmse) }}</td><td>{{ '%.4f'|format(item.combined_rmse) }}</td></tr>
+    {% endfor %}
+  </table>
+  <p><strong>{{ _tr('建議', 'Recommendation') }}:</strong> {{ analysis.recommendation.decision }}</p>
+  <p class="muted">{{ analysis.recommendation.reason }}</p>
+  <p><strong>SBML/BioCRNpyler gate:</strong> {{ analysis.sbml_biocrnpyler_gate.decision }}</p>
+  <p class="muted">{{ analysis.claim_boundary }}</p>
+</article>
+{% endif %}
+
+<section class="grid grid-2" style="margin-top:18px">
+  <article class="card">
+    <h2>{{ _tr('階段狀態', 'Stage status') }}</h2>
+    <table>
+      <tr><th>{{ _tr('階段', 'Stage') }}</th><th>{{ _tr('狀態', 'Status') }}</th><th>{{ _tr('說明', 'Detail') }}</th></tr>
+      {% for name, stage in workflow.stages.items() %}
+      <tr>
+        <td>{{ name }}</td><td>{{ stage.status }}</td>
+        <td class="muted">{{ stage.detail|default(stage.reason_codes|default(stage.failed_gates|default('')), true) }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </article>
+  <article class="card">
+    <h2>{{ _tr('參數角色與來源', 'Parameter roles and provenance') }}</h2>
+    <table>{% for role, count in workflow.parameter_role_summary.items() %}<tr><th>{{ role }}</th><td>{{ count }}</td></tr>{% endfor %}</table>
+    <p class="muted">context fingerprint: <code>{{ workflow.provenance.context_fingerprint[:16] }}…</code></p>
+    <p class="muted">observations: {{ workflow.provenance.observation_ids|length }} · source metrics: {{ workflow.provenance.source_metric_ids|length }} · raw traces: {{ workflow.provenance.raw_trace_count }}</p>
+  </article>
+</section>
+
+{% if workflow.fit %}
+<article class="card" style="margin-top:18px">
+  <h2>{{ _tr('預設值與校正值比較', 'Default vs calibrated parameters') }}</h2>
+  <table>
+    <tr><th>{{ _tr('參數', 'Parameter') }}</th><th>{{ _tr('預設值', 'Default') }}</th><th>{{ _tr('擬合值', 'Fitted') }}</th><th>{{ _tr('變化', 'Change') }}</th></tr>
+    {% for item in workflow.fit.profile.default_comparison %}
+    <tr><td>{{ item.parameter_name }}</td><td>{{ '%.4g'|format(item.default_value) }}</td><td>{{ '%.4g'|format(item.fitted_value) }}</td><td>{{ '%.1f'|format(item.percent_change) }}%</td></tr>
+    {% endfor %}
+  </table>
+</article>
+{% endif %}
+
+{% if workflow.candidate_comparison %}
+<article class="card" style="margin-top:18px">
+  <h2>{{ _tr('留出候選比較', 'Held-out candidate comparison') }}</h2>
+  <table>
+    <tr><th>ID</th><th>{{ _tr('需求指標', 'Demand') }}</th><th>{{ _tr('容量損失：觀測 / 預測', 'Capacity loss: observed / predicted') }}</th><th>{{ _tr('相對生長：觀測 / 預測', 'Relative growth: observed / predicted') }}</th></tr>
+    {% for item in workflow.candidate_comparison %}
+    <tr><td>{{ item.observation_id }}</td><td>{{ '%.3g'|format(item.demand_index) }}</td><td>{{ '%.3f'|format(item.observed_capacity_loss) }} / {{ '%.3f'|format(item.predicted_capacity_loss) }}</td><td>{{ '%.3f'|format(item.observed_relative_growth) }} / {{ '%.3f'|format(item.predicted_relative_growth) }}</td></tr>
+    {% endfor %}
+  </table>
+</article>
+{% endif %}
+
+{% if workflow.warnings %}
+<article class="card" style="margin-top:18px">
+  <h2>{{ _tr('不確定性與警告', 'Uncertainty and warnings') }}</h2>
+  <ul>{% for warning in workflow.warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
+</article>
+{% endif %}
+{% endif %}
+
+<article class="card" style="margin-top:18px">
+  <h2>{{ _tr('工作流歷史', 'Workflow history') }}</h2>
+  {% if workflows %}
+  <table>
+    <tr><th>ID</th><th>{{ _tr('狀態', 'Status') }}</th><th>{{ _tr('輸入模式', 'Input mode') }}</th><th>{{ _tr('主張', 'Claim') }}</th></tr>
+    {% for item in workflows %}
+    <tr><td><a href="/web/resource-calibrations/{{ item.workflow_id }}">{{ item.workflow_id }}</a></td><td>{{ item.status }}</td><td>{{ item.input_mode }}</td><td>{{ item.claim_boundary.claim_state }}</td></tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">{{ _tr('尚無校正工作流。', 'No calibration workflows yet.') }}</p>
+  {% endif %}
+</article>
+{% endblock %}

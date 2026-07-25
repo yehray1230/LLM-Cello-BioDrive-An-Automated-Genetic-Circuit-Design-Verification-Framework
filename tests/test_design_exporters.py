@@ -139,3 +139,41 @@ def test_genbank_round_trip() -> None:
     assert "promoter" in part_types
     assert "RBS" in part_types
     assert "CDS" in part_types
+
+
+def test_genbank_and_sbol3_multi_gene_complex_construct_export() -> None:
+    design = topology_to_design_ir(
+        {
+            "verilog": (
+                "module multi_gene(input A, input B, output Y); "
+                "wire n1, n2; nor(n1, A, B); not(n2, n1); assign Y = n2; endmodule"
+            )
+        },
+        design_id="multi_gene_complex",
+    )
+    part_sequences = {
+        "promoter": "TTGACAGATACT",
+        "RBS": "AGGAGGACAA",
+        "CDS": "ATGAAACGGTAA",
+        "terminator": "GCCGCCAAAA",
+        "sensor": "ATGCCCGGGTAA",
+    }
+    for part in design.parts:
+        part.sequence = part_sequences.get(part.part_type, "ATGCCCCAATAA")
+        part.confidence = "test_fixture"
+    design.validation_status["sequences"] = "complete"
+
+    gb_result = export_genbank(design)
+    sbol_result = export_sbol3_turtle(design)
+
+    assert gb_result.ok is True
+    assert gb_result.content.count("LOCUS       ") == len(design.constructs)
+    assert len(design.constructs) >= 2
+
+    draft = genbank_to_import_draft(gb_result.content, filename="multi_gene.gb")
+    assert len(draft.parts) >= 4
+    assert draft.source_type == "GenBank"
+
+    assert sbol_result.ok is True
+    assert "@prefix sbol: <http://sbols.org/v3#>" in sbol_result.content
+    assert sbol_result.content.count("a sbol:Component") >= 2

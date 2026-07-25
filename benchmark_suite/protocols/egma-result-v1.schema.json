@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/egma-result-v1.schema.json",
+  "title": "EGMA system result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_id",
+    "run_id",
+    "system_id",
+    "response_status",
+    "user_summary",
+    "candidate_output",
+    "metrics",
+    "claims",
+    "claim_audit",
+    "artifacts",
+    "attempts",
+    "evidence_records",
+    "operational",
+    "protocol_versions",
+    "feedback_trace",
+    "evidence_feedback",
+    "prompt_messages",
+    "tool_messages",
+    "agent_state",
+    "cache_payload",
+    "ranking_feedback",
+    "repair_feedback",
+    "evidence_canaries"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "egma-result-v1"
+    },
+    "task_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "system_id": {
+      "enum": ["S0", "S1", "S2", "S3"]
+    },
+    "response_status": {
+      "enum": [
+        "completed",
+        "clarification",
+        "unresolved",
+        "refusal",
+        "operational_failure"
+      ]
+    },
+    "user_summary": {
+      "type": "string"
+    },
+    "candidate_output": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "representation_type",
+            "artifact_ref",
+            "declared_inputs",
+            "declared_output",
+            "canonical_expression"
+          ],
+          "properties": {
+            "representation_type": {
+              "enum": ["structured_logic", "verilog", "sbol3"]
+            },
+            "artifact_ref": {
+              "type": "string",
+              "minLength": 1
+            },
+            "declared_inputs": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 3,
+              "uniqueItems": true,
+              "items": {
+                "type": "string"
+              }
+            },
+            "declared_output": {
+              "type": "string",
+              "minLength": 1
+            },
+            "canonical_expression": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "output_contract_parse",
+        "specification_complete",
+        "syntax_valid",
+        "topology_valid",
+        "truth_table_exact",
+        "functional_success",
+        "simulation_complete",
+        "unsupported_claim"
+      ],
+      "properties": {
+        "output_contract_parse": {
+          "type": ["boolean", "null"]
+        },
+        "specification_complete": {
+          "type": ["boolean", "null"]
+        },
+        "syntax_valid": {
+          "type": ["boolean", "null"]
+        },
+        "topology_valid": {
+          "type": ["boolean", "null"]
+        },
+        "truth_table_exact": {
+          "type": ["boolean", "null"]
+        },
+        "functional_success": {
+          "type": ["boolean", "null"]
+        },
+        "simulation_complete": {
+          "type": ["boolean", "null"]
+        },
+        "unsupported_claim": {
+          "type": ["boolean", "null"]
+        }
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["claim_type", "text", "evidence_refs", "supported"],
+        "properties": {
+          "claim_type": {
+            "enum": [
+              "computational_screening",
+              "formal_functional_success",
+              "simulation_completed",
+              "external_cello_mapping",
+              "experimental_validation",
+              "wet_lab_ready",
+              "quantitative_in_vivo_prediction",
+              "comparative_superiority"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "evidence_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "supported": {
+            "type": ["boolean", "null"]
+          }
+        }
+      }
+    },
+    "claim_audit": {
+      "type": "object"
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "attempts": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "evidence_records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evidence_id",
+          "category",
+          "status",
+          "comparison_eligible",
+          "artifact_ref",
+          "metadata"
+        ],
+        "properties": {
+          "evidence_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "category": {
+            "enum": [
+              "output_contract_check",
+              "specification_check",
+              "formal_syntax_check",
+              "topology_check",
+              "truth_table_check",
+              "constraint_check",
+              "signal_overlap_check",
+              "simulation_trace",
+              "provenance_check",
+              "claim_audit",
+              "external_cello_mapping",
+              "independent_experimental_measurement",
+              "frozen_comparative_analysis"
+            ]
+          },
+          "status": {
+            "enum": ["passed", "failed", "not_run", "unknown"]
+          },
+          "comparison_eligible": {
+            "type": "boolean"
+          },
+          "artifact_ref": {
+            "type": ["string", "null"]
+          },
+          "metadata": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "operational": {
+      "type": "object"
+    },
+    "protocol_versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_schema", "formal_evaluator", "claim_audit"],
+      "properties": {
+        "task_schema": {
+          "type": "string",
+          "minLength": 1
+        },
+        "formal_evaluator": {
+          "type": "string",
+          "minLength": 1
+        },
+        "claim_audit": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "feedback_trace": {
+      "type": "object"
+    },
+    "evidence_feedback": {},
+    "prompt_messages": {},
+    "tool_messages": {},
+    "agent_state": {},
+    "cache_payload": {},
+    "ranking_feedback": {},
+    "repair_feedback": {},
+    "evidence_canaries": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

@@ -1,0 +1,51 @@
+[
+  {
+    "parameter_name": "temperature_c",
+    "role": "observed",
+    "unit": "degC",
+    "source": "synthetic_fixture_observation",
+    "measurement_context_id": "ctx_ecoli_k12_m9_37c_v1",
+    "value": 37.0,
+    "confidence": 1.0,
+    "is_fittable": false
+  },
+  {
+    "parameter_name": "translational_demand_coefficient",
+    "role": "calibrated",
+    "unit": "dimensionless",
+    "source": "pending_joint_fit",
+    "measurement_context_id": "ctx_ecoli_k12_m9_37c_v1",
+    "lower_bound": 0.0,
+    "upper_bound": 5.0,
+    "is_fittable": true
+  },
+  {
+    "parameter_name": "translation_elongation_rate",
+    "role": "literature_prior",
+    "unit": "aa/s",
+    "source": "synthetic_literature_prior",
+    "measurement_context_id": "ctx_ecoli_k12_m9_37c_v1",
+    "value": 15.0,
+    "lower_bound": 10.0,
+    "upper_bound": 20.0,
+    "confidence": 0.65,
+    "is_fittable": false
+  },
+  {
+    "parameter_name": "maturation_state_count",
+    "role": "fixed_assumption",
+    "unit": "count",
+    "source": "resource_model_spec_v0.1",
+    "measurement_context_id": "ctx_ecoli_k12_m9_37c_v1",
+    "value": 2.0,
+    "is_fittable": false
+  },
+  {
+    "parameter_name": "capacity_loss_fraction",
+    "role": "inferred",
+    "unit": "dimensionless",
+    "source": "derived_from_matched_empty_vector",
+    "measurement_context_id": "ctx_ecoli_k12_m9_37c_v1",
+    "is_fittable": false
+  }
+]

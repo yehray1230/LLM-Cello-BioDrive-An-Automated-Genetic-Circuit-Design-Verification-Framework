@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from datetime import datetime, timezone
-import hashlib
 import json
 from pathlib import Path
 import re
@@ -11,6 +10,7 @@ import threading
 from typing import Any, Iterator
 
 from repositories.json_repository import RepositoryError
+from utils.hashing import stable_json_sha256
 
 
 SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$")
@@ -441,7 +441,7 @@ def _deserialize(value: str) -> dict[str, Any]:
 
 
 def _payload_hash(payload: dict[str, Any]) -> str:
-    return hashlib.sha256(_serialize(payload).encode("utf-8")).hexdigest()
+    return stable_json_sha256(payload)
 
 
 def _content_hash(payload: dict[str, Any]) -> str:

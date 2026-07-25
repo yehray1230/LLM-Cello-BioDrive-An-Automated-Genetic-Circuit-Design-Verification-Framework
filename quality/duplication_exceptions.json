@@ -1,0 +1,17 @@
+{
+  "schema_version": "duplication-exceptions@1.0.0",
+  "exceptions": [
+    {
+      "group_id": "repeated_name:_deduplicate",
+      "classification": "D2",
+      "reason": "The resource-workflow helper stringifies inputs and removes blank-like values before stable deduplication, while the safety helper preserves every validated string and only removes repeats. Sharing either behavior would silently change calibration diagnostics or safety findings.",
+      "boundary": "benchmark_suite/resource_workflow.py::_deduplicate and src/utils/safety_checker.py::_deduplicate",
+      "review_trigger": "Review if both callers adopt the same input validation and blank-value contract, with characterization tests proving identical ordering, filtering, equality, and mutation behavior.",
+      "canonical_implementation": null,
+      "symbols": [
+        "benchmark_suite/resource_workflow.py::_deduplicate",
+        "src/utils/safety_checker.py::_deduplicate"
+      ]
+    }
+  ]
+}

@@ -46,7 +46,7 @@ def test_research_service_runs_simulation_evaluation_and_reports(
     result = _wait(services, started["run_id"])
 
     assert result["status"] == "completed"
-    assert result["simulation_result"]["model_version"] == "1.9.0"
+    assert result["simulation_result"]["model_version"] == "1.10.0"
     assert result["evaluation"]["scoring_version"] == "1.9.0"
     assert result["research_result_hash"]
     for path in result["artifacts"].values():

@@ -28,6 +28,15 @@ from schemas.simulation import (
     stable_seed,
 )
 from schemas.state import DesignState
+from utils.boolean_values import defaulted_bool as _coerce_bool
+
+
+LEGACY_RESOURCE_MODEL_MODE = "legacy_preview"
+BASELINE_RELATIVE_RESOURCE_MODEL_MODE = "baseline_relative_v0.1"
+DEFAULT_HOST_RNAP_BASELINE_FREE_FRACTION = 0.80
+DEFAULT_HOST_RIBOSOME_BASELINE_FREE_FRACTION = 0.70
+DEFAULT_PROTEIN_LENGTH_AA = 250.0
+DEFAULT_TRANSLATION_ELONGATION_RATE_AA_S = 15.0
 
 
 @dataclass
@@ -316,6 +325,71 @@ class ResourceAwareSimulation:
             for pos, gene in enumerate(op):
                 self.gene_to_operon[gene] = (op_idx, pos)
 
+        self.baseline_relative_resources = bool(
+            self.params.get("baseline_relative_resource_model", 0.0) >= 0.5
+        )
+        if self.baseline_relative_resources:
+            rnap_total = self.params["rnap_total"]
+            ribosome_total = self.params["ribosome_total"]
+            rnap_fraction = self.params["host_rnap_baseline_free_fraction"]
+            ribosome_fraction = self.params["host_ribosome_baseline_free_fraction"]
+            self.rnap_baseline_free = rnap_total * rnap_fraction
+            self.ribosome_baseline_free = ribosome_total * ribosome_fraction
+            self.host_rnap_background_demand = _background_demand_for_free_fraction(
+                rnap_total,
+                self.params["km_rnap"],
+                rnap_fraction,
+            )
+            self.host_ribosome_background_demand = _background_demand_for_free_fraction(
+                ribosome_total,
+                self.params["km_ribosome"],
+                ribosome_fraction,
+            )
+        else:
+            self.rnap_baseline_free = self.params["rnap_total"]
+            self.ribosome_baseline_free = self.params["ribosome_total"]
+            self.host_rnap_background_demand = 0.0
+            self.host_ribosome_background_demand = 0.0
+
+    def _translation_demand_weight(self, gene: str) -> float:
+        default_length = max(
+            self.params.get("default_protein_length_aa", DEFAULT_PROTEIN_LENGTH_AA),
+            1.0,
+        )
+        length_aa = max(
+            self.params.get(f"protein_length_aa_{gene}", default_length),
+            1.0,
+        )
+        default_elongation = max(
+            self.params.get(
+                "translation_elongation_rate_aa_s",
+                DEFAULT_TRANSLATION_ELONGATION_RATE_AA_S,
+            ),
+            1e-9,
+        )
+        elongation = max(
+            self.params.get(
+                f"translation_elongation_rate_aa_s_{gene}",
+                default_elongation,
+            ),
+            1e-9,
+        )
+        residence_time = length_aa / elongation
+        reference_residence_time = default_length / default_elongation
+        base_translation = max(self.params.get("translation_rate", 1.0), 1e-9)
+        gene_translation = max(
+            self.params.get(f"translation_rate_{gene}", base_translation),
+            0.0,
+        )
+        rbs_strength = max(
+            self.params.get(
+                f"rbs_strength_{gene}",
+                gene_translation / base_translation,
+            ),
+            0.0,
+        )
+        return rbs_strength * residence_time / max(reference_residence_time, 1e-9)
+
     def _solve_free_regulator(
         self,
         regulator: str,
@@ -538,25 +612,68 @@ class ResourceAwareSimulation:
             first_idx = self.signal_idx[first_gene]
             promoter_demand_op[op_idx] = promoter_demand[first_idx]
 
-        rnap_free, rnap_occupancy = self.solver.solve_rnap(
-            self.params["rnap_total"], promoter_demand_op, self.params["km_rnap"]
+        rnap_demands = promoter_demand_op
+        if self.baseline_relative_resources:
+            rnap_demands = np.concatenate(
+                ([self.host_rnap_background_demand], promoter_demand_op)
+            )
+        rnap_free, rnap_total_occupancy = self.solver.solve_rnap(
+            self.params["rnap_total"], rnap_demands, self.params["km_rnap"]
         )
 
         translating_mrna = np.zeros(n)
+        translation_demand = np.zeros(n)
         for idx, name in enumerate(self.dynamic_signals):
             op_idx, _ = self.gene_to_operon[name]
             translating_mrna[idx] = mrna[op_idx]
+            translation_demand[idx] = translating_mrna[
+                idx
+            ] * self._translation_demand_weight(name)
 
-        ribo_free, ribo_occupancy = self.solver.solve_ribosome(
-            self.params["ribosome_total"], translating_mrna, self.params["km_ribosome"]
+        ribosome_demands = translating_mrna
+        if self.baseline_relative_resources:
+            ribosome_demands = np.concatenate(
+                ([self.host_ribosome_background_demand], translation_demand)
+            )
+        ribo_free, ribosome_total_occupancy = self.solver.solve_ribosome(
+            self.params["ribosome_total"],
+            ribosome_demands,
+            self.params["km_ribosome"],
         )
 
-        rnap_factor = rnap_free / (self.params["km_rnap"] + rnap_free)
-        ribo_factor = ribo_free / (self.params["km_ribosome"] + ribo_free)
-
         mu_max = self.params.get("growth_rate_dilution", 0.0004)
-        ribo_total = self.params.get("ribosome_total", 20000.0)
-        mu = mu_max * (ribo_free / max(ribo_total, 1e-9))
+        if self.baseline_relative_resources:
+            rnap_capacity_fraction = _clamp01(
+                rnap_free / max(self.rnap_baseline_free, 1e-9)
+            )
+            ribosome_capacity_fraction = _clamp01(
+                ribo_free / max(self.ribosome_baseline_free, 1e-9)
+            )
+            rnap_factor = _relative_saturation(
+                rnap_free,
+                self.rnap_baseline_free,
+                self.params["km_rnap"],
+            )
+            ribo_factor = _relative_saturation(
+                ribo_free,
+                self.ribosome_baseline_free,
+                self.params["km_ribosome"],
+            )
+            rnap_occupancy = 1.0 - rnap_capacity_fraction
+            ribo_occupancy = 1.0 - ribosome_capacity_fraction
+            relative_growth_rate = ribosome_capacity_fraction
+            mu = mu_max * relative_growth_rate
+        else:
+            rnap_factor = rnap_free / (self.params["km_rnap"] + rnap_free)
+            ribo_factor = ribo_free / (self.params["km_ribosome"] + ribo_free)
+            rnap_capacity_fraction = rnap_free / max(self.params["rnap_total"], 1e-9)
+            ribosome_capacity_fraction = ribo_free / max(
+                self.params["ribosome_total"], 1e-9
+            )
+            rnap_occupancy = rnap_total_occupancy
+            ribo_occupancy = ribosome_total_occupancy
+            relative_growth_rate = ribosome_capacity_fraction
+            mu = mu_max * relative_growth_rate
         k_mat = self.params.get("maturation_rate", 0.0011)
 
         default_mrna_deg = self.params["mrna_degradation_rate"]
@@ -633,6 +750,21 @@ class ResourceAwareSimulation:
                 "ribosome_free": ribo_free,
                 "rnap_occupancy": rnap_occupancy,
                 "ribosome_occupancy": ribo_occupancy,
+                "rnap_total_occupancy": rnap_total_occupancy,
+                "ribosome_total_occupancy": ribosome_total_occupancy,
+                "rnap_capacity_fraction": rnap_capacity_fraction,
+                "ribosome_capacity_fraction": ribosome_capacity_fraction,
+                "relative_growth_rate": relative_growth_rate,
+                "capacity_loss_fraction": max(
+                    1.0 - rnap_capacity_fraction,
+                    1.0 - ribosome_capacity_fraction,
+                ),
+                "transcriptional_demand_index": float(
+                    np.sum(promoter_demand_op) / max(self.rnap_baseline_free, 1e-9)
+                ),
+                "translational_demand_index": float(
+                    np.sum(translation_demand) / max(self.ribosome_baseline_free, 1e-9)
+                ),
                 "burden_nM": float(
                     np.sum(mrna) + np.sum(protein_immature) + np.sum(protein_mature)
                 ),
@@ -750,6 +882,11 @@ class BatchODESimulator:
         biokinetic_parameters = topology.get("biokinetic_parameters", {})
         params = _flatten_parameters(biokinetic_parameters)
         params["copy_number"] = spec.copy_number
+        resource_model_contract = _configure_resource_model(
+            topology,
+            dynamic_signals,
+            params,
+        )
         parameter_provenance = _parameter_provenance(biokinetic_parameters)
         params["promoter_resource_demand"] = max(1.0, params["km_rnap"] * 0.35)
         physical_assignment_metrics = _physical_assignment_metrics(topology)
@@ -929,6 +1066,22 @@ class BatchODESimulator:
         max_ribo_occ = max(m["ribosome_occupancy_max"] for m in all_row_metrics)
         min_rnap_free = min(m["rnap_free_min"] for m in all_row_metrics)
         min_ribo_free = min(m["ribosome_free_min"] for m in all_row_metrics)
+        min_relative_growth = min(
+            m["relative_growth_rate_min"] for m in all_row_metrics
+        )
+        max_capacity_loss = max(
+            m["capacity_loss_fraction_max"] for m in all_row_metrics
+        )
+        max_tx_demand = max(
+            m["transcriptional_demand_index_max"] for m in all_row_metrics
+        )
+        max_tl_demand = max(
+            m["translational_demand_index_max"] for m in all_row_metrics
+        )
+        max_rnap_total_occ = max(m["rnap_total_occupancy_max"] for m in all_row_metrics)
+        max_ribo_total_occ = max(
+            m["ribosome_total_occupancy_max"] for m in all_row_metrics
+        )
         avg_cv = float(np.mean([m["output_cv"] for m in all_row_metrics]))
         avg_snr = float(np.mean([m["signal_to_noise_ratio"] for m in all_row_metrics]))
 
@@ -966,6 +1119,18 @@ class BatchODESimulator:
             "ribosome_occupancy_max": max_ribo_occ,
             "rnap_free_min": min_rnap_free,
             "ribosome_free_min": min_ribo_free,
+            "relative_growth_rate_min": min_relative_growth,
+            "capacity_loss_fraction_max": max_capacity_loss,
+            "transcriptional_demand_index_max": max_tx_demand,
+            "translational_demand_index_max": max_tl_demand,
+            "rnap_total_occupancy_max": max_rnap_total_occ,
+            "ribosome_total_occupancy_max": max_ribo_total_occ,
+            "host_rnap_baseline_free_fraction": params.get(
+                "host_rnap_baseline_free_fraction", 1.0
+            ),
+            "host_ribosome_baseline_free_fraction": params.get(
+                "host_ribosome_baseline_free_fraction", 1.0
+            ),
             "stoichiometry_score": stoichiometry_score,
             "resource_capacity_factor": min(
                 1.0,
@@ -1010,6 +1175,25 @@ class BatchODESimulator:
             "ribosome_max": metrics["ribosome_occupancy_max"],
             "rnap_free_min": metrics["rnap_free_min"],
             "ribosome_free_min": metrics["ribosome_free_min"],
+            "rnap_total_max": metrics["rnap_total_occupancy_max"],
+            "ribosome_total_max": metrics["ribosome_total_occupancy_max"],
+        }
+
+        baseline_relative_summary = _baseline_relative_summary(
+            metrics,
+            resource_model_contract,
+        )
+        resource_model_comparison = {
+            "active_mode": resource_model_contract["mode"],
+            "legacy_outputs": {
+                "status": "retained",
+                "resource_occupancy": resource_occupancy,
+            },
+            BASELINE_RELATIVE_RESOURCE_MODEL_MODE: (
+                baseline_relative_summary
+                if resource_model_contract["enabled"]
+                else {"status": "available_not_applied"}
+            ),
         }
 
         details = [
@@ -1024,6 +1208,10 @@ class BatchODESimulator:
             {"metric": "stoichiometry_score", "value": stoichiometry_score},
             {"metric": "resource_occupancy", "value": resource_occupancy},
             {"metric": "parameter_provenance", "value": parameter_provenance},
+            {
+                "metric": "resource_model_comparison",
+                "value": resource_model_comparison,
+            },
         ]
         if self.monte_carlo_samples > 1:
             details.append(
@@ -1036,7 +1224,7 @@ class BatchODESimulator:
                 }
             )
 
-        simulation_warnings = []
+        simulation_warnings = list(resource_model_contract["warnings"])
         for reg, val in overall_max_retroactivity.items():
             if val > 0.3:
                 simulation_warnings.append(
@@ -1100,6 +1288,8 @@ class BatchODESimulator:
             "dynamic_margin": metrics["dynamic_margin"],
             "ode_trace": ode_trace,
             "resource_occupancy": resource_occupancy,
+            "resource_model_mode": resource_model_contract["mode"],
+            "resource_model_comparison": resource_model_comparison,
             "parameter_provenance": parameter_provenance,
             "warnings": simulation_warnings,
             "stoichiometry_score": stoichiometry_score,
@@ -1124,6 +1314,8 @@ class BatchODESimulator:
                 "details": details,
             },
         }
+        if resource_model_contract["enabled"]:
+            updates["baseline_relative_resources"] = baseline_relative_summary
         if self.monte_carlo_samples > 1:
             updates["monte_carlo_failure_rate"] = metrics["monte_carlo_failure_rate"]
             updates["monte_carlo_terminal_output_cv"] = metrics[
@@ -1216,6 +1408,7 @@ class BatchODESimulator:
 
         params = _flatten_parameters(topology.get("biokinetic_parameters", {}))
         params["copy_number"] = float(topology.get("copy_number", 1.0))
+        _configure_resource_model(topology, dynamic_signals, params)
         params["promoter_resource_demand"] = max(1.0, params["km_rnap"] * 0.35)
 
         sample_params = _perturb_biokinetic_parameters(
@@ -1419,6 +1612,14 @@ class BatchODESimulator:
         if not isinstance(topology, dict) or not topology:
             raise ValueError(
                 "Stochastic simulation requires a non-empty topology dictionary."
+            )
+        if (
+            str(topology.get("resource_model_mode") or LEGACY_RESOURCE_MODEL_MODE)
+            == BASELINE_RELATIVE_RESOURCE_MODEL_MODE
+        ):
+            raise ValueError(
+                "baseline_relative_v0.1 is currently supported by the ODE path only; "
+                "stochastic resource propensities remain a future calibration slice."
             )
         if isinstance(runs, bool) or not isinstance(runs, int) or runs <= 0:
             raise ValueError("runs must be a positive integer.")
@@ -1951,6 +2152,240 @@ def _flatten_parameters(raw: dict[str, Any]) -> dict[str, float]:
     return params
 
 
+def _configure_resource_model(
+    topology: dict[str, Any],
+    dynamic_signals: list[str],
+    params: dict[str, float],
+) -> dict[str, Any]:
+    requested_mode = str(
+        topology.get("resource_model_mode") or LEGACY_RESOURCE_MODEL_MODE
+    ).strip()
+    warnings: list[str] = []
+    if requested_mode not in {
+        LEGACY_RESOURCE_MODEL_MODE,
+        BASELINE_RELATIVE_RESOURCE_MODEL_MODE,
+    }:
+        warnings.append(
+            f"Unknown resource_model_mode {requested_mode!r}; using "
+            f"{LEGACY_RESOURCE_MODEL_MODE!r}."
+        )
+        requested_mode = LEGACY_RESOURCE_MODEL_MODE
+
+    enabled = requested_mode == BASELINE_RELATIVE_RESOURCE_MODEL_MODE
+    params["baseline_relative_resource_model"] = 1.0 if enabled else 0.0
+    if not enabled:
+        return {
+            "mode": LEGACY_RESOURCE_MODEL_MODE,
+            "enabled": False,
+            "warnings": warnings,
+            "parameter_sources": {},
+            "cds_length_source_by_gene": {},
+            "assumptions": [],
+        }
+
+    parameter_sources: dict[str, str] = {}
+    for key, default in (
+        (
+            "host_rnap_baseline_free_fraction",
+            DEFAULT_HOST_RNAP_BASELINE_FREE_FRACTION,
+        ),
+        (
+            "host_ribosome_baseline_free_fraction",
+            DEFAULT_HOST_RIBOSOME_BASELINE_FREE_FRACTION,
+        ),
+    ):
+        if key in params:
+            parameter_sources[key] = "biokinetic_parameter_override"
+        else:
+            params[key] = default
+            parameter_sources[key] = "fixed_assumption"
+        if not 0.0 < params[key] <= 1.0:
+            warnings.append(
+                f"Invalid {key}={params[key]!r}; using fixed-assumption "
+                f"default {default}."
+            )
+            params[key] = default
+            parameter_sources[key] = "fixed_assumption_after_invalid_override"
+
+    for key, default in (
+        ("default_protein_length_aa", DEFAULT_PROTEIN_LENGTH_AA),
+        (
+            "translation_elongation_rate_aa_s",
+            DEFAULT_TRANSLATION_ELONGATION_RATE_AA_S,
+        ),
+    ):
+        if key in params:
+            parameter_sources[key] = "biokinetic_parameter_override"
+        else:
+            params[key] = default
+            parameter_sources[key] = "fixed_assumption"
+        if params[key] <= 0.0:
+            warnings.append(
+                f"Invalid {key}={params[key]!r}; using fixed-assumption "
+                f"default {default}."
+            )
+            params[key] = default
+            parameter_sources[key] = "fixed_assumption_after_invalid_override"
+
+    protein_lengths = _numeric_mapping(topology.get("protein_lengths_aa"))
+    cds_lengths_bp = _numeric_mapping(topology.get("cds_lengths_bp"))
+    construct_metadata = _construct_metadata_by_gene(topology.get("construct_metadata"))
+    cds_length_source_by_gene: dict[str, str] = {}
+    defaulted_genes: list[str] = []
+    for gene in dynamic_signals:
+        parameter_key = f"protein_length_aa_{gene}"
+        source = ""
+        length_aa: float | None = None
+        if parameter_key in params and params[parameter_key] > 0.0:
+            length_aa = params[parameter_key]
+            source = "biokinetic_parameter_override"
+        elif protein_lengths.get(gene, 0.0) > 0.0:
+            length_aa = protein_lengths[gene]
+            source = "topology_protein_lengths_aa"
+        elif cds_lengths_bp.get(gene, 0.0) > 0.0:
+            length_aa = max(1.0, math.floor(cds_lengths_bp[gene] / 3.0))
+            source = "topology_cds_lengths_bp"
+        else:
+            metadata = construct_metadata.get(gene, {})
+            length_aa = _positive_metadata_number(metadata, "protein_length_aa")
+            if length_aa is not None:
+                source = "construct_metadata_protein_length_aa"
+            else:
+                cds_bp = _positive_metadata_number(metadata, "cds_length_bp")
+                if cds_bp is not None:
+                    length_aa = max(1.0, math.floor(cds_bp / 3.0))
+                    source = "construct_metadata_cds_length_bp"
+        if length_aa is None:
+            length_aa = params["default_protein_length_aa"]
+            source = "fixed_assumption_default_protein_length"
+            defaulted_genes.append(gene)
+        params[parameter_key] = float(length_aa)
+        cds_length_source_by_gene[gene] = source
+
+    if defaulted_genes:
+        warnings.append(
+            "CDS/protein length missing for "
+            f"{', '.join(sorted(defaulted_genes))}; using fixed-assumption "
+            f"default {params['default_protein_length_aa']:.0f} aa."
+        )
+
+    return {
+        "mode": BASELINE_RELATIVE_RESOURCE_MODEL_MODE,
+        "enabled": True,
+        "warnings": warnings,
+        "parameter_sources": parameter_sources,
+        "cds_length_source_by_gene": cds_length_source_by_gene,
+        "assumptions": [
+            "Host background demand is represented by baseline free-resource fractions.",
+            "Growth is normalized to matched empty-vector ribosome capacity.",
+            "Translation demand scales with RBS strength and ribosome residence time.",
+        ],
+    }
+
+
+def _background_demand_for_free_fraction(
+    total: float,
+    km: float,
+    free_fraction: float,
+) -> float:
+    total = max(float(total), 1e-9)
+    km = max(float(km), 1e-9)
+    fraction = min(1.0, max(float(free_fraction), 1e-9))
+    free = total * fraction
+    return max(0.0, (total - free) * (km + free) / max(free, 1e-9))
+
+
+def _relative_saturation(
+    candidate_free: float, baseline_free: float, km: float
+) -> float:
+    candidate = max(float(candidate_free), 0.0)
+    baseline = max(float(baseline_free), 1e-9)
+    km = max(float(km), 1e-9)
+    candidate_saturation = candidate / (km + candidate)
+    baseline_saturation = baseline / (km + baseline)
+    return _clamp01(candidate_saturation / max(baseline_saturation, 1e-9))
+
+
+def _numeric_mapping(value: Any) -> dict[str, float]:
+    if not isinstance(value, dict):
+        return {}
+    result: dict[str, float] = {}
+    for key, item in value.items():
+        try:
+            numeric = float(item)
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(numeric):
+            result[str(key)] = numeric
+    return result
+
+
+def _construct_metadata_by_gene(value: Any) -> dict[str, dict[str, Any]]:
+    if isinstance(value, dict):
+        return {
+            str(key): dict(item)
+            for key, item in value.items()
+            if isinstance(item, dict)
+        }
+    if not isinstance(value, list):
+        return {}
+    result: dict[str, dict[str, Any]] = {}
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        gene = str(
+            item.get("gene")
+            or item.get("gene_id")
+            or item.get("signal")
+            or item.get("name")
+            or ""
+        ).strip()
+        if gene:
+            result[gene] = dict(item)
+    return result
+
+
+def _positive_metadata_number(metadata: dict[str, Any], key: str) -> float | None:
+    try:
+        value = float(metadata.get(key))
+    except (TypeError, ValueError):
+        return None
+    return value if math.isfinite(value) and value > 0.0 else None
+
+
+def _baseline_relative_summary(
+    metrics: dict[str, float],
+    contract: dict[str, Any],
+) -> dict[str, Any]:
+    if not contract["enabled"]:
+        return {"status": "not_applied"}
+    tx_demand = metrics["transcriptional_demand_index_max"]
+    tl_demand = metrics["translational_demand_index_max"]
+    if max(tx_demand, tl_demand) <= 1e-12:
+        limiting_layer = "none_detected"
+    elif tx_demand >= tl_demand:
+        limiting_layer = "transcription"
+    else:
+        limiting_layer = "translation"
+    return {
+        "status": "research_preview",
+        "model_mode": contract["mode"],
+        "relative_growth_rate_min": metrics["relative_growth_rate_min"],
+        "capacity_loss_fraction_max": metrics["capacity_loss_fraction_max"],
+        "transcriptional_demand_index_max": tx_demand,
+        "translational_demand_index_max": tl_demand,
+        "resource_limited_layer": limiting_layer,
+        "host_baseline_free_fractions": {
+            "rnap": metrics.get("host_rnap_baseline_free_fraction"),
+            "ribosome": metrics.get("host_ribosome_baseline_free_fraction"),
+        },
+        "parameter_sources": contract["parameter_sources"],
+        "cds_length_source_by_gene": contract["cds_length_source_by_gene"],
+        "assumptions": contract["assumptions"],
+        "claim_boundary": "comparative computational screening; not an absolute in-vivo prediction",
+    }
+
+
 def _parameter_provenance(raw: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(raw, dict):
         return {
@@ -2107,6 +2542,26 @@ def _simulation_metrics(
     ribo_free = [entry["ribosome_free"] for entry in trace] or [
         params["ribosome_total"]
     ]
+    relative_growth = [entry.get("relative_growth_rate", 1.0) for entry in trace] or [
+        1.0
+    ]
+    capacity_loss = [entry.get("capacity_loss_fraction", 0.0) for entry in trace] or [
+        0.0
+    ]
+    tx_demand = [entry.get("transcriptional_demand_index", 0.0) for entry in trace] or [
+        0.0
+    ]
+    tl_demand = [entry.get("translational_demand_index", 0.0) for entry in trace] or [
+        0.0
+    ]
+    rnap_total_occupancy = [
+        entry.get("rnap_total_occupancy", entry.get("rnap_occupancy", 0.0))
+        for entry in trace
+    ] or [0.0]
+    ribosome_total_occupancy = [
+        entry.get("ribosome_total_occupancy", entry.get("ribosome_occupancy", 0.0))
+        for entry in trace
+    ] or [0.0]
     max_burden = float(max(burden_values))
     return {
         "max_burden_nM": max_burden,
@@ -2116,6 +2571,18 @@ def _simulation_metrics(
         "ribosome_occupancy_max": float(max(ribo_occupancies)),
         "rnap_free_min": float(min(rnap_free)),
         "ribosome_free_min": float(min(ribo_free)),
+        "relative_growth_rate_min": float(min(relative_growth)),
+        "capacity_loss_fraction_max": float(max(capacity_loss)),
+        "transcriptional_demand_index_max": float(max(tx_demand)),
+        "translational_demand_index_max": float(max(tl_demand)),
+        "rnap_total_occupancy_max": float(max(rnap_total_occupancy)),
+        "ribosome_total_occupancy_max": float(max(ribosome_total_occupancy)),
+        "host_rnap_baseline_free_fraction": float(
+            params.get("host_rnap_baseline_free_fraction", 1.0)
+        ),
+        "host_ribosome_baseline_free_fraction": float(
+            params.get("host_ribosome_baseline_free_fraction", 1.0)
+        ),
     }
 
 
@@ -2154,6 +2621,12 @@ def _simulation_trace(
         ),
         "ribosome_occupancy": _round_series(
             [entry.get("ribosome_occupancy", 0.0) for entry in sampled_trace]
+        ),
+        "relative_growth_rate": _round_series(
+            [entry.get("relative_growth_rate", 1.0) for entry in sampled_trace]
+        ),
+        "capacity_loss_fraction": _round_series(
+            [entry.get("capacity_loss_fraction", 0.0) for entry in sampled_trace]
         ),
     }
 
@@ -2214,21 +2687,6 @@ def _coerce_float(value: Any, default: float) -> float:
         return default if value is None else float(value)
     except (TypeError, ValueError):
         return default
-
-
-def _coerce_bool(value: Any, default: bool) -> bool:
-    if value is None:
-        return default
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        lowered = value.strip().lower()
-        if lowered in {"1", "true", "yes", "y"}:
-            return True
-        if lowered in {"0", "false", "no", "n"}:
-            return False
-        return default
-    return bool(value)
 
 
 def _physical_assignment_metrics(topology: dict[str, Any]) -> dict[str, float | bool]:

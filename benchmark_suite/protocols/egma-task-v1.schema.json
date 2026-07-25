@@ -1,0 +1,231 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/egma-task-v1.schema.json",
+  "title": "EGMA E. coli transcriptional-logic task",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_id",
+    "request",
+    "source",
+    "intent_status",
+    "expected_response_class",
+    "language",
+    "formal_spec",
+    "split",
+    "leakage_group",
+    "generation"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "egma-task-v1"
+    },
+    "task_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "request": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family", "locator", "license_status"],
+      "properties": {
+        "family": {
+          "enum": [
+            "procedural_boolean",
+            "heldout_composition_or_part_symbol",
+            "repair_or_invalid_input",
+            "literature_anchored"
+          ]
+        },
+        "locator": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exact_location": {
+          "type": ["string", "null"]
+        },
+        "license_status": {
+          "enum": ["generated", "permitted", "restricted", "unknown"]
+        },
+        "lineage_id": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "intent_status": {
+      "enum": [
+        "feasible",
+        "underspecified",
+        "contradictory_or_infeasible"
+      ]
+    },
+    "expected_response_class": {
+      "enum": ["design", "clarification", "unresolved_or_refusal"]
+    },
+    "language": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stratum", "paraphrase_parent_id"],
+      "properties": {
+        "stratum": {
+          "enum": [
+            "canonical_direct",
+            "paraphrased_domain_varied",
+            "noisy_incomplete_conflicting"
+          ]
+        },
+        "paraphrase_parent_id": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "formal_spec": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": [
+        "input_symbols",
+        "output_symbol",
+        "boolean_expression",
+        "canonical_expression",
+        "allowed_operators",
+        "truth_table",
+        "topology_invariants"
+      ],
+      "properties": {
+        "input_symbols": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_]{0,31}$"
+          }
+        },
+        "output_symbol": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]{0,31}$"
+        },
+        "boolean_expression": {
+          "type": "string",
+          "minLength": 1
+        },
+        "canonical_expression": {
+          "type": "string",
+          "minLength": 1
+        },
+        "allowed_operators": {
+          "const": ["NOT", "AND", "OR"]
+        },
+        "truth_table": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 8,
+          "items": {
+            "type": "object"
+          }
+        },
+        "topology_invariants": {
+          "type": "array",
+          "minItems": 11,
+          "maxItems": 11,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "unique_node_ids",
+              "unique_edges",
+              "edge_endpoints_exist",
+              "declared_inputs_exact",
+              "one_declared_output",
+              "supported_operators_only",
+              "gate_arity_valid",
+              "acyclic_combinational",
+              "all_declared_inputs_reach_output",
+              "all_gates_reach_output",
+              "output_has_single_driver"
+            ]
+          }
+        }
+      }
+    },
+    "split": {
+      "enum": ["development", "sealed_confirmatory"]
+    },
+    "leakage_group": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["generator_version", "seed"],
+      "properties": {
+        "generator_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "seed": {
+          "type": "integer"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "intent_status": {
+            "const": "feasible"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected_response_class": {
+            "const": "design"
+          },
+          "formal_spec": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "intent_status": {
+            "const": "underspecified"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected_response_class": {
+            "const": "clarification"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "intent_status": {
+            "const": "contradictory_or_infeasible"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected_response_class": {
+            "const": "unresolved_or_refusal"
+          }
+        }
+      }
+    }
+  ]
+}

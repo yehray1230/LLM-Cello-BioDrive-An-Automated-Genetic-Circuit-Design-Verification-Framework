@@ -1,0 +1,16 @@
+{
+  "split_id": "split_rbs_holdout_v1",
+  "strategy": "rbs_holdout",
+  "training_construct_ids": [
+    "empty_vector_capacity",
+    "load_reference"
+  ],
+  "validation_construct_ids": [
+    "load_heldout_rbs"
+  ],
+  "grouping_key": "rbs_id",
+  "rationale": "Keep the strong RBS construct unavailable to future fitting.",
+  "random_seed": null,
+  "frozen": true,
+  "schema_version": "0.1.0"
+}

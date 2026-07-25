@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from importlib.metadata import PackageNotFoundError, version
 from io import StringIO
 from itertools import pairwise
 import re
@@ -9,6 +8,36 @@ from uuid import uuid4
 from Bio import Restriction, SeqIO
 from Bio.Seq import Seq
 from Bio.SeqUtils import MeltingTemp as mt
+try:
+    import pydivsufsort  # noqa: F401
+except ImportError:
+    import sys
+    import types
+
+    def _pure_python_common_substrings(stringx, stringy, limit=15):
+        sx, sy = str(stringx), str(stringy)
+        len_x, len_y = len(sx), len(sy)
+        matches = []
+        seen = set()
+        for i in range(len_x - limit + 1):
+            sub = sx[i : i + limit]
+            pos = sy.find(sub)
+            while pos != -1:
+                k = limit
+                while i + k < len_x and pos + k < len_y and sx[i + k] == sy[pos + k]:
+                    k += 1
+                if i == 0 or pos == 0 or sx[i - 1] != sy[pos - 1]:
+                    item = (i, pos, k)
+                    if item not in seen:
+                        seen.add(item)
+                        matches.append(item)
+                pos = sy.find(sub, pos + 1)
+        return matches
+
+    _fake = types.ModuleType("pydivsufsort")
+    _fake.common_substrings = _pure_python_common_substrings
+    sys.modules["pydivsufsort"] = _fake
+
 from pydna.assembly2 import Assembly, golden_gate_assembly
 from pydna.dseqrecord import Dseqrecord
 
@@ -22,6 +51,7 @@ from schemas.assembly_plan import (
     RestrictionDigest,
 )
 from schemas.backbone_registry import BackboneRegistryEntry
+from utils.package_metadata import package_version as _package_version
 
 
 TYPE_IIS_ENZYMES = {"BsaI", "BsmBI"}
@@ -299,7 +329,7 @@ def _plan_gibson(
             use_fragment_order=True,
             use_all_fragments=True,
         ).assemble_circular(only_adjacent_edges=True, max_assemblies=100)
-    except ValueError as exc:
+    except (ValueError, ImportError, Exception) as exc:
         products = []
         plan.issues.append(
             PlanIssue(
@@ -647,10 +677,3 @@ def _overhangs_unique_and_directional(overhangs: list[str]) -> bool:
         reverse in set(overhangs)
         for reverse in reverse_complements
     )
-
-
-def _package_version(package: str) -> str:
-    try:
-        return version(package)
-    except PackageNotFoundError:
-        return "unavailable"

@@ -21,6 +21,8 @@ from schemas.design_ir_v2 import (
     RegulatoryInteractionV2,
     design_ir_v2_from_dict,
 )
+from utils.scalar_values import optional_float as _optional_float
+from utils.scalar_values import optional_trimmed_text as _optional_string
 
 
 @dataclass
@@ -395,22 +397,6 @@ def _dict_list(value: Any) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
     return [dict(item) for item in value if isinstance(item, dict)]
-
-
-def _optional_string(value: Any) -> str | None:
-    if value is None:
-        return None
-    text = str(value).strip()
-    return text or None
-
-
-def _optional_float(value: Any) -> float | None:
-    if value is None:
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
 
 
 def _part_evidence_level(item: dict[str, Any]) -> str:

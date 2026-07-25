@@ -101,6 +101,7 @@ from tools.host_optimization import (
     rank_host_optimization_candidates,
     summarize_host_calibration,
 )
+from utils.scalar_values import optional_trimmed_text as _optional_string
 
 
 DEFAULT_API_DATA_DIR = Path("outputs") / "api_data"
@@ -352,10 +353,12 @@ class EvaluationService:
         benchmark_repository: JsonRepository,
         parameter_fit_repository: JsonRepository,
         report_dir: Path,
+        resource_calibration_repository: JsonRepository | None = None,
     ):
         self.benchmark_repository = benchmark_repository
         self.parameter_fit_repository = parameter_fit_repository
         self.report_dir = report_dir
+        self.resource_calibration_repository = resource_calibration_repository
 
     def create_parameter_fit_snapshot(
         self,
@@ -403,6 +406,52 @@ class EvaluationService:
 
     def parameter_fit_snapshots(self) -> list[dict[str, Any]]:
         return self.parameter_fit_repository.list()
+
+    def create_resource_calibration_workflow(
+        self,
+        request: dict[str, Any],
+    ) -> dict[str, Any]:
+        if self.resource_calibration_repository is None:
+            raise RuntimeError("Resource calibration storage is not configured.")
+        workflow_id = request.get("workflow_id") or f"resource_{uuid4().hex[:12]}"
+        from benchmark_suite.resource_workflow import run_resource_calibration_workflow
+
+        payload = run_resource_calibration_workflow(request)
+        payload["workflow_id"] = workflow_id
+        payload["created_at"] = datetime.now(timezone.utc).isoformat()
+        self.resource_calibration_repository.save(workflow_id, payload)
+        return payload
+
+    def resource_calibration_workflow(
+        self,
+        workflow_id: str,
+    ) -> dict[str, Any] | None:
+        if self.resource_calibration_repository is None:
+            return None
+        return self.resource_calibration_repository.get(workflow_id)
+
+    def resource_calibration_workflows(self) -> list[dict[str, Any]]:
+        if self.resource_calibration_repository is None:
+            return []
+        return self.resource_calibration_repository.list()
+
+    def analyze_resource_calibration_workflow(
+        self,
+        workflow_id: str,
+        config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        if self.resource_calibration_repository is None:
+            raise RuntimeError("Resource calibration storage is not configured.")
+        workflow = self.resource_calibration_repository.get(workflow_id)
+        if workflow is None:
+            raise KeyError(workflow_id)
+        from benchmark_suite.resource_model_analysis import run_resource_model_analysis
+
+        analysis = run_resource_model_analysis(workflow, config)
+        analysis["analyzed_at"] = datetime.now(timezone.utc).isoformat()
+        workflow["model_analysis"] = analysis
+        self.resource_calibration_repository.save(workflow_id, workflow)
+        return analysis
 
     def evaluate(
         self,
@@ -812,20 +861,58 @@ class ExportService:
                 raise KeyError(design_id)
 
         fmt = export_format.lower()
+        from utils.safety_checker import check_design_export_safety, log_safety_event
+
+        safety_result = check_design_export_safety(design_v2.to_dict(), fmt)
+        if safety_result.status != "safe":
+            log_safety_event(
+                design_id,
+                design_v2.specification.user_intent or design_v2.name,
+                safety_result.status,
+                safety_result.warnings,
+                action=f"export:{fmt}",
+                categories=safety_result.categories,
+                metadata={"revision_number": design_v2.revision.revision_number},
+            )
+        if not safety_result.export_allowed:
+            return ExportResult(
+                ok=False,
+                format=fmt.upper(),
+                filename=f"{design.design_id}.{fmt}",
+                media_type="application/octet-stream",
+                content="",
+                status="blocked_safety_review",
+                warnings=safety_result.warnings,
+                errors=[
+                    safety_result.redirection_message
+                    or "Explicit human safety review is required before export."
+                ],
+                safety_status=safety_result.status,
+                safety_review_required=safety_result.requires_human_review,
+            )
+
+        def with_safety(result: ExportResult) -> ExportResult:
+            result.warnings = list(
+                dict.fromkeys([*result.warnings, *safety_result.warnings])
+            )
+            result.safety_status = safety_result.status
+            result.safety_review_required = safety_result.requires_human_review
+            return result
+
         if fmt == "json":
             import json
-            return ExportResult(
+            return with_safety(ExportResult(
                 ok=True,
                 format="JSON",
                 filename=f"{design.design_id}.json",
                 media_type="application/json",
                 content=json.dumps(design_v2.to_dict(), indent=2, ensure_ascii=False),
                 status="success",
-            )
+            ))
         elif fmt == "verilog":
             verilog_content = design_v2.extensions.get("verilog", "")
             if not verilog_content:
-                return ExportResult(
+                return with_safety(ExportResult(
                     ok=False,
                     format="Verilog",
                     filename=f"{design.design_id}.v",
@@ -833,23 +920,28 @@ class ExportService:
                     content="",
                     status="blocked_no_verilog",
                     errors=["No Verilog topology exists for this design."],
-                )
-            return ExportResult(
+                ))
+            return with_safety(ExportResult(
                 ok=True,
                 format="Verilog",
                 filename=f"{design.design_id}.v",
                 media_type="text/x-verilog",
                 content=verilog_content,
                 status="success",
-            )
+            ))
         elif fmt == "plasmid_genbank":
             from exporters.plasmid_assembler import export_plasmid_genbank
-            return export_plasmid_genbank(design, backbone_name or "pUC19 (High copy, AmpR)")
+            return with_safety(
+                export_plasmid_genbank(
+                    design,
+                    backbone_name or "pUC19 (High copy, AmpR)",
+                )
+            )
 
         exporter = self.EXPORTERS.get(fmt)
         if exporter is None:
             raise ValueError(f"Unsupported export format: {export_format}")
-        return exporter(design)
+        return with_safety(exporter(design))
 
 
 class BackboneRegistryService:
@@ -1621,6 +1713,9 @@ def create_application_services(
     design_draft_repository = JsonRepository(selected / "design_drafts")
     benchmark_repository = JsonRepository(selected / "benchmark_runs")
     parameter_fit_repository = JsonRepository(selected / "parameter_fit_snapshots")
+    resource_calibration_repository = JsonRepository(
+        selected / "resource_calibrations"
+    )
     backbone_repository = JsonRepository(selected / "backbones")
     host_profile_repository = JsonRepository(selected / "host_profiles")
     host_calibration_repository = JsonRepository(selected / "host_calibrations")
@@ -1653,6 +1748,7 @@ def create_application_services(
             benchmark_repository,
             parameter_fit_repository,
             selected / "benchmark_reports",
+            resource_calibration_repository,
         ),
         simulations=simulation_service,
         research=ResearchService(
@@ -1818,13 +1914,6 @@ def _sequence_coverage_v2(design: DesignIRV2) -> str:
 @lru_cache(maxsize=1)
 def get_default_services() -> ApplicationServices:
     return create_application_services()
-
-
-def _optional_string(value: Any) -> str | None:
-    if value is None:
-        return None
-    text = str(value).strip()
-    return text or None
 
 
 def _validated_run_id(run_id: str) -> str:

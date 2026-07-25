@@ -19,3 +19,29 @@ license-files = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"]
 
 [tool.ruff]
 exclude = ["pytest_temp*", ".pytest_cache", ".ruff_cache", "venv", ".venv"]
+
+[tool.coverage.run]
+branch = true
+source = ["application", "benchmark_suite", "src"]
+omit = [
+    "*/tests/*",
+    "*/venv/*",
+    "*/.venv/*",
+    "*/mutants/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+
+[tool.coverage.json]
+output = "outputs/pre_release/coverage.json"
+pretty_print = true
+
+[tool.mutmut]
+source_paths = ["src"]
+only_mutate = ["src/utils/safety_checker.py"]
+also_copy = ["application", "benchmark_suite", "vector_db.py"]
+pytest_add_cli_args_test_selection = ["tests/test_safety_boundary.py"]
+pytest_add_cli_args = ["-q", "-p", "no:cacheprovider"]
+max_stack_depth = 8

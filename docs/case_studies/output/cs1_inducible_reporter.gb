@@ -1,0 +1,119 @@
+LOCUS       cs1_inducible_re         44 bp    DNA     linear   SYN 21-JUL-2026
+DEFINITION  NOT gate transcriptional unit.
+ACCESSION   cs1_inducible_re
+VERSION     cs1_inducible_re.1
+KEYWORDS    synthetic biology; genetic circuit.
+SOURCE      synthetic DNA construct
+  ORGANISM  synthetic DNA construct
+FEATURES             Location/Qualifiers
+     source          1..44
+                     /organism="synthetic DNA construct"
+                     /design_id="cs1_inducible_reporter"
+                     /revision="revision_1"
+     promoter        1..12
+                     /label="P_logic_1"
+                     /part_id="logic_promoter_1_n1"
+                     /note="Implements the NOT decision for Inducer."
+                     /evidence="measured"
+                     /source_library="conceptual"
+     RBS             13..22
+                     /label="RBS_1"
+                     /part_id="rbs_regulator_1_n1"
+                     /note="Controls translation initiation for the gate regulator."
+                     /evidence="measured"
+                     /source_library="conceptual"
+     CDS             23..34
+                     /label="NOT regulator 1"
+                     /part_id="regulator_1_n1"
+                     /note="Carries the regulatory output signal n1."
+                     /evidence="measured"
+                     /source_library="conceptual"
+     terminator      35..44
+                     /label="T_1"
+                     /part_id="term_regulator_1_n1"
+                     /note="Terminates transcription of the gate transcriptional unit."
+                     /evidence="measured"
+                     /source_library="conceptual"
+ORIGIN
+        1 ttgacagata ctaggaggac aaatgaaacg gtaagccgcc aaaa
+//
+
+LOCUS       cs1_inducible_re         44 bp    DNA     linear   SYN 21-JUL-2026
+DEFINITION  NOT gate transcriptional unit.
+ACCESSION   cs1_inducible_re
+VERSION     cs1_inducible_re.1
+KEYWORDS    synthetic biology; genetic circuit.
+SOURCE      synthetic DNA construct
+  ORGANISM  synthetic DNA construct
+FEATURES             Location/Qualifiers
+     source          1..44
+                     /organism="synthetic DNA construct"
+                     /design_id="cs1_inducible_reporter"
+                     /revision="revision_1"
+     promoter        1..12
+                     /label="P_logic_2"
+                     /part_id="logic_promoter_2_GFP"
+                     /note="Implements the NOT decision for n1."
+                     /evidence="measured"
+                     /source_library="conceptual"
+     RBS             13..22
+                     /label="RBS_2"
+                     /part_id="rbs_regulator_2_GFP"
+                     /note="Controls translation initiation for the gate regulator."
+                     /evidence="measured"
+                     /source_library="conceptual"
+     CDS             23..34
+                     /label="NOT regulator 2"
+                     /part_id="regulator_2_GFP"
+                     /note="Carries the regulatory output signal GFP."
+                     /evidence="measured"
+                     /source_library="conceptual"
+     terminator      35..44
+                     /label="T_2"
+                     /part_id="term_regulator_2_GFP"
+                     /note="Terminates transcription of the gate transcriptional unit."
+                     /evidence="measured"
+                     /source_library="conceptual"
+ORIGIN
+        1 ttgacagata ctaggaggac aaatgaaacg gtaagccgcc aaaa
+//
+
+LOCUS       cs1_inducible_re         44 bp    DNA     linear   SYN 21-JUL-2026
+DEFINITION  GFP output transcriptional unit.
+ACCESSION   cs1_inducible_re
+VERSION     cs1_inducible_re.1
+KEYWORDS    synthetic biology; genetic circuit.
+SOURCE      synthetic DNA construct
+  ORGANISM  synthetic DNA construct
+FEATURES             Location/Qualifiers
+     source          1..44
+                     /organism="synthetic DNA construct"
+                     /design_id="cs1_inducible_reporter"
+                     /revision="revision_1"
+     promoter        1..12
+                     /label="P_GFP"
+                     /part_id="output_promoter_GFP"
+                     /note="Drives the final output GFP."
+                     /evidence="measured"
+                     /source_library="conceptual"
+     RBS             13..22
+                     /label="RBS_GFP"
+                     /part_id="rbs_GFP"
+                     /note="Controls translation of output GFP."
+                     /evidence="measured"
+                     /source_library="conceptual"
+     CDS             23..34
+                     /label="GFP"
+                     /part_id="output_cds_GFP"
+                     /note="Produces the requested output signal GFP."
+                     /evidence="measured"
+                     /source_library="conceptual"
+     terminator      35..44
+                     /label="T_GFP"
+                     /part_id="term_GFP"
+                     /note="Terminates the output transcriptional unit."
+                     /evidence="measured"
+                     /source_library="conceptual"
+ORIGIN
+        1 ttgacagata ctaggaggac aaatgaaacg gtaagccgcc aaaa
+//

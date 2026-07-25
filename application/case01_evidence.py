@@ -8,6 +8,7 @@ from schemas.evidence_governance import (
     build_evidence_manifest,
 )
 from schemas.simulation import canonical_payload_hash
+from utils.scalar_values import optional_trimmed_text as _optional_text
 
 
 CASE01_INTENDED_USE = "public_evidence_review"
@@ -144,13 +145,6 @@ def build_case01_evidence_manifest(packet: dict[str, Any]) -> dict[str, Any]:
         intended_use=CASE01_INTENDED_USE,
         generated_at=_optional_text(packet.get("created_at")),
     )
-
-
-def _optional_text(value: Any) -> str | None:
-    if value is None:
-        return None
-    text = str(value).strip()
-    return text or None
 
 
 def _stable_benchmark_evidence_hash(benchmark: dict[str, Any]) -> str | None:

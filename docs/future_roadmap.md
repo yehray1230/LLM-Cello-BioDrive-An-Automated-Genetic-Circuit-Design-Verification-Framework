@@ -22,20 +22,21 @@ The most important research gaps concern **experimental calibration**,
 **interoperability**, and whether the workflow communicates uncertainty in a
 way that matches expert reasoning.
 
-### Current implementation boundary (2026-06-27)
+### Current implementation boundary (acceptance review: 2026-07-22)
 
-Several roadmap themes now have conservative preview implementations, but the academic-grade versions remain future work:
+Phases 0 through 10 contain substantial research-preview implementations and focused test evidence. Repository-wide integration acceptance is pending the frozen AGC-2 gate, and each claim below remains limited to its stated evidence boundary:
 
-- Parameter-fit snapshots, comparisons, and provenance are implemented; general CSV/Excel plate-reader ingestion and automatic dynamic part-library recalibration are not.
-- Default host profiles, simplified layout checks, temporal inputs, parameter sweeps, and bifurcation-style reports are implemented; calibrated multi-chassis physiology, Sobol/Morris global sensitivity, and numerical continuation are not.
-- GenBank import/export and SBOL3 Turtle export/optional semantic validation are implemented; universal bidirectional SBOL/GenBank/SBML conversion is not.
-- Local heuristic RNA-folding/RBS-accessibility warnings are implemented; ViennaRNA/NUPACK-equivalent thermodynamic validation and codon-pair/tRNA-aware expression prediction are not.
-- Stochastic SSA, retroactivity, operon coupling/polarity, versioned biophysical scoring, and validated best-candidate self-healing are implemented as computational screening paths; none are wet-lab calibrated predictors.
-- Regression and release evidence must be interpreted from the current commit
-  and evidence package; historical test counts are not a standing scientific
-  validation claim.
+- **Phase 0 & 1 (Benchmark & Fitting)**: Literature-curated fixtures, plate-reader ingestion, fitting, governed exports, and calibration metrics are implemented previews. Record-level source locators and a protocol-defined real-data pilot remain open.
+- **Phase 2, 2b, 2c, 2d (Biophysical Modeling)**: Host, layout, temporal, resource, stochastic, retroactivity, and operon-coupling computations have focused test coverage. They remain computational screening models; EXP-023 conservatively retains the coarse default and does not constitute a real-data validation result.
+- **Phase 3 (Academic Standards & Interoperability)**: Standards exporters, round trips, sequence analysis, and optional-tool adapters are implemented previews. External-tool compatibility still requires tool-by-tool clean-environment evidence.
+- **Phase 4 & 4b (Agent Reasoning & Self-Healing)**: Explainability, audit, scoring, and reversible repair paths are implemented previews pending a frozen repaired-versus-unrepaired acceptance benchmark.
+- **Phase 5 & 6 (Hybrid Routing & Evaluation Harness)**: The EXP-011 pilot executed, but both configurations scored 0/15 and the saved evidence is incomplete. It is not accepted as a quality or cost improvement; a new frozen revision with paired repeats is required.
+- **Phase 7 & 7b (Governance & Science Integration)**: Provenance schemas, private boundaries, snapshots, and provider-neutral contracts are implemented previews. Live-provider qualification remains open.
+- **Phase 8 (Safety & Biosafety Boundary)**: Safety and export controls have focused test evidence but remain pending repository integration and dependency-environment revalidation.
+- **Phase 9 (Adapter Architecture)**: Ten adapters are registered with capability and fallback behavior. This is an adapter preview, not blanket production compatibility.
+- **Phase 10 (Publication Package)**: Three case-study package paths are implemented previews. Publication readiness requires a clean-room rebuild and claim-to-evidence audit.
 
-This boundary takes precedence over older checklist labels such as `[Implemented]` when those labels appear to imply a broader capability.
+All ODE simulation readouts, SSA trajectories, retroactivity indices, and readiness scores remain computational screening heuristics under the `research_only` claim boundary and do not constitute wet-lab experimental validation.
 
 本專案目前成功利用多智能體（Reflexion 迴圈）與確定性計算工具，將自然語言轉化為基因電路候選方案。為了達到學術發表與濕實驗室應用的高標準，未來的升級應著重於**實驗校準**、**生物物理環境建模**、**魯棒性表徵**以及**標準生物學格式的互操作性**。
 
@@ -212,7 +213,7 @@ To guide the next steps of implementation, we suggest prioritizing tasks by bala
 ## 5. Long-Term Vision: CRISPR-Based Genetic Circuits (CRISPRi/CRISPRa) / 長期願景：基於 CRISPR 的基因電路設計
 
 ### Bypassing Cello's Host & Gate Library Limitations / 突破 Cello 的宿主與元件庫限制
-Traditional logic synthesis tools like Cello are tightly constrained by protein-based gate libraries (User Constraint Files - UCFs), which require tedious strain-specific characterization and suffer from low scalability (due to protein crosstalk). 
+Traditional logic synthesis tools like Cello are tightly constrained by protein-based gate libraries (User Constraint Files - UCFs), which require tedious strain-specific characterization and suffer from low scalability (due to protein crosstalk).
 
 By pivoting towards **CRISPR Interference (CRISPRi)** and **CRISPR Activation (CRISPRa)**, the system can design sequence-programmable circuits that are highly scalable and portable across bacteria, yeast, and mammalian cells without relying on fixed UCF files.
 

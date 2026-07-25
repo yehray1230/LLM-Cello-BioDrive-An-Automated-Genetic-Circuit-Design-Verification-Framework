@@ -171,3 +171,38 @@ def run_llm_with_tools(
 
 def clear_llm_cache():
     shutil.rmtree("./.llm_cache", ignore_errors=True)
+
+
+def resolve_agent_model(role: str, configured_model: str | None) -> str:
+    """
+    Resolves the model name for a specific agent role based on the configured model.
+    If the model name starts with "routed:", it will route cheap roles (builder, translator, pm)
+    to a cheaper model, while routing critical roles (critic) to the base strong model.
+
+    Roles:
+      - "critic": The strong review and critique role.
+      - "builder": The logic design role.
+      - "translator": The verilog compiler role.
+      - "pm": The spec gathering and translation role.
+    """
+    if not configured_model:
+        return "gemini/gemini-3.5-flash"  # Default fallback
+
+    if not configured_model.startswith("routed:"):
+        return configured_model
+
+    base_model = configured_model[len("routed:"):]
+
+    if role == "critic":
+        return base_model
+
+    # Cheap role: map to cheap counterpart based on base model provider
+    if "gemini" in base_model.lower():
+        return "gemini/gemini-2.5-flash"
+    elif "gpt" in base_model.lower() or "openai" in base_model.lower():
+        return "gpt-4o-mini"
+    elif "claude" in base_model.lower() or "anthropic" in base_model.lower():
+        return "claude-3-5-haiku-20241022"
+    else:
+        # Fallback to the same base model if provider is unrecognized
+        return base_model

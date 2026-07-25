@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from importlib.metadata import PackageNotFoundError, version
 from io import StringIO
 import re
 from typing import Any
@@ -20,6 +19,7 @@ from schemas.design_ir_v2 import (
     DesignIRV2,
     PlasmidV2,
 )
+from utils.package_metadata import package_version as _package_version
 
 
 FEATURE_TYPES = {
@@ -626,13 +626,6 @@ def _feature_label(feature: SeqFeature) -> str:
         if value:
             return str(value[0])
     return feature.type
-
-
-def _package_version(package: str) -> str:
-    try:
-        return version(package)
-    except PackageNotFoundError:
-        return "unavailable"
 
 
 def _record_token(value: str) -> str:

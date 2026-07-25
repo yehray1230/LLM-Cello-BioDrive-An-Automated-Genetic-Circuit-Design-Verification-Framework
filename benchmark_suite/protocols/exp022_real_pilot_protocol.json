@@ -1,0 +1,53 @@
+{
+  "protocol_id": "exp022_real_pilot_protocol_v1",
+  "name": "EXP-022 Real-Data Plate-Reader Calibration Protocol",
+  "version": "1.0.0",
+  "description": "Preregistered protocol for plate-reader data preprocessing, quality control, Hill equation fitting, identifiability analysis, and held-out validation.",
+  "preregistration": {
+    "frozen_at": "2026-07-22",
+    "dataset_id": "exp022_pilot_plate_reader_v1",
+    "input_status": "awaiting_governed_raw_file",
+    "expected_raw_files": [
+      {
+        "filename": "exp022_plate_data_raw.csv",
+        "sha256": null,
+        "status": "not_received"
+      }
+    ]
+  },
+  "quality_control": {
+    "blank_wells": ["A1", "A2", "H11", "H12"],
+    "od600_min_threshold": 0.05,
+    "missing_data_action": "exclude_well",
+    "replicate_min_count": 2,
+    "unit_normalization": "RPU_relative_to_standard_promoter"
+  },
+  "data_split": {
+    "method": "stratified_by_inducer_concentration",
+    "train_ratio": 0.70,
+    "holdout_ratio": 0.30,
+    "random_seed": 42
+  },
+  "fitting_parameters": {
+    "model": "hill_equation",
+    "parameter_bounds": {
+      "y_min": [0.0, 100.0],
+      "y_max": [0.1, 100000.0],
+      "kd": [1e-6, 1000.0],
+      "n": [0.5, 6.0]
+    },
+    "identifiability_rules": {
+      "min_r_squared": 0.85,
+      "max_param_cv": 0.50,
+      "require_finite_covariance": true,
+      "reject_bound_hitting": true
+    },
+    "max_nfev": 5000
+  },
+  "governance": {
+    "automatic_promotion_allowed": false,
+    "promotion_policy": "explicit_local_selection_required",
+    "gate_status": "not_started",
+    "claim_limit": "Preregistered protocol only; no real-pilot result exists until governed raw input is received and hashed."
+  }
+}

@@ -45,5 +45,21 @@ jobs:
       - name: Run Ruff
         run: python -m ruff check . --exclude venv,tmp_pytest,outputs,chroma_db,_docx_extract_tmp
 
-      - name: Run tests
-        run: python -m pytest
+      - name: Run tests with branch coverage
+        run: |
+          mkdir -p outputs/pre_release
+          python -m pytest \
+            --cov=application \
+            --cov=benchmark_suite \
+            --cov=src \
+            --cov-branch \
+            --cov-report=term-missing \
+            --cov-report=json:outputs/pre_release/coverage.json
+
+      - name: Upload coverage baseline
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-baseline
+          path: outputs/pre_release/coverage.json
+          if-no-files-found: warn

@@ -6,6 +6,8 @@ from collections import Counter
 from typing import Any
 
 from benchmark_suite.base_evaluator import EvaluationResult
+from benchmark_suite.candidate_values import maybe_float as _maybe_float
+from benchmark_suite.score_values import clamp01 as _clamp01
 
 DEFAULT_DEPTH_LIMIT = 4
 REPEAT_DECAY = 0.18
@@ -117,17 +119,6 @@ def _primitive_calls(source: str) -> list[tuple[str, str]]:
     return calls
 
 
-def _maybe_float(value: Any) -> float | None:
-    try:
-        return None if value is None else float(value)
-    except (TypeError, ValueError):
-        return None
-
-
 def _strip_comments(verilog: str) -> str:
     without_block = re.sub(r"/\*.*?\*/", "", verilog, flags=re.DOTALL)
     return re.sub(r"//.*?$", "", without_block, flags=re.MULTILINE)
-
-
-def _clamp01(value: float) -> float:
-    return max(0.0, min(1.0, float(value)))

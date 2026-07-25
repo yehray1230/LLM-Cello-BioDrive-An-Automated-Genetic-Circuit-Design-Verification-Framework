@@ -7,6 +7,8 @@ from schemas.simulation import SIMULATION_MODEL_VERSION, stable_seed
 import numpy as np
 
 from benchmark_suite.base_evaluator import EvaluationResult
+from benchmark_suite.candidate_values import candidate_float as _candidate_float
+from benchmark_suite.candidate_values import candidate_int as _candidate_int
 from tools.ode_simulator import BatchODESimulator
 
 DEFAULT_MONTE_CARLO_RUNS = 20
@@ -19,20 +21,6 @@ def _has_simulation_inputs(candidate: dict[str, Any]) -> bool:
         key in candidate
         for key in ("verilog", "verilog_code", "gate_count", "biokinetic_parameters")
     )
-
-
-def _candidate_int(candidate: dict[str, Any], key: str, default: int) -> int:
-    try:
-        return default if candidate.get(key) is None else int(candidate[key])
-    except (TypeError, ValueError):
-        return default
-
-
-def _candidate_float(candidate: dict[str, Any], key: str, default: float) -> float:
-    try:
-        return default if candidate.get(key) is None else float(candidate[key])
-    except (TypeError, ValueError):
-        return default
 
 
 def _snr_to_score(snr: float) -> float:

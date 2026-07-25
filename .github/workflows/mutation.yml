@@ -1,0 +1,55 @@
+name: Targeted mutation testing
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/utils/safety_checker.py"
+      - "tests/test_safety_boundary.py"
+      - "pyproject.toml"
+      - "requirements-dev.txt"
+      - ".github/workflows/mutation.yml"
+
+jobs:
+  safety-boundary:
+    runs-on: ubuntu-latest
+
+    env:
+      MPLBACKEND: Agg
+      PYTHONUTF8: "1"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Verify focused baseline
+        run: python -m pytest tests/test_safety_boundary.py -q -p no:cacheprovider
+
+      - name: Run targeted safety mutation baseline
+        run: |
+          mutmut run
+          mutmut results | tee mutation-results.txt
+
+      - name: Upload mutation baseline
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safety-mutation-baseline
+          path: |
+            mutation-results.txt
+            mutants/
+          if-no-files-found: warn
