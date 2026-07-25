@@ -169,6 +169,7 @@ def test_safety_audit_logging_redacts_sequence_literals(isolated_safety_audit):
 
     logs = json.loads(isolated_safety_audit.read_text(encoding="utf-8"))
     assert "timestamp" in logs[-1]
+    assert logs[-1]["timestamp"].endswith("+00:00")
     assert logs[-1]["boundary_version"] == safety_checker.SAFETY_BOUNDARY_VERSION
     assert logs[-1]["run_id"] == "test_run_123"
     assert logs[-1]["status"] == "warn"
