@@ -49,28 +49,35 @@ Observed totals:
 | Metric | Result |
 | --- | ---: |
 | Statements | 21,753 |
-| Covered statements | 18,110 |
-| Statement coverage | 83.25% |
+| Covered statements | 18,122 |
+| Statement coverage | 83.31% |
 | Branches | 7,096 |
-| Covered branches | 4,820 |
-| Branch coverage | 67.93% |
-| Combined coverage.py display | 79% |
+| Covered branches | 4,822 |
+| Branch coverage | 67.95% |
+| Combined coverage.py display | 80% |
 
 The first baseline is informational: CI uploads the JSON report but does not
 yet impose a repository-wide `fail-under`. Raising a global branch threshold
-from the observed 67.93% is a separate test-improvement task and must not be
+from the observed 67.95% is a separate test-improvement task and must not be
 represented as already achieved.
 
 High-risk targeted module:
 
 | Module | Statement coverage | Branch coverage | Decision |
 | --- | ---: | ---: | --- |
-| `src/utils/safety_checker.py` | 91.30% | 90.00% | Meets the planned 90% high-risk branch baseline |
+| `src/utils/safety_checker.py` | 97.39% | 96.67% | Exceeds the planned 90% high-risk branch baseline |
+
+The latest Linux PR run reported 1,141 passed and 4 platform-dependent skips.
+Its coverage artifact reported 82.64% statement coverage, 67.31% branch
+coverage, and 97.39% statement / 96.67% branch coverage for
+`src/utils/safety_checker.py`. The Windows exact-head run reported 1,145
+passed; the platform difference is the four optional assembly tests skipped on
+Linux, not four missing test cases.
 
 ## Mutation testing
 
-Mutmut 3.6.0 is configured to mutate
-`src/utils/safety_checker.py` and select
+Mutmut 3.6.0 copies the complete `src` tree and required application runtime
+dependencies, mutates only `src/utils/safety_checker.py`, and selects
 `tests/test_safety_boundary.py`. The dedicated Linux GitHub Actions workflow
 first verifies the focused pytest baseline, runs Mutmut, prints the mutation
 results, and uploads both the result text and Mutmut working directory.
@@ -81,12 +88,33 @@ distribution (`Wsl/EnumerateDistros/Service/E_ACCESSDENIED`), so no local
 mutation score is claimed. The development dependency is therefore
 platform-marked to install on non-Windows hosts only.
 
+The final reviewed run on code/test head
+`629821754c4c78c9add2b6d78db9cce2488f83f3` generated 310 mutants:
+
+- 297 killed;
+- 13 survived;
+- 0 timeout, suspicious, skipped, or untested mutants;
+- mutation score: 95.81%.
+
+Every survivor was compared to the original function:
+
+| Classification | Count | Reviewed difference |
+| --- | ---: | --- |
+| Equivalent under the current detector input domain | 6 | Empty optional intent, host, design name, and part fields changed from `""` to the benign sentinel `"XXXX"`; neither value matches any safety pattern or changes the result |
+| Encoding alias / runner-default tool limitation | 4 | `utf-8` vs `UTF-8`, or an omitted write encoding on the UTF-8 Linux runner; decoded audit JSON and hashes are unchanged in this run |
+| Non-semantic serialization / temporary-path formatting | 3 | `.tmp` vs `.TMP`, omitted JSON indentation, or indentation 2 vs 3; the atomic replacement target and decoded event payload are unchanged |
+
+No surviving mutant changes a safety decision, fail-closed flag, review
+requirement, export blocker, audit field, redaction boundary, error channel, or
+UTC timestamp contract. Earlier behavioral survivors in those areas were
+repaired with focused tests and killed by the final run.
+
 Release decision:
 
-- Draft PR: allowed with mutation marked pending.
-- Ready for Review: requires the Linux mutation workflow result to be reviewed.
-- Surviving mutants: must be classified as test gaps, equivalent mutants, or
-  approved exceptions before the gate is called complete.
+- Targeted mutation gate: PASS with reviewed equivalent/tool-limitation
+  survivors.
+- Ready for Review: permitted after the exact documentation head also passes
+  GitHub Actions.
 - No mutation result may be described as biological or scientific validation.
 
 ## Gherkin / BDD decision
@@ -105,8 +133,8 @@ authoritative executable and review artifacts.
 
 - Browser/manual QA completed; see
   [`PRE_RELEASE_EXECUTION_RECORD.md`](PRE_RELEASE_EXECUTION_RECORD.md).
-- Complete the staged-scope secret, provenance, and claim audit.
-- Create a deliberately partitioned Draft PR.
-- Review CI coverage and Linux mutation artifacts.
-- Promote to Ready for Review only when every blocking check is green or has a
-  named, written reviewer exception.
+- Staged-scope secret, provenance, and claim audits are complete.
+- Draft PR #16 contains the deliberately partitioned commits.
+- CI coverage and Linux mutation artifacts are reviewed above.
+- The documentation-only final head must pass GitHub Actions before promotion
+  to Ready for Review.

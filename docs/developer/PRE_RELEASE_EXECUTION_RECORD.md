@@ -3,8 +3,8 @@
 Date: 2026-07-25
 Base revision: `f8ebe00b192db14ca5aa1f7467b00ec4790abf5b`
 Release posture: `0.x research preview`
-Current decision: **Draft PR allowed; Ready for Review pending Linux mutation
-result and latest GitHub Actions**
+Current decision: **Ready for Review is authorized when GitHub Actions passes
+on the exact head containing this final record**
 
 This record reports local computational and software-engineering evidence. It
 does not establish biological validity, wet-lab performance, external Cello
@@ -37,7 +37,9 @@ mapping, formal confirmatory holdout acceptance, or production readiness.
 | Ruff | PASS |
 | `git diff --check` | PASS; Windows line-ending notices only |
 | Focused test groups | PASS |
-| Final full pytest with coverage | PASS; 1,134 passed, one explained Starlette/httpx deprecation warning |
+| Final Windows full pytest with coverage | PASS; 1,145 passed, one explained Starlette/httpx deprecation warning |
+| Latest Linux PR full pytest | PASS; 1,141 passed, 4 platform-dependent skips, one explained warning |
+| Targeted Linux mutation | PASS; 310 generated, 297 killed, 13 reviewed survivors, 95.81% score |
 | Evidence Governance public proof | PASS |
 | Mypy | NON-BLOCKING BASELINE; 484 errors in 106 files, not an existing CI gate |
 
@@ -156,12 +158,22 @@ evidence promotion.
 
 ## Coverage, mutation, and Gherkin
 
-- Final statement coverage: 83.25%.
-- Final branch coverage: 67.93%.
-- `src/utils/safety_checker.py`: 91.30% statement and 90.00% branch coverage.
+- Final Windows statement coverage: 83.31%.
+- Final Windows branch coverage: 67.95%.
+- Latest Linux PR statement / branch coverage: 82.64% / 67.31%.
+- `src/utils/safety_checker.py`: 97.39% statement and 96.67% branch coverage
+  on both final environments.
 - Native Windows mutation execution: not supported by Mutmut 3; this host's WSL
   enumeration is access-denied.
-- Linux targeted mutation workflow: configured and pending the Draft PR head.
+- Linux targeted mutation workflow: PASS on
+  `629821754c4c78c9add2b6d78db9cce2488f83f3`.
+- Mutation result: 310 generated, 297 killed, 13 survived, 0 timeout,
+  suspicious, skipped, or untested; score 95.81%.
+- Survivor review: 6 benign-empty sentinel equivalents, 4 encoding
+  alias/runner-default limitations, and 3 serialization or temporary-path
+  formatting equivalents. No survivor changes a safety decision, fail-closed
+  flag, review requirement, export blocker, audit field, redaction boundary,
+  error channel, or UTC timestamp.
 - Gherkin: intentionally not introduced; existing pytest scenarios and manual
   claim matrix remain authoritative until a product-owner-readable pilot has a
   stable workflow to justify it.
@@ -180,16 +192,17 @@ that authority.
 
 ## Gate decision
 
-Draft PR is permitted because local code, regression, coverage, manual QA,
-secret, provenance, and claim-boundary gates are recorded and passing, with
-mutation explicitly pending.
+The code/test head satisfies the Draft and Ready evidence gates:
 
-Ready for Review remains blocked until:
+1. all partitioned commits are pushed to Draft PR #16;
+2. both Linux CI events passed on the reviewed code/test head;
+3. targeted mutation completed and every survivor is classified;
+4. local regression, coverage, manual QA, secret, provenance, and claim
+   boundary checks pass;
+5. provider calls, paid cost, external Cello runs, formal holdout runs, and
+   wet-lab runs remain zero.
 
-1. all partitioned commits are pushed to the Draft PR branch;
-2. GitHub Actions passes on the exact PR head;
-3. the Linux targeted mutation result is reviewed and any surviving mutants are
-   classified or repaired;
-4. the PR diff and generated files are rechecked at the final head.
-
-Merge is not authorized by this record alone.
+The documentation-only commit containing this record must pass GitHub Actions
+on its exact head before the PR is marked Ready. Merge is permitted only after
+that final head is green, the PR is mergeable, the PR body matches this record,
+and no unresolved review blocker exists.
