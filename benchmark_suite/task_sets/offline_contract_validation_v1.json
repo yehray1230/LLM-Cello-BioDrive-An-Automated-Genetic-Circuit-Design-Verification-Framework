@@ -1,0 +1,114 @@
+{
+  "schema_version": "1.0",
+  "task_set_id": "offline_contract_validation_v1",
+  "version": "1.0.0",
+  "name": "Frozen offline software-contract validation matrix",
+  "description": "Three deterministic combinational baselines plus two fixture-defined stop cases. This is not an end-to-end agent or Cello validation and never authorizes external execution.",
+  "license": "Apache-2.0",
+  "provenance": {
+    "kind": "synthetic_project_fixture",
+    "wet_lab_validated": false,
+    "external_cello_executed": false,
+    "created_for": "repeatable project integration validation"
+  },
+  "tasks": [
+    {
+      "task_id": "fsv_not_a_gfp_v1",
+      "category": "not_logic",
+      "name": "Single-input NOT reporter",
+      "request": "Activate GFP only when input A is absent.",
+      "expected": {
+        "evaluation_mode": "combinational_logic",
+        "logic_expression": "NOT A",
+        "inputs": ["A"],
+        "outputs": ["GFP"],
+        "truth_table": [
+          {"A": 0, "GFP": 1},
+          {"A": 1, "GFP": 0}
+        ]
+      },
+      "constraints": {"cello_mapping_required": false, "wet_lab_claims_allowed": false},
+      "scoring_notes": ["Require both truth-table rows and completed deterministic simulation."],
+      "tags": ["fixed", "offline", "not"],
+      "source": {"type": "project_fixture"}
+    },
+    {
+      "task_id": "fsv_a_and_b_gfp_v1",
+      "category": "and2_logic",
+      "name": "Two-input AND reporter",
+      "request": "Activate GFP only when both input A and input B are present.",
+      "expected": {
+        "evaluation_mode": "combinational_logic",
+        "logic_expression": "A AND B",
+        "inputs": ["A", "B"],
+        "outputs": ["GFP"],
+        "truth_table": [
+          {"A": 0, "B": 0, "GFP": 0},
+          {"A": 0, "B": 1, "GFP": 0},
+          {"A": 1, "B": 0, "GFP": 0},
+          {"A": 1, "B": 1, "GFP": 1}
+        ]
+      },
+      "constraints": {"cello_mapping_required": false, "wet_lab_claims_allowed": false},
+      "scoring_notes": ["Require all four truth-table rows and completed deterministic simulation."],
+      "tags": ["fixed", "offline", "and2"],
+      "source": {"type": "project_fixture"}
+    },
+    {
+      "task_id": "cello_a_and_not_b_gfp_v1",
+      "category": "andnot_logic",
+      "name": "A AND NOT B reporter",
+      "request": "Activate GFP only when input A is present and input B is absent.",
+      "expected": {
+        "evaluation_mode": "combinational_logic",
+        "logic_expression": "A AND NOT B",
+        "inputs": ["A", "B"],
+        "outputs": ["GFP"],
+        "truth_table": [
+          {"A": 0, "B": 0, "GFP": 0},
+          {"A": 0, "B": 1, "GFP": 0},
+          {"A": 1, "B": 0, "GFP": 1},
+          {"A": 1, "B": 1, "GFP": 0}
+        ]
+      },
+      "constraints": {"cello_mapping_required": false, "wet_lab_claims_allowed": false},
+      "scoring_notes": ["Direct topology simulation remains explicitly not mapped."],
+      "tags": ["fixed", "offline", "andnot"],
+      "source": {"type": "project_fixture"}
+    },
+    {
+      "task_id": "fsv_ambiguous_sensor_v1",
+      "category": "ambiguous_negative",
+      "name": "Underspecified sensor request",
+      "request": "Build a useful circuit that senses the environment.",
+      "expected": {
+        "evaluation_mode": "clarification_required",
+        "candidate_generation_allowed": false,
+        "required_clarifications": [
+          "environmental signal or sensing mechanism",
+          "desired output identity and behavior",
+          "host or chassis context"
+        ]
+      },
+      "constraints": {"unsupported_defaults_allowed": false, "sequence_level_design_allowed": false},
+      "scoring_notes": ["Clarification is the successful fail-closed result."],
+      "tags": ["fixed", "offline", "negative", "clarification"],
+      "source": {"type": "project_fixture"}
+    },
+    {
+      "task_id": "fsv_clocked_counter_v1",
+      "category": "unsupported_negative",
+      "name": "Unsupported clocked counter",
+      "request": "Build a clocked two-bit biological counter with a guaranteed timing specification.",
+      "expected": {
+        "evaluation_mode": "blocked_before_execution",
+        "reason_code": "unsupported_clocked_sequential_scope",
+        "candidate_generation_allowed": false
+      },
+      "constraints": {"cello_execution_allowed": false, "wet_lab_claims_allowed": false},
+      "scoring_notes": ["The request must stop before simulation or external mapping."],
+      "tags": ["fixed", "offline", "negative", "unsupported"],
+      "source": {"type": "project_fixture"}
+    }
+  ]
+}

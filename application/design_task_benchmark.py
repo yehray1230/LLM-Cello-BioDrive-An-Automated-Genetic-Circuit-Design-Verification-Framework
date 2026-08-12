@@ -276,6 +276,14 @@ def _run_task(
 
 def _deterministic_topology(task: DesignTask) -> dict[str, Any]:
     verilog_by_task = {
+        "fsv_not_a_gfp_v1": (
+            "module fsv_not_a(input A, output GFP); "
+            "assign GFP = ~A; endmodule"
+        ),
+        "fsv_a_and_b_gfp_v1": (
+            "module fsv_a_and_b(input A, input B, output GFP); "
+            "assign GFP = A & B; endmodule"
+        ),
         "reporter_a_or_b_v1": (
             "module reporter_a_or_b(input A, input B, output reporter); "
             "assign reporter = A | B; endmodule"
@@ -565,7 +573,9 @@ def _evaluate_oscillatory_temporal_task(
             if prior_valleys:
                 combined_amplitudes.append(pv - prior_valleys[-1])
 
-        amplitude_ok = combined_amplitudes and all(amp >= minimum_amplitude for amp in combined_amplitudes)
+        amplitude_ok = bool(combined_amplitudes) and all(
+            amp >= minimum_amplitude for amp in combined_amplitudes
+        )
 
         if peak_count < minimum_peak_count:
             classification = "non-oscillatory"

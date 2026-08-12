@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-import os
 import json
+import os
+import platform
+import time
 import uuid
 from dataclasses import asdict
 from dataclasses import dataclass
@@ -11,18 +13,38 @@ from typing import Any
 from agents.consolidator_agent import ConsolidatorAgent
 from agents.data_miner_agent import DataMinerAgent
 from benchmark_suite.benchmark_controller import evaluate_candidate
-from mcp_server.artifact_writer import create_run_dir, write_json, write_state_artifacts, write_text
+from mcp_server.and2_pilot_preflight import (
+    prepare_and2_pilot_preflight,
+    revalidate_and2_provider_snapshot,
+)
+from mcp_server.artifact_writer import (
+    create_run_dir,
+    hash_input_paths,
+    write_and2_pilot_artifacts,
+    write_json,
+    write_pilot_failure_record,
+    write_state_artifacts,
+    write_text,
+)
 from mcp_server.chart_renderer import render_charts
 from mcp_server.explainer import build_design_explanation, validate_explanation_options
 from mcp_server.result_access import (
     best_topology_from_result as _best_topology_from_result,
 )
 from mcp_server.run_store import RunStore
-from mcp_server.serializers import design_state_from_dict, summarize_state, summarize_topology
+from mcp_server.serializers import (
+    design_state_from_dict,
+    summarize_state,
+    summarize_topology,
+)
 from schemas.design_diff import compare_designs
 from schemas.design_ir import DesignIR, design_ir_from_dict, topology_to_design_ir
 from schemas.design_operations import replace_part_immutable, validate_replacement
 from schemas.state import DesignState, SearchNode
+from schemas.and2_pilot import (
+    PilotAttemptBudget,
+    validate_and2_verilog,
+)
 from tools.cello_wrapper import CelloWrapper
 from tools.ode_simulator import BatchODESimulator
 from tools.part_library import PartLibrary
@@ -53,13 +75,18 @@ class WorkflowOptions:
     compute_budget: int = 2
     monte_carlo_samples: int = 1
     output_dir: str | None = None
-    cello_command: str | None = None
+    cello_command: str | list[str] | None = None
     ucf_path: str | None = None
     sensor_path: str | None = None
     device_path: str | None = None
+    integrated_pilot: bool = False
+    cello_timeout_seconds: int = 120
+    provider_call_cap: int = 3
     model_name: str | None = None
     api_base: str | None = None
     api_key: str | None = None
+    provider_lock_path: str | None = None
+    toolchain_lock_path: str | None = None
 
 
 class TranslatorRunner:
@@ -83,7 +110,11 @@ class TranslatorRunner:
 
 class NoOpODESimulator:
     def run(self, state: DesignState) -> DesignState:
-        node = state.tree_nodes.get(state.current_node_id) if state.current_node_id else None
+        node = (
+            state.tree_nodes.get(state.current_node_id)
+            if state.current_node_id
+            else None
+        )
         topologies = node.candidate_topologies if node else state.candidate_topologies
         for topology in topologies:
             topology["ode_status"] = "disabled"
@@ -103,17 +134,23 @@ def design_circuit_quick(
     api_base: str | None = None,
     api_key: str | None = None,
     output_dir: str | None = None,
-    cello_command: str | None = None,
+    cello_command: str | list[str] | None = None,
     ucf_path: str | None = None,
     sensor_path: str | None = None,
     device_path: str | None = None,
     progress_callback=None,
     initial_state: DesignState | None = None,
+    integrated_pilot: bool = False,
+    cello_timeout_seconds: int = 120,
+    provider_call_cap: int = 3,
+    provider_lock_path: str | None = None,
+    toolchain_lock_path: str | None = None,
 ) -> dict[str, Any]:
     user_intent = str(user_intent or "").strip()
     if not user_intent:
         return _error_response("user_intent is required.", ERROR_VALIDATION)
     from utils.safety_checker import check_safety, log_safety_event
+
     safety_result = check_safety(user_intent, host_organism)
     if safety_result.status != "safe":
         log_safety_event(
@@ -149,16 +186,75 @@ def design_circuit_quick(
         ucf_path=ucf_path,
         sensor_path=sensor_path,
         device_path=device_path,
+        integrated_pilot=integrated_pilot,
+        cello_timeout_seconds=cello_timeout_seconds,
+        provider_call_cap=provider_call_cap,
         model_name=model_name,
         api_base=api_base,
         api_key=api_key,
+        provider_lock_path=provider_lock_path,
+        toolchain_lock_path=toolchain_lock_path,
     )
     resolved_model = _resolve_model(options.model_name)
     resolved_api_key = _resolve_api_key(options.api_key)
     resolved_api_base = options.api_base or os.getenv("LITELLM_API_BASE") or None
+    configured_command = _configured_command(options.cello_command)
+    toolchain_identity: dict[str, Any] = {}
+    provider_identity: dict[str, Any] = {
+        "model": resolved_model,
+        "api_base": resolved_api_base,
+        "endpoint_class": "not_applicable",
+        "api_key_present": bool(resolved_api_key),
+        "cost_evidence": "not_applicable",
+        "paid_cost_usd": 0.0,
+    }
+    pilot_input_paths: dict[str, str] = {}
+    frozen_input_sha256s: dict[str, str] = {}
+    pilot_preflight = None
 
-    if not resolved_model:
-        return _error_response("model_name is required via argument or LITELLM_MODEL.", ERROR_VALIDATION)
+    if not resolved_model and not options.integrated_pilot:
+        return _error_response(
+            "model_name is required via argument or LITELLM_MODEL.", ERROR_VALIDATION
+        )
+
+    if options.integrated_pilot:
+        pilot_preflight = prepare_and2_pilot_preflight(
+            options,
+            configured_command=configured_command,
+            repository_root=Path(__file__).resolve().parents[2],
+            resolved_model=resolved_model,
+            resolved_api_base=resolved_api_base,
+            resolved_api_key=resolved_api_key,
+            progress_callback_present=progress_callback is not None,
+            initial_state_present=initial_state is not None,
+        )
+        context = pilot_preflight.context
+        toolchain_identity = context.toolchain_identity
+        provider_identity = context.provider_identity
+        pilot_input_paths = context.input_paths
+        frozen_input_sha256s = context.frozen_input_sha256s
+        if not pilot_preflight.passed:
+            recorded_input_sha256s = (
+                frozen_input_sha256s
+                if pilot_preflight.stage_id == "preconstruction"
+                else hash_input_paths(pilot_input_paths, require_all=False)
+            )
+            return _pilot_error_response(
+                "; ".join(pilot_preflight.errors),
+                output_dir=options.output_dir,
+                stage_id=pilot_preflight.stage_id,
+                failure_category=pilot_preflight.failure_category,
+                attempt_budget=PilotAttemptBudget(
+                    max_provider_calls=options.provider_call_cap,
+                ),
+                command=configured_command,
+                input_sha256s=recorded_input_sha256s,
+                input_paths=pilot_input_paths,
+                cleanup_result="not_started",
+                failure_status="rejected",
+                toolchain_identity=toolchain_identity,
+                provider_identity=provider_identity,
+            )
 
     try:
         from agents.builder_agent import BuilderAgent
@@ -187,25 +283,73 @@ def design_circuit_quick(
     )
     skill_retriever = SkillRetriever.from_json_file() if options.enable_rag else None
     skill_extractor = (
-        SkillExtractorAgent(vault_dir="outputs/obsidian_skills", vector_db=InMemoryVectorDB())
+        SkillExtractorAgent(
+            vault_dir="outputs/obsidian_skills", vector_db=InMemoryVectorDB()
+        )
         if options.enable_skill_extraction
         else None
     )
 
+    attempt_budget = (
+        PilotAttemptBudget(max_provider_calls=options.provider_call_cap)
+        if options.integrated_pilot
+        else None
+    )
+    pilot_run_dir = (
+        create_run_dir(options.output_dir) if options.integrated_pilot else None
+    )
+    started_at = time.monotonic()
     try:
+        if options.integrated_pilot:
+            provider_identity = revalidate_and2_provider_snapshot(
+                pilot_preflight.context,
+                resolved_api_base=resolved_api_base,
+                resolved_model=resolved_model,
+                provider_lock_path=options.provider_lock_path,
+            )
+        builder = BuilderAgent(
+            api_key=resolved_api_key,
+            model_name=resolve_agent_model("builder", resolved_model),
+            api_base=resolved_api_base,
+            proposal_limit=1 if options.integrated_pilot else 3,
+            attempt_budget=attempt_budget,
+        )
+        translator = TranslatorRunner(
+            api_key=resolved_api_key,
+            model_name=resolve_agent_model("translator", resolved_model),
+            api_base=resolved_api_base,
+        )
+        if options.integrated_pilot:
+            translator.kwargs.update(
+                {"max_retries": 1, "attempt_budget": attempt_budget}
+            )
+        critic = CriticAgent(
+            api_key=resolved_api_key,
+            model_name=resolve_agent_model("critic", resolved_model),
+            api_base=resolved_api_base,
+            attempt_budget=attempt_budget,
+        )
         result_state = run_reflexion_workflow(
             state=state,
-            builder=BuilderAgent(api_key=resolved_api_key, model_name=resolve_agent_model("builder", resolved_model), api_base=resolved_api_base),
-            translator=TranslatorRunner(api_key=resolved_api_key, model_name=resolve_agent_model("translator", resolved_model), api_base=resolved_api_base),
+            builder=builder,
+            translator=translator,
             cello_wrapper=CelloWrapper(
                 cello_command=options.cello_command,
                 ucf_path=options.ucf_path,
                 sensor_path=options.sensor_path,
                 device_path=options.device_path,
-                artifact_dir=Path(options.output_dir) / "cello_artifacts" if options.output_dir else None,
+                artifact_dir=Path(options.output_dir) / "cello_artifacts"
+                if options.output_dir
+                else None,
+                timeout_seconds=options.cello_timeout_seconds,
+                external_required=options.integrated_pilot,
+                attempt_budget=attempt_budget,
+                semantic_validator=validate_and2_verilog
+                if options.integrated_pilot
+                else None,
             ),
             batch_ode_simulator=batch_ode_simulator,
-            critic=CriticAgent(api_key=resolved_api_key, model_name=resolve_agent_model("critic", resolved_model), api_base=resolved_api_base),
+            critic=critic,
             consolidator=ConsolidatorAgent(),
             skill_retriever=skill_retriever,
             data_miner=DataMinerAgent() if options.enable_ode else None,
@@ -213,20 +357,175 @@ def design_circuit_quick(
             progress_callback=progress_callback,
         )
     except Exception as exc:
+        if options.integrated_pilot:
+            return _pilot_error_response(
+                str(exc),
+                output_dir=options.output_dir,
+                run_dir=pilot_run_dir,
+                stage_id="workflow",
+                failure_category=type(exc).__name__,
+                attempt_budget=attempt_budget,
+                elapsed_seconds=time.monotonic() - started_at,
+                command=configured_command,
+                input_sha256s=frozen_input_sha256s,
+                input_paths=pilot_input_paths,
+                cleanup_result="unknown",
+                toolchain_identity=toolchain_identity,
+                provider_identity=provider_identity,
+            )
         return _error_response(f"workflow failed: {exc}", ERROR_WORKFLOW)
 
-    run_dir = create_run_dir(options.output_dir)
+    run_dir = pilot_run_dir or create_run_dir(options.output_dir)
     charts = render_charts(result_state.best_topology, run_dir)
     artifacts = write_state_artifacts(result_state, run_dir, charts)
+    if options.integrated_pilot:
+        try:
+            artifacts = write_and2_pilot_artifacts(
+                result_state,
+                run_dir,
+                artifacts,
+                attempt_budget=attempt_budget,
+                input_paths=pilot_input_paths,
+                frozen_input_sha256s=frozen_input_sha256s,
+                toolchain_identity=toolchain_identity,
+                provider_identity=provider_identity,
+            )
+        except Exception as exc:
+            topology = dict(result_state.best_topology or {})
+            cello_manifest = topology.get("cello_artifact_manifest")
+            artifact_inventory = list(artifacts.values())
+            cello_manifest_path = topology.get("cello_artifact_manifest_path")
+            if cello_manifest_path:
+                artifact_inventory.append(str(cello_manifest_path))
+            manifest_command = (
+                cello_manifest.get("command")
+                if isinstance(cello_manifest, dict)
+                else None
+            )
+            native_category = str(topology.get("mapping_error_category") or "")
+            failure_status = "timeout" if native_category == "TIMEOUT" else "failed"
+            return _pilot_error_response(
+                str(exc),
+                output_dir=options.output_dir,
+                run_dir=run_dir,
+                stage_id="closure",
+                failure_category=native_category or "INCOMPLETE_EVIDENCE",
+                attempt_budget=attempt_budget,
+                elapsed_seconds=time.monotonic() - started_at,
+                artifact_inventory=artifact_inventory,
+                command=(
+                    list(manifest_command)
+                    if isinstance(manifest_command, list)
+                    else configured_command
+                ),
+                input_sha256s=frozen_input_sha256s,
+                input_paths=pilot_input_paths,
+                exit_code=topology.get("return_code"),
+                cleanup_result="pass",
+                failure_status=failure_status,
+                toolchain_identity=toolchain_identity,
+                provider_identity=provider_identity,
+            )
     summary = summarize_state(result_state)
-    return _success_response({
-        "status": _status_from_state(result_state),
-        "run_dir": str(run_dir.resolve()),
-        "summary": summary,
-        "artifacts": artifacts,
-        "warnings": safety_result.warnings,
-        "safety": safety_result.to_dict(),
-    })
+    return _success_response(
+        {
+            "status": _status_from_state(result_state),
+            "run_dir": str(run_dir.resolve()),
+            "summary": summary,
+            "artifacts": artifacts,
+            "warnings": safety_result.warnings,
+            "safety": safety_result.to_dict(),
+        }
+    )
+
+
+def _pilot_error_response(
+    message: str,
+    *,
+    output_dir: str | None,
+    stage_id: str,
+    failure_category: str,
+    attempt_budget: PilotAttemptBudget,
+    run_dir: Path | None = None,
+    elapsed_seconds: float = 0.0,
+    artifact_inventory: list[str] | None = None,
+    command: list[str] | None = None,
+    input_sha256s: dict[str, str] | None = None,
+    input_paths: dict[str, str] | None = None,
+    pre_input_sha256s: dict[str, str] | None = None,
+    post_input_sha256s: dict[str, str] | None = None,
+    exit_code: int | None = None,
+    cleanup_result: str = "unknown",
+    failure_status: str | None = None,
+    toolchain_identity: dict[str, Any] | None = None,
+    provider_identity: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    result = _error_response(f"AND2 pilot stopped: {message}", ERROR_WORKFLOW)
+    if not output_dir:
+        return result
+    selected_run_dir = run_dir or create_run_dir(output_dir)
+    pre_hashes = dict(
+        pre_input_sha256s if pre_input_sha256s is not None else (input_sha256s or {})
+    )
+    post_hashes = dict(
+        post_input_sha256s
+        if post_input_sha256s is not None
+        else (
+            hash_input_paths(input_paths, require_all=False)
+            if input_paths is not None
+            else pre_hashes
+        )
+    )
+    input_hashes_equal = pre_hashes == post_hashes
+    if not input_hashes_equal:
+        failure_category = "INPUT_HASH_DRIFT"
+        failure_status = "failed"
+    record = {
+        "schema_version": "and2-pilot-failure-record@2.0.0",
+        "case_id": "FINAL-CLOSEOUT-AND2-001",
+        "attempt_id": selected_run_dir.name,
+        "stage_id": stage_id,
+        "status": failure_status
+        or ("rejected" if stage_id == "preflight" else "failed"),
+        "failure_category": failure_category,
+        "command": list(command or []),
+        "runtime_identity": {
+            "python": platform.python_version(),
+            "platform": platform.platform(),
+        },
+        "input_sha256s": pre_hashes,
+        "pre_input_sha256s": pre_hashes,
+        "post_input_sha256s": post_hashes,
+        "input_hashes_equal": input_hashes_equal,
+        "exit_code": exit_code,
+        "elapsed_seconds": max(0.0, float(elapsed_seconds)),
+        "provider_call_count": attempt_budget.provider_calls,
+        "paid_cost_usd": float((provider_identity or {}).get("paid_cost_usd", 0.0)),
+        "cleanup_result": cleanup_result,
+        "artifact_inventory": list(artifact_inventory or []),
+        "final_disposition": (
+            "INPUT_HASH_DRIFT" if not input_hashes_equal else "NO_GO"
+        ),
+        "cost_control": (
+            "qualified_offline_provider_lock"
+            if (provider_identity or {}).get("cost_evidence")
+            == "qualified_offline_provider_lock"
+            else "zero_provider_calls_only"
+        ),
+        "toolchain_identity": dict(toolchain_identity or {}),
+        "provider_identity": dict(provider_identity or {}),
+    }
+    failure_path = write_pilot_failure_record(selected_run_dir, record)
+    result["artifacts"] = {"pilot_failure_record_json": str(failure_path.resolve())}
+    return result
+
+
+def _configured_command(command: str | list[str] | None) -> list[str]:
+    if command is None:
+        return []
+    if isinstance(command, str):
+        return [command]
+    return [str(part) for part in command]
 
 
 def start_design_run(
@@ -251,6 +550,7 @@ def start_design_run(
     if not user_intent:
         return _error_response("user_intent is required.", ERROR_VALIDATION)
     from utils.safety_checker import check_safety, log_safety_event
+
     safety_result = check_safety(user_intent, host_organism)
     if not safety_result.is_safe:
         log_safety_event(
@@ -319,8 +619,10 @@ def start_design_run(
             ucf_path=ucf_path,
             sensor_path=sensor_path,
             device_path=device_path,
-            progress_callback=lambda stage, status, progress, message, details=None: selected_store.append_event(
-                run_id, stage, status, progress, message, details
+            progress_callback=lambda stage, status, progress, message, details=None: (
+                selected_store.append_event(
+                    run_id, stage, status, progress, message, details
+                )
             ),
         ),
         request=request,
@@ -331,7 +633,9 @@ def start_design_run(
     return response
 
 
-def get_design_run_status(run_id: str, run_store: RunStore | None = None) -> dict[str, Any]:
+def get_design_run_status(
+    run_id: str, run_store: RunStore | None = None
+) -> dict[str, Any]:
     selected_store = run_store or DEFAULT_RUN_STORE
     return selected_store.status(run_id)
 
@@ -348,7 +652,9 @@ def get_design_run_events(
         selected_after = max(0, int(after_event_id))
         selected_limit = max(1, min(int(limit), 500))
     except (TypeError, ValueError):
-        return _error_response("after_event_id and limit must be integers.", ERROR_VALIDATION)
+        return _error_response(
+            "after_event_id and limit must be integers.", ERROR_VALIDATION
+        )
     return (run_store or DEFAULT_RUN_STORE).events(
         str(run_id).strip(),
         after_event_id=selected_after,
@@ -356,7 +662,9 @@ def get_design_run_events(
     )
 
 
-def get_design_run_progress(run_id: str, run_store: RunStore | None = None) -> dict[str, Any]:
+def get_design_run_progress(
+    run_id: str, run_store: RunStore | None = None
+) -> dict[str, Any]:
     status = get_design_run_status(run_id, run_store=run_store)
     if status.get("status") == "not_found":
         return status
@@ -374,12 +682,16 @@ def get_design_run_progress(run_id: str, run_store: RunStore | None = None) -> d
     )
 
 
-def get_design_run_result(run_id: str, run_store: RunStore | None = None) -> dict[str, Any]:
+def get_design_run_result(
+    run_id: str, run_store: RunStore | None = None
+) -> dict[str, Any]:
     selected_store = run_store or DEFAULT_RUN_STORE
     return _ensure_standard_response(selected_store.result(run_id))
 
 
-def list_design_runs(limit: int = 20, run_store: RunStore | None = None) -> dict[str, Any]:
+def list_design_runs(
+    limit: int = 20, run_store: RunStore | None = None
+) -> dict[str, Any]:
     selected_store = run_store or DEFAULT_RUN_STORE
     try:
         selected_limit = max(1, min(int(limit), 100))
@@ -416,14 +728,18 @@ def cancel_design_run(run_id: str, run_store: RunStore | None = None) -> dict[st
     return _ensure_standard_response(selected_store.cancel(str(run_id).strip()))
 
 
-def get_design_run_artifacts(run_id: str, run_store: RunStore | None = None) -> dict[str, Any]:
+def get_design_run_artifacts(
+    run_id: str, run_store: RunStore | None = None
+) -> dict[str, Any]:
     if not str(run_id or "").strip():
         return _error_response("run_id is required.", ERROR_VALIDATION)
     selected_store = run_store or DEFAULT_RUN_STORE
     return _ensure_standard_response(selected_store.artifacts(str(run_id).strip()))
 
 
-def compare_design_runs(run_ids: list[str], run_store: RunStore | None = None) -> dict[str, Any]:
+def compare_design_runs(
+    run_ids: list[str], run_store: RunStore | None = None
+) -> dict[str, Any]:
     normalized_run_ids = _normalize_run_ids(run_ids)
     if normalized_run_ids["status"] == "error":
         return normalized_run_ids
@@ -445,7 +761,10 @@ def compare_design_runs(run_ids: list[str], run_store: RunStore | None = None) -
             continue
         comparisons.append(_comparison_entry(run_id, result))
 
-    comparisons.sort(key=lambda item: (item["score"] is not None, item["score"] or -float("inf")), reverse=True)
+    comparisons.sort(
+        key=lambda item: (item["score"] is not None, item["score"] or -float("inf")),
+        reverse=True,
+    )
     for index, item in enumerate(comparisons, start=1):
         item["rank"] = index
 
@@ -474,13 +793,17 @@ def compare_design_runs(run_ids: list[str], run_store: RunStore | None = None) -
                 "semantic_faithfulness_score",
                 "artifact_count",
             ],
-            "error": None if comparisons else "No completed runs were available for comparison.",
+            "error": None
+            if comparisons
+            else "No completed runs were available for comparison.",
             "error_type": None if comparisons else ERROR_NOT_FOUND,
         }
     )
 
 
-def diagnose_design_run(run_id: str, run_store: RunStore | None = None) -> dict[str, Any]:
+def diagnose_design_run(
+    run_id: str, run_store: RunStore | None = None
+) -> dict[str, Any]:
     if not str(run_id or "").strip():
         return _error_response("run_id is required.", ERROR_VALIDATION)
     selected_store = run_store or DEFAULT_RUN_STORE
@@ -495,7 +818,11 @@ def diagnose_design_run(run_id: str, run_store: RunStore | None = None) -> dict[
     if not isinstance(artifacts, dict):
         artifacts = {}
     best_topology = _best_topology_from_result(result)
-    failed_attempts = summary.get("failed_attempts") if isinstance(summary.get("failed_attempts"), list) else []
+    failed_attempts = (
+        summary.get("failed_attempts")
+        if isinstance(summary.get("failed_attempts"), list)
+        else []
+    )
 
     findings = _diagnose_findings(result, summary, best_topology, failed_attempts)
     actions = _recommended_actions(findings)
@@ -508,7 +835,9 @@ def diagnose_design_run(run_id: str, run_store: RunStore | None = None) -> dict[
                 "run_status": result.get("status"),
                 "diagnosis_status": diagnosis_status,
                 "finding_count": len(findings),
-                "high_severity_count": sum(1 for finding in findings if finding["severity"] == "high"),
+                "high_severity_count": sum(
+                    1 for finding in findings if finding["severity"] == "high"
+                ),
             },
             "artifacts": artifacts,
             "diagnosis_status": diagnosis_status,
@@ -537,7 +866,9 @@ def explain_design_run(
     try:
         item_limit = max(1, min(int(max_items_per_section), 20))
     except (TypeError, ValueError):
-        return _error_response("max_items_per_section must be an integer.", ERROR_VALIDATION)
+        return _error_response(
+            "max_items_per_section must be an integer.", ERROR_VALIDATION
+        )
 
     selected_store = run_store or DEFAULT_RUN_STORE
     result = _ensure_standard_response(selected_store.result(str(run_id).strip()))
@@ -574,7 +905,9 @@ def explain_design_run(
 
     explanation = built["explanation"]
     explanation_artifacts = built["explanation_artifacts"]
-    artifacts = dict(result.get("artifacts", {}) if isinstance(result.get("artifacts"), dict) else {})
+    artifacts = dict(
+        result.get("artifacts", {}) if isinstance(result.get("artifacts"), dict) else {}
+    )
     artifacts.update(explanation_artifacts)
     return _success_response(
         {
@@ -605,10 +938,15 @@ def submit_design_feedback(
     if result.get("status") == "not_found":
         return result
     if result.get("status") != "needs_human_input":
-        return _error_response("Feedback can only be submitted for a run that needs human input.", ERROR_VALIDATION)
+        return _error_response(
+            "Feedback can only be submitted for a run that needs human input.",
+            ERROR_VALIDATION,
+        )
     normalized_action = str(action or "").strip().lower()
     if normalized_action not in {"repair", "exploitation", "fallback"}:
-        return _error_response("action must be repair, exploitation, or fallback.", ERROR_VALIDATION)
+        return _error_response(
+            "action must be repair, exploitation, or fallback.", ERROR_VALIDATION
+        )
     budget_result = _coerce_min_int(extra_budget, "extra_budget")
     if budget_result["status"] == "error":
         return budget_result
@@ -619,9 +957,13 @@ def submit_design_feedback(
             if line.strip()
         ]
     elif isinstance(constraints, list):
-        normalized_constraints = [str(item).strip() for item in constraints if str(item).strip()]
+        normalized_constraints = [
+            str(item).strip() for item in constraints if str(item).strip()
+        ]
     else:
-        return _error_response("constraints must be a string or list of strings.", ERROR_VALIDATION)
+        return _error_response(
+            "constraints must be a string or list of strings.", ERROR_VALIDATION
+        )
     if not normalized_constraints and normalized_action != "fallback":
         return _error_response("At least one constraint is required.", ERROR_VALIDATION)
 
@@ -666,21 +1008,31 @@ def resume_design_run(
     if result.get("status") == "not_found":
         return result
     if result.get("status") != "needs_human_input":
-        return _error_response("Only a run that needs human input can be resumed.", ERROR_VALIDATION)
+        return _error_response(
+            "Only a run that needs human input can be resumed.", ERROR_VALIDATION
+        )
     artifacts = result.get("artifacts", {})
     state_path = artifacts.get("state_json") if isinstance(artifacts, dict) else None
     status = selected_store.status(parent_id)
     feedback_path = Path(str(status.get("run_dir"))) / "human_feedback.json"
     if not state_path or not Path(str(state_path)).exists():
-        return _error_response("The saved state.json required for resume is unavailable.", ERROR_NOT_FOUND)
+        return _error_response(
+            "The saved state.json required for resume is unavailable.", ERROR_NOT_FOUND
+        )
     if not feedback_path.exists():
-        return _error_response("Submit human feedback before resuming the run.", ERROR_VALIDATION)
+        return _error_response(
+            "Submit human feedback before resuming the run.", ERROR_VALIDATION
+        )
 
-    state = design_state_from_dict(json.loads(Path(str(state_path)).read_text(encoding="utf-8")))
+    state = design_state_from_dict(
+        json.loads(Path(str(state_path)).read_text(encoding="utf-8"))
+    )
     feedback = json.loads(feedback_path.read_text(encoding="utf-8"))
     action = str(feedback.get("action") or "repair")
     constraints = [str(item) for item in feedback.get("constraints", [])]
-    state.human_constraints.extend(item for item in constraints if item not in state.human_constraints)
+    state.human_constraints.extend(
+        item for item in constraints if item not in state.human_constraints
+    )
     state.compute_budget += int(feedback.get("extra_budget") or 0)
     state.requires_human_input = False
     state.pause_reason = None
@@ -688,7 +1040,9 @@ def resume_design_run(
     state.last_error = None
     if action == "fallback":
         state.is_completed = state.best_topology is not None
-        return _error_response("Fallback selection does not require resume.", ERROR_VALIDATION)
+        return _error_response(
+            "Fallback selection does not require resume.", ERROR_VALIDATION
+        )
     _add_guided_child(state, "Repair" if action == "repair" else "Exploitation")
 
     request = {
@@ -711,8 +1065,10 @@ def resume_design_run(
             api_base=api_base,
             api_key=api_key,
             initial_state=state,
-            progress_callback=lambda stage, event_status, progress, message, details=None: selected_store.append_event(
-                child_id, stage, event_status, progress, message, details
+            progress_callback=lambda stage, event_status, progress, message, details=None: (
+                selected_store.append_event(
+                    child_id, stage, event_status, progress, message, details
+                )
             ),
         ),
         request=request,
@@ -769,14 +1125,20 @@ def list_compatible_replacements(
     design, _ = loaded
     target = next((part for part in design.parts if part.id == target_part_id), None)
     if target is None:
-        return _error_response(f"Unknown target part: {target_part_id}", ERROR_NOT_FOUND)
+        return _error_response(
+            f"Unknown target part: {target_part_id}", ERROR_NOT_FOUND
+        )
     library = _load_library(library_path)
     if isinstance(library, dict):
         return library
     candidates = library.compatible_parts(
         part_type=target.part_type,
-        host_organism=target.host_compatibility[0] if target.host_compatibility else None,
-        gate_type=str(target.assignment.metadata.get("gate_type") or "") if target.assignment else None,
+        host_organism=target.host_compatibility[0]
+        if target.host_compatibility
+        else None,
+        gate_type=str(target.assignment.metadata.get("gate_type") or "")
+        if target.assignment
+        else None,
     )
     return _success_response(
         {
@@ -857,7 +1219,9 @@ def replace_design_part(
                 "artifacts": {"source_design_ir_json": str(source_path.resolve())},
             }
         )
-    revision_path = source_path.parent / f"{replacement.design.revision.revision_id}.json"
+    revision_path = (
+        source_path.parent / f"{replacement.design.revision.revision_id}.json"
+    )
     write_json(revision_path, replacement.design)
     return _success_response(
         {
@@ -893,7 +1257,10 @@ def compare_design_revisions(
             "status": "completed",
             "run_id": run_id,
             "diff": asdict(diff),
-            "summary": {"description": diff.summary, "recommendation": diff.recommendation},
+            "summary": {
+                "description": diff.summary,
+                "recommendation": diff.recommendation,
+            },
             "artifacts": {},
         }
     )
@@ -909,7 +1276,9 @@ def export_design(
     if isinstance(loaded, dict):
         return loaded
     design, design_path = loaded
-    selected_formats = [str(item).lower() for item in (formats or ["bom", "genbank", "sbol3"])]
+    selected_formats = [
+        str(item).lower() for item in (formats or ["bom", "genbank", "sbol3"])
+    ]
     exporters = {
         "bom": export_bom_csv,
         "genbank": export_genbank,
@@ -917,7 +1286,9 @@ def export_design(
     }
     unknown = [item for item in selected_formats if item not in exporters]
     if unknown:
-        return _error_response(f"Unsupported export formats: {', '.join(unknown)}", ERROR_VALIDATION)
+        return _error_response(
+            f"Unsupported export formats: {', '.join(unknown)}", ERROR_VALIDATION
+        )
     export_dir = design_path.parent / "exports" / design.revision.revision_id
     export_dir.mkdir(parents=True, exist_ok=True)
     results = {}
@@ -931,7 +1302,14 @@ def export_design(
             write_text(path, exported.content)
             artifacts[name] = str(path.resolve())
     manifest_path = export_dir / "export_manifest.json"
-    write_json(manifest_path, {"run_id": run_id, "revision_id": design.revision.revision_id, "exports": results})
+    write_json(
+        manifest_path,
+        {
+            "run_id": run_id,
+            "revision_id": design.revision.revision_id,
+            "exports": results,
+        },
+    )
     artifacts["export_manifest_json"] = str(manifest_path.resolve())
     return _success_response(
         {
@@ -966,7 +1344,9 @@ def evaluate_verilog(
     if monte_carlo_result["status"] == "error":
         return monte_carlo_result
 
-    state = DesignState(user_intent=user_intent, host_organism=host_organism, compute_budget=1)
+    state = DesignState(
+        user_intent=user_intent, host_organism=host_organism, compute_budget=1
+    )
     node = SearchNode(node_id="root", search_mode="Exploration")
     node.verilog_codes = [verilog]
     state.tree_nodes["root"] = node
@@ -983,7 +1363,9 @@ def evaluate_verilog(
             return _error_response(state.last_error, ERROR_EXTERNAL_TOOL)
         state = DataMinerAgent().run(state) if enable_ode else state
         state = (
-            BatchODESimulator(monte_carlo_samples=monte_carlo_result["value"]).run(state)
+            BatchODESimulator(monte_carlo_samples=monte_carlo_result["value"]).run(
+                state
+            )
             if enable_ode
             else NoOpODESimulator().run(state)
         )
@@ -1000,13 +1382,15 @@ def evaluate_verilog(
     charts = render_charts(state.best_topology, run_dir)
     artifacts = write_state_artifacts(state, run_dir, charts)
     write_json(run_dir / "input_verilog.json", {"verilog": verilog})
-    return _success_response({
-        "status": "completed",
-        "run_dir": str(run_dir.resolve()),
-        "summary": summarize_state(state),
-        "best_topology": summarize_topology(state.best_topology),
-        "artifacts": artifacts,
-    })
+    return _success_response(
+        {
+            "status": "completed",
+            "run_dir": str(run_dir.resolve()),
+            "summary": summarize_state(state),
+            "best_topology": summarize_topology(state.best_topology),
+            "artifacts": artifacts,
+        }
+    )
 
 
 def _hydrate_result_for_explanation(result: dict[str, Any]) -> dict[str, Any]:
@@ -1026,7 +1410,9 @@ def _hydrate_result_for_explanation(result: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(full_topology, dict) or not full_topology:
         return result
     hydrated = dict(result)
-    summary = dict(hydrated.get("summary", {}) if isinstance(hydrated.get("summary"), dict) else {})
+    summary = dict(
+        hydrated.get("summary", {}) if isinstance(hydrated.get("summary"), dict) else {}
+    )
     summary["best_topology"] = full_topology
     hydrated["summary"] = summary
     hydrated.setdefault("best_topology", full_topology)
@@ -1035,24 +1421,28 @@ def _hydrate_result_for_explanation(result: dict[str, Any]) -> dict[str, Any]:
 
 def summarize_design_state(state_json: dict[str, Any]) -> dict[str, Any]:
     """Summarize a saved state JSON produced by this adapter."""
-    return _success_response({
-        "status": "completed",
-        "summary": {
-            "user_intent": state_json.get("user_intent"),
-            "host_organism": state_json.get("host_organism"),
-            "is_completed": state_json.get("is_completed"),
-            "is_approved": state_json.get("is_approved"),
-            "requires_human_input": state_json.get("requires_human_input"),
-            "pause_reason": state_json.get("pause_reason"),
-            "current_node_id": state_json.get("current_node_id"),
-            "best_topology": summarize_topology(state_json.get("best_topology")),
-        },
-        "artifacts": {},
-    })
+    return _success_response(
+        {
+            "status": "completed",
+            "summary": {
+                "user_intent": state_json.get("user_intent"),
+                "host_organism": state_json.get("host_organism"),
+                "is_completed": state_json.get("is_completed"),
+                "is_approved": state_json.get("is_approved"),
+                "requires_human_input": state_json.get("requires_human_input"),
+                "pause_reason": state_json.get("pause_reason"),
+                "current_node_id": state_json.get("current_node_id"),
+                "best_topology": summarize_topology(state_json.get("best_topology")),
+            },
+            "artifacts": {},
+        }
+    )
 
 
 def _add_guided_child(state: DesignState, search_mode: str) -> None:
-    parent = state.tree_nodes.get(state.current_node_id) if state.current_node_id else None
+    parent = (
+        state.tree_nodes.get(state.current_node_id) if state.current_node_id else None
+    )
     if parent is None:
         raise ValueError("Cannot resume without a current search node.")
     suffix = "repair" if search_mode == "Repair" else "exploit"
@@ -1061,7 +1451,9 @@ def _add_guided_child(state: DesignState, search_mode: str) -> None:
         node_id=child_id,
         parent_id=parent.node_id,
         search_mode=search_mode,
-        logic_proposals=parent.logic_proposals.copy() if search_mode == "Exploitation" else [],
+        logic_proposals=parent.logic_proposals.copy()
+        if search_mode == "Exploitation"
+        else [],
         critic_feedbacks=parent.critic_feedbacks.copy(),
         failed_attempts=parent.failed_attempts.copy(),
         error_type=parent.error_type,
@@ -1087,30 +1479,44 @@ def _load_design(
     if result.get("status") == "not_found":
         return result
     if result.get("status") not in {"completed", "needs_human_input", "stopped"}:
-        return _error_response("Run is not ready for design operations.", ERROR_VALIDATION)
+        return _error_response(
+            "Run is not ready for design operations.", ERROR_VALIDATION
+        )
     artifacts = result.get("artifacts", {})
     state_path = artifacts.get("state_json") if isinstance(artifacts, dict) else None
     if not state_path or not Path(str(state_path)).exists():
-        return _error_response("The run does not have a readable state.json artifact.", ERROR_NOT_FOUND)
+        return _error_response(
+            "The run does not have a readable state.json artifact.", ERROR_NOT_FOUND
+        )
     revisions_dir = Path(str(state_path)).parent / "design_revisions"
     revisions_dir.mkdir(parents=True, exist_ok=True)
     if revision_id:
         revision_path = revisions_dir / f"{revision_id}.json"
         if not revision_path.exists():
-            return _error_response(f"Unknown design revision: {revision_id}", ERROR_NOT_FOUND)
+            return _error_response(
+                f"Unknown design revision: {revision_id}", ERROR_NOT_FOUND
+            )
         try:
-            return design_ir_from_dict(json.loads(revision_path.read_text(encoding="utf-8"))), revision_path
+            return design_ir_from_dict(
+                json.loads(revision_path.read_text(encoding="utf-8"))
+            ), revision_path
         except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
-            return _error_response(f"Could not load design revision: {exc}", ERROR_WORKFLOW)
+            return _error_response(
+                f"Could not load design revision: {exc}", ERROR_WORKFLOW
+            )
 
     existing_revisions = sorted(revisions_dir.glob("*.json"))
     if existing_revisions:
         initial_path = existing_revisions[0]
-        return design_ir_from_dict(json.loads(initial_path.read_text(encoding="utf-8"))), initial_path
+        return design_ir_from_dict(
+            json.loads(initial_path.read_text(encoding="utf-8"))
+        ), initial_path
     state_payload = json.loads(Path(str(state_path)).read_text(encoding="utf-8"))
     topology = state_payload.get("best_topology")
     if not isinstance(topology, dict) or not topology:
-        return _error_response("The run does not contain a best topology.", ERROR_NOT_FOUND)
+        return _error_response(
+            "The run does not contain a best topology.", ERROR_NOT_FOUND
+        )
     design = topology_to_design_ir(
         topology,
         host_organism=str(state_payload.get("host_organism") or "Escherichia coli"),
@@ -1123,7 +1529,9 @@ def _load_design(
 
 def _load_library(library_path: str | None) -> PartLibrary | dict[str, Any]:
     try:
-        return PartLibrary.from_json(library_path) if library_path else PartLibrary.demo()
+        return (
+            PartLibrary.from_json(library_path) if library_path else PartLibrary.demo()
+        )
     except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
         return _error_response(f"Could not load part library: {exc}", ERROR_VALIDATION)
 
@@ -1139,11 +1547,18 @@ def _library_summary(library: PartLibrary) -> dict[str, Any]:
 
 
 def _resolve_model(model_name: str | None) -> str:
-    return model_name or os.getenv("LITELLM_MODEL") or os.getenv("OPENAI_MODEL") or DEFAULT_MODEL
+    return (
+        model_name
+        or os.getenv("LITELLM_MODEL")
+        or os.getenv("OPENAI_MODEL")
+        or DEFAULT_MODEL
+    )
 
 
 def _resolve_api_key(api_key: str | None) -> str | None:
-    return api_key or os.getenv("LITELLM_API_KEY") or os.getenv("OPENAI_API_KEY") or None
+    return (
+        api_key or os.getenv("LITELLM_API_KEY") or os.getenv("OPENAI_API_KEY") or None
+    )
 
 
 def _status_from_state(state: DesignState) -> str:
@@ -1198,11 +1613,17 @@ def _coerce_min_int(value: Any, field_name: str) -> dict[str, Any]:
 def _normalize_run_ids(run_ids: Any) -> dict[str, Any]:
     if not isinstance(run_ids, list):
         return _error_response("run_ids must be a list of run IDs.", ERROR_VALIDATION)
-    normalized = [str(run_id).strip() for run_id in run_ids if str(run_id or "").strip()]
+    normalized = [
+        str(run_id).strip() for run_id in run_ids if str(run_id or "").strip()
+    ]
     if len(normalized) < 2:
-        return _error_response("compare_design_runs requires between 2 and 10 run IDs.", ERROR_VALIDATION)
+        return _error_response(
+            "compare_design_runs requires between 2 and 10 run IDs.", ERROR_VALIDATION
+        )
     if len(normalized) > 10:
-        return _error_response("compare_design_runs accepts at most 10 run IDs.", ERROR_VALIDATION)
+        return _error_response(
+            "compare_design_runs accepts at most 10 run IDs.", ERROR_VALIDATION
+        )
     return {"status": "ok", "run_ids": normalized}
 
 
@@ -1226,7 +1647,9 @@ def _comparison_entry(run_id: str, result: dict[str, Any]) -> dict[str, Any]:
         "cello_buildable": _metric(best_topology, summary, "cello_buildable"),
         "robustness_score": _metric(best_topology, summary, "robustness_score"),
         "toxicity_score": _metric(best_topology, summary, "toxicity_score"),
-        "semantic_faithfulness_score": _metric(best_topology, summary, "semantic_faithfulness_score"),
+        "semantic_faithfulness_score": _metric(
+            best_topology, summary, "semantic_faithfulness_score"
+        ),
         "artifact_count": len(artifacts),
         "artifact_keys": sorted(artifacts.keys()),
         "run_dir": result.get("run_dir") or result.get("workflow_run_dir"),
@@ -1263,7 +1686,11 @@ def _diagnose_findings(
                 "high",
                 "run_status",
                 f"Run status is {run_status}, so the design may not be ready for evaluation.",
-                {"status": run_status, "error": result.get("error"), "error_type": result.get("error_type")},
+                {
+                    "status": run_status,
+                    "error": result.get("error"),
+                    "error_type": result.get("error_type"),
+                },
             )
         )
     if summary.get("requires_human_input"):
@@ -1272,7 +1699,10 @@ def _diagnose_findings(
                 "high",
                 "human_input",
                 "Workflow paused and requires human guidance before it can be considered complete.",
-                {"pause_reason": summary.get("pause_reason"), "prompt": summary.get("human_feedback_prompt")},
+                {
+                    "pause_reason": summary.get("pause_reason"),
+                    "prompt": summary.get("human_feedback_prompt"),
+                },
             )
         )
     if not best_topology:
@@ -1285,10 +1715,14 @@ def _diagnose_findings(
             )
         )
 
-    mapping_status = str(_metric(best_topology, summary, "mapping_status") or "").lower()
+    mapping_status = str(
+        _metric(best_topology, summary, "mapping_status") or ""
+    ).lower()
     source = str(_metric(best_topology, summary, "source") or "").lower()
     cello_mode = str(_metric(best_topology, summary, "cello_mode") or "").lower()
-    claim_level = str(_metric(best_topology, summary, "cello_claim_level") or "").lower()
+    claim_level = str(
+        _metric(best_topology, summary, "cello_claim_level") or ""
+    ).lower()
     if cello_mode == "mock" or claim_level == "mock_only" or "mock" in source:
         findings.append(
             _finding(
@@ -1376,13 +1810,18 @@ def _diagnose_findings(
                 "warning",
                 "search",
                 "The workflow recorded failed attempts before reaching this result.",
-                {"failed_attempt_count": len(failed_attempts), "recent_failed_attempt": failed_attempts[-1]},
+                {
+                    "failed_attempt_count": len(failed_attempts),
+                    "recent_failed_attempt": failed_attempts[-1],
+                },
             )
         )
     return findings
 
 
-def _finding(severity: str, category: str, message: str, evidence: dict[str, Any]) -> dict[str, Any]:
+def _finding(
+    severity: str, category: str, message: str, evidence: dict[str, Any]
+) -> dict[str, Any]:
     return {
         "severity": severity,
         "category": category,
@@ -1444,5 +1883,7 @@ def _recommended_actions(findings: list[dict[str, Any]]) -> list[str]:
         if action and action not in actions:
             actions.append(action)
     if not actions:
-        actions.append("No immediate action is required; keep the run as a viable candidate.")
+        actions.append(
+            "No immediate action is required; keep the run as a viable candidate."
+        )
     return actions

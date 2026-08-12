@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from agents.base import AgentProtocol
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from schemas.state import DesignState
 from tools.skill_retriever import SkillRetriever
 from utils.llm_utils import call_llm
@@ -31,6 +31,12 @@ class BuilderOutput(BaseModel):
     gate_count_optimization: BuilderProposal
     depth_optimization: BuilderProposal
     robustness_strategy: BuilderProposal
+
+
+class PilotBuilderOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    proposal: BuilderProposal
 
 
 def _build_system_prompt(
@@ -203,18 +209,30 @@ def call_builder(
     temperature: float = 0.7,
     skill_retriever: SkillRetriever | None = None,
     skill_file_path: str = "邏輯設計skill.json",
+    proposal_limit: int = 3,
+    attempt_budget=None,
     **kwargs,
 ) -> DesignState:
-    system_prompt = _build_system_prompt(
-        state,
-        skill_retriever=skill_retriever,
-        skill_file_path=skill_file_path,
-    )
-    user_content = (
-        "Generate three alternative Cello-compatible genetic circuit proposals "
-        "for the target intent. Output only the JSON object described in the system prompt."
-    )
+    single_proposal = int(proposal_limit) == 1
+    if single_proposal:
+        system_prompt = _build_pilot_system_prompt(state)
+        user_content = (
+            "Generate exactly one AND2 Cello-compatible proposal. "
+            "Output only the JSON object described in the system prompt."
+        )
+    else:
+        system_prompt = _build_system_prompt(
+            state,
+            skill_retriever=skill_retriever,
+            skill_file_path=skill_file_path,
+        )
+        user_content = (
+            "Generate three alternative Cello-compatible genetic circuit proposals "
+            "for the target intent. Output only the JSON object described in the system prompt."
+        )
 
+    if attempt_budget is not None:
+        attempt_budget.consume_provider("builder")
     response = call_llm(
         api_key=api_key,
         model_name=model_name,
@@ -235,18 +253,24 @@ def call_builder(
         if start != -1 and end != -1:
             json_str = response[start : end + 1]
             data = json.loads(json_str)
-            if set(data.keys()) != set(REQUIRED_STRATEGIES):
+            if single_proposal:
+                validated_pilot = PilotBuilderOutput.model_validate(data)
+                proposals = [
+                    json.dumps(validated_pilot.proposal.model_dump(), ensure_ascii=False)
+                ]
+            elif set(data.keys()) != set(REQUIRED_STRATEGIES):
                 missing = sorted(set(REQUIRED_STRATEGIES) - set(data.keys()))
                 extra = sorted(set(data.keys()) - set(REQUIRED_STRATEGIES))
                 raise ValueError(
                     f"expected exactly {list(REQUIRED_STRATEGIES)}; "
                     f"missing={missing}, extra={extra}"
                 )
-            validated = BuilderOutput.model_validate(data)
-            proposals = [
-                json.dumps(getattr(validated, strategy).model_dump(), ensure_ascii=False)
-                for strategy in REQUIRED_STRATEGIES
-            ]
+            else:
+                validated = BuilderOutput.model_validate(data)
+                proposals = [
+                    json.dumps(getattr(validated, strategy).model_dump(), ensure_ascii=False)
+                    for strategy in REQUIRED_STRATEGIES
+                ][:max(1, int(proposal_limit))]
 
             node_id = state.current_node_id
             if node_id and node_id in state.tree_nodes:
@@ -273,6 +297,38 @@ def call_builder(
         )
 
     return state
+
+
+def _build_pilot_system_prompt(state: DesignState) -> str:
+    return f"""You are Bio-Logic Architect operating under the frozen AND2 pilot contract.
+
+Return exactly one proposal for this interface and truth table:
+- Inputs: A, B
+- Output: GFP
+- Rows: 00->0, 01->0, 10->0, 11->1
+- Combinational logic only; no clocks, state, delays, or extra ports.
+- Target host: {state.host_organism}
+- User intent: {state.user_intent}
+
+Output only valid JSON with exactly one top-level key named `proposal`:
+{{
+  "proposal": {{
+    "strategy_name": "AND2 Pilot",
+    "optimization_goal": "exact AND2 with minimal combinational logic",
+    "truth_table_or_logic_matrix": [
+      {{"A": 0, "B": 0, "GFP": 0}},
+      {{"A": 0, "B": 1, "GFP": 0}},
+      {{"A": 1, "B": 0, "GFP": 0}},
+      {{"A": 1, "B": 1, "GFP": 1}}
+    ],
+    "logic_blueprint": "GFP = A AND B",
+    "verilog_draft": "module and2(input A, input B, output GFP); assign GFP = A & B; endmodule",
+    "translator_directives": ["PRESERVE_EXACT_INTERFACE", "PRESERVE_EXACT_TRUTH_TABLE"],
+    "copy_number": 15,
+    "chassis": "{state.host_organism}"
+  }}
+}}
+"""
 
 
 class BuilderAgent(AgentProtocol):

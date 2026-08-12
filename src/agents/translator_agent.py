@@ -31,6 +31,8 @@ def _translate_single_proposal(
     feedback: str = "",
     temperature: float = 0.1,
     is_exploitation: bool = False,
+    max_retries: int = 3,
+    attempt_budget=None,
 ) -> str:
     system_prompt = """You are an expert biological circuit compiler for Cello CAD.
 
@@ -67,9 +69,11 @@ Rules:
         {"role": "user", "content": f"Translate this proposal to Cello-compatible Verilog:\n{proposal}"},
     ]
 
-    max_retries = 3
+    max_retries = max(1, int(max_retries))
     for attempt in range(max_retries):
         try:
+            if attempt_budget is not None:
+                attempt_budget.consume_provider("translator")
             response = litellm.completion(
                 model=model_name,
                 messages=messages,
@@ -110,6 +114,8 @@ def call_translator(
     model_name: str,
     api_base: str | None = None,
     temperature: float = 0.1,
+    max_retries: int = 3,
+    attempt_budget=None,
     **kwargs,
 ) -> DesignState:
     state.verilog_codes = []
@@ -148,7 +154,9 @@ def call_translator(
             skill_context=skill_context,
             feedback=feedback,
             temperature=temperature,
-            is_exploitation=is_exploitation
+            is_exploitation=is_exploitation,
+            max_retries=max_retries,
+            attempt_budget=attempt_budget,
         )
         state.verilog_codes.append(verilog_result)
         if node:

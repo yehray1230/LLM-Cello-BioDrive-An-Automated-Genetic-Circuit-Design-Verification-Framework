@@ -16,6 +16,7 @@ class CelloParseResult:
     source_files: list[str] = field(default_factory=list)
     assignments: list[dict[str, Any]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    assignment_provenance: str | None = None
 
 
 class CelloV2JsonParser:
@@ -28,7 +29,12 @@ class CelloV2JsonParser:
     def __init__(self, part_library: PartLibrary | None = None):
         self.part_library = part_library or PartLibrary.demo()
 
-    def parse_directory(self, artifact_dir: str | Path) -> CelloParseResult:
+    def parse_directory(
+        self,
+        artifact_dir: str | Path,
+        *,
+        placements_only: bool = False,
+    ) -> CelloParseResult:
         root = Path(artifact_dir)
         result = CelloParseResult(parser=self.name, parser_version=self.version)
         if not root.exists():
@@ -43,11 +49,20 @@ class CelloV2JsonParser:
         ]
         for path in sorted(candidates):
             try:
-                payload = json.loads(path.read_text(encoding="utf-8"))
+                payload, normalization = load_cello_json_payload(path)
             except (OSError, json.JSONDecodeError) as exc:
                 result.warnings.append(f"Could not parse {path.name}: {exc}")
                 continue
-            parsed = self._parse_payload(payload, source_file=path)
+            if normalization != "strict_json":
+                result.warnings.append(
+                    f"{path.name}: {normalization}; raw artifact preserved unchanged"
+                )
+            parsed = _parse_payload(
+                payload,
+                source_file=path,
+                part_library=self.part_library,
+                placements_only=placements_only,
+            )
             if parsed:
                 result.source_files.append(str(path.resolve()))
                 result.assignments.extend(parsed)
@@ -57,80 +72,146 @@ class CelloV2JsonParser:
             result.warnings.append(
                 "No supported Cello v2 gate assignments were found in JSON artifacts."
             )
+        elif placements_only:
+            result.assignment_provenance = "output_netlist_placements"
         return result
 
-    def _parse_payload(
-        self,
-        payload: Any,
-        *,
-        source_file: Path,
-    ) -> list[dict[str, Any]]:
-        records = _assignment_records(payload)
-        assignments: list[dict[str, Any]] = []
-        for index, record in enumerate(records, start=1):
-            logic_node_id = _logic_node_id(record, index)
-            gate_type = str(
-                record.get("gate_type")
-                or record.get("type")
-                or record.get("logic")
+
+def load_cello_json_payload(path: str | Path) -> tuple[Any, str]:
+    raw = Path(path).read_text(encoding="utf-8")
+    try:
+        return json.loads(raw), "strict_json"
+    except json.JSONDecodeError:
+        normalized = strip_json_trailing_commas(raw)
+        return json.loads(normalized), "cello_trailing_commas_removed"
+
+
+def strip_json_trailing_commas(text: str) -> str:
+    """Remove only commas immediately before ] or } while preserving strings."""
+    output: list[str] = []
+    in_string = False
+    escaped = False
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if in_string:
+            output.append(char)
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            index += 1
+            continue
+        if char == '"':
+            in_string = True
+            output.append(char)
+            index += 1
+            continue
+        if char == ",":
+            lookahead = index + 1
+            while lookahead < len(text) and text[lookahead].isspace():
+                lookahead += 1
+            if lookahead < len(text) and text[lookahead] in "]}":
+                index += 1
+                continue
+        output.append(char)
+        index += 1
+    return "".join(output)
+
+
+def _parse_payload(
+    payload: Any,
+    *,
+    source_file: Path,
+    part_library: PartLibrary,
+    placements_only: bool = False,
+) -> list[dict[str, Any]]:
+    records = _assignment_records(payload, placements_only=placements_only)
+    assignments: list[dict[str, Any]] = []
+    for index, record in enumerate(records, start=1):
+        logic_node_id = _logic_node_id(record, index)
+        gate_type = str(
+            record.get("gate_type") or record.get("type") or record.get("logic") or ""
+        ).upper()
+        part_refs = _part_references(record)
+        if not part_refs:
+            direct_id = (
+                record.get("part_id") or record.get("group") or record.get("name")
+            )
+            if direct_id:
+                part_refs = [{"part_id": direct_id}]
+
+        for part_index, part_ref in enumerate(part_refs, start=1):
+            part_id = str(
+                part_ref.get("part_id")
+                or part_ref.get("id")
+                or part_ref.get("name")
                 or ""
-            ).upper()
-            part_refs = _part_references(record)
-            if not part_refs:
-                direct_id = record.get("part_id") or record.get("group") or record.get("name")
-                if direct_id:
-                    part_refs = [{"part_id": direct_id}]
-
-            for part_index, part_ref in enumerate(part_refs, start=1):
-                part_id = str(
-                    part_ref.get("part_id")
-                    or part_ref.get("id")
-                    or part_ref.get("name")
-                    or ""
-                ).strip()
-                if not part_id:
-                    continue
-                library_part = self.part_library.get(part_id)
-                assignments.append(
-                    {
-                        "logic_node_id": _part_logic_node_id(
-                            logic_node_id,
-                            part_ref,
-                            part_index,
-                        ),
-                        "part_id": part_id,
-                        "part_name": (
-                            library_part.name
-                            if library_part
-                            else str(part_ref.get("part_name") or part_ref.get("name") or part_id)
-                        ),
-                        "part_type": (
-                            library_part.part_type
-                            if library_part
-                            else part_ref.get("part_type") or part_ref.get("type")
-                        ),
-                        "library_id": self.part_library.library_id,
-                        "library_version": self.part_library.version,
-                        "sequence": library_part.sequence if library_part else part_ref.get("sequence"),
-                        "sequence_status": (
-                            library_part.sequence_status if library_part else "artifact_supplied"
-                        ),
-                        "evidence_source": str(source_file.resolve()),
-                        "confidence": _optional_float(
-                            part_ref.get("confidence", record.get("score"))
-                        ),
-                        "gate_type": gate_type or None,
-                        "raw_gate_name": record.get("name") or record.get("gate_name"),
-                    }
-                )
-        return assignments
+            ).strip()
+            if not part_id:
+                continue
+            library_part = part_library.get(part_id)
+            assignments.append(
+                {
+                    "logic_node_id": _part_logic_node_id(
+                        logic_node_id,
+                        part_ref,
+                        part_index,
+                    ),
+                    "part_id": part_id,
+                    "part_name": (
+                        library_part.name
+                        if library_part
+                        else str(
+                            part_ref.get("part_name") or part_ref.get("name") or part_id
+                        )
+                    ),
+                    "part_type": (
+                        library_part.part_type
+                        if library_part
+                        else part_ref.get("part_type") or part_ref.get("type")
+                    ),
+                    "library_id": part_library.library_id,
+                    "library_version": part_library.version,
+                    "sequence": library_part.sequence
+                    if library_part
+                    else part_ref.get("sequence"),
+                    "sequence_status": (
+                        library_part.sequence_status
+                        if library_part
+                        else "artifact_supplied"
+                    ),
+                    "evidence_source": str(source_file.resolve()),
+                    "confidence": _optional_float(
+                        part_ref.get("confidence", record.get("score"))
+                    ),
+                    "gate_type": gate_type or None,
+                    "raw_gate_name": record.get("name") or record.get("gate_name"),
+                    "assignment_provenance": (
+                        "output_netlist_placements" if placements_only else None
+                    ),
+                }
+            )
+    return assignments
 
 
-def _assignment_records(payload: Any) -> list[dict[str, Any]]:
+def _assignment_records(
+    payload: Any,
+    *,
+    placements_only: bool = False,
+) -> list[dict[str, Any]]:
+    if placements_only:
+        if not isinstance(payload, dict) or "placements" not in payload:
+            return []
+        return _placement_assignment_records(payload.get("placements"))
     if isinstance(payload, list):
         return [item for item in payload if isinstance(item, dict)]
     if not isinstance(payload, dict):
         return []
+    if "placements" in payload:
+        return _placement_assignment_records(payload.get("placements"))
     for key in ("assignments", "logic_gates", "gates", "nodes"):
         value = payload.get(key)
         if isinstance(value, list):
@@ -140,9 +221,46 @@ def _assignment_records(payload: Any) -> list[dict[str, Any]]:
         records = _assignment_records(nested)
         if records:
             return records
-    if any(key in payload for key in ("part_id", "group", "gate_name", "logic_node_id")):
+    if any(
+        key in payload for key in ("part_id", "group", "gate_name", "logic_node_id")
+    ):
         return [payload]
     return []
+
+
+def _placement_assignment_records(placements: Any) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+
+    def visit(value: Any) -> None:
+        if isinstance(value, list):
+            for item in value:
+                visit(item)
+            return
+        if not isinstance(value, dict):
+            return
+        node = str(value.get("node") or "").strip()
+        parts = value.get("parts")
+        if node and isinstance(parts, list) and parts:
+            records.append(
+                {
+                    "logic_node_id": node,
+                    "name": value.get("name"),
+                    "parts": [
+                        (
+                            {**part, "logic_node_id": node}
+                            if isinstance(part, dict)
+                            else {"part_id": str(part), "logic_node_id": node}
+                        )
+                        for part in parts
+                    ],
+                }
+            )
+        for nested in value.values():
+            if isinstance(nested, (dict, list)):
+                visit(nested)
+
+    visit(placements)
+    return records
 
 
 def _part_references(record: dict[str, Any]) -> list[dict[str, Any]]:
@@ -154,7 +272,9 @@ def _part_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         ]
     if isinstance(raw_parts, dict):
         return [
-            value | {"role": key} if isinstance(value, dict) else {"part_id": value, "role": key}
+            value | {"role": key}
+            if isinstance(value, dict)
+            else {"part_id": value, "role": key}
             for key, value in raw_parts.items()
         ]
     return []
@@ -203,7 +323,9 @@ def _deduplicate_assignments(assignments: list[dict[str, Any]]) -> list[dict[str
     return list(selected.values())
 
 
-def parse_ucf_gate_parameters(ucf_path: str | Path | None) -> dict[str, dict[str, float]]:
+def parse_ucf_gate_parameters(
+    ucf_path: str | Path | None,
+) -> dict[str, dict[str, float]]:
     if not ucf_path:
         return {}
     path = Path(ucf_path)

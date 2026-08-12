@@ -64,6 +64,7 @@ def run_canonical_task_baseline(
     *,
     output_dir: str | Path,
     timeout_seconds: float = 60.0,
+    task_set_id: str = DEMO_BASELINE_TASK_SET_ID,
 ) -> dict[str, Any]:
     from application.design_task_benchmark import (
         _deterministic_topology,
@@ -75,11 +76,11 @@ def run_canonical_task_baseline(
         DEFAULT_RANDOM_SEED,
     )
 
-    task_set = load_design_task_set(DEMO_BASELINE_TASK_SET_ID)
+    task_set = load_design_task_set(task_set_id)
     task = task_set.task(task_id)
     if not task:
         raise ValueError(
-            f"Task '{task_id}' not found in task set '{DEMO_BASELINE_TASK_SET_ID}'."
+            f"Task '{task_id}' not found in task set '{task_set_id}'."
         )
 
     mode = str(task.expected.get("evaluation_mode") or "")

@@ -210,10 +210,18 @@ def _validate_entrypoint(
     entrypoint: str,
     metadata_path: str | Path | None,
 ) -> None:
-    module_path = Path(*module_name.split(".")).with_suffix(".py")
-    if module_path.exists():
-        _validate_entrypoint_ast(module_path, entrypoint, metadata_path)
-        return
+    relative_module_path = Path(*module_name.split(".")).with_suffix(".py")
+    repository_root = Path(__file__).resolve().parents[2]
+    source_root = repository_root / "src"
+    module_candidates = (
+        Path.cwd() / relative_module_path,
+        repository_root / relative_module_path,
+        source_root / relative_module_path,
+    )
+    for module_path in dict.fromkeys(module_candidates):
+        if module_path.is_file():
+            _validate_entrypoint_ast(module_path, entrypoint, metadata_path)
+            return
 
     try:
         module = importlib.import_module(module_name)

@@ -38,6 +38,14 @@ skip_empty = true
 output = "outputs/pre_release/coverage.json"
 pretty_print = true
 
+[tool.mypy]
+mypy_path = "src"
+explicit_package_bases = true
+exclude = [
+    "(^|[\\\\/])(cello-run|preprint|tmp_pytest|pytest_temp[^\\\\/]*|outputs|output|\\.codex_test_logs)([\\\\/]|$)",
+    "benchmark_suite[\\\\/]cello_mapping_v1[\\\\/]evidence",
+]
+
 [tool.mutmut]
 source_paths = ["src"]
 only_mutate = ["src/utils/safety_checker.py"]

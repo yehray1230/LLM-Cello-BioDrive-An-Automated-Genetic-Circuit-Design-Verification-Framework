@@ -45,6 +45,14 @@ jobs:
       - name: Run Ruff
         run: python -m ruff check . --exclude venv,tmp_pytest,outputs,chroma_db,_docx_extract_tmp
 
+      - name: Run scoped pre-Cello type gate
+        run: |
+          python -m mypy \
+            src/mcp_server/and2_pilot_preflight.py \
+            src/schemas/and2_pilot.py \
+            application/offline_contract_validation.py \
+            src/catalog/agent_catalog.py
+
       - name: Run tests with branch coverage
         run: |
           mkdir -p outputs/pre_release

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import catalog.agent_catalog as agent_catalog
 from catalog.agent_catalog import build_agent_registry, load_agent_catalog
 
 
@@ -33,6 +34,19 @@ def test_agent_registry_is_ui_ready() -> None:
     assert registry["schema_version"] == "agent-registry-v1"
     assert registry["agent_count"] == len(EXPECTED_AGENT_IDS)
     assert [agent["id"] for agent in registry["agents"]] == sorted(EXPECTED_AGENT_IDS)
+
+
+def test_agent_registry_validates_local_entrypoints_without_runtime_import(
+    monkeypatch,
+) -> None:
+    def reject_runtime_import(module_name: str):
+        raise AssertionError(f"unexpected runtime import: {module_name}")
+
+    monkeypatch.setattr(agent_catalog.importlib, "import_module", reject_runtime_import)
+
+    registry = build_agent_registry()
+
+    assert registry["agent_count"] == len(EXPECTED_AGENT_IDS)
 
 
 def test_every_runtime_agent_has_catalog_metadata() -> None:
