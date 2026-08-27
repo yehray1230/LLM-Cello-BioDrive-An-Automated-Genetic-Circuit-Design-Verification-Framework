@@ -17,6 +17,7 @@ class CelloParseResult:
     assignments: list[dict[str, Any]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     assignment_provenance: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class CelloV2JsonParser:

@@ -16,6 +16,7 @@ from uuid import uuid4
 from benchmark_suite.cello_constraint_evaluator import evaluate_cello_constraints
 from schemas.state import DesignState
 from tools.cello_artifact_parser import CelloV2JsonParser, load_cello_json_payload
+from tools.cello21_artifact_parser import Cello21SummaryParser
 from tools.part_library import PartLibrary
 
 
@@ -27,6 +28,15 @@ STRICT_NATIVE_SUFFIXES = (
     "_eugeneScript.eug",
     ".xml",
 )
+
+CELLO21_NATIVE_SUFFIXES = (
+    "_yosys.json",
+    "_activity-table.csv",
+    "_circuit-score.csv",
+    "cello21_mapping_summary.json",
+)
+CELLO21_PREFLIGHT_MAPPING_STATUS = "toolchain_preflight_pass"
+CELLO21_PREFLIGHT_CLAIM_LEVEL = "computational_toolchain_preflight"
 
 
 def _split_command_string(command: str, *, windows: bool | None = None) -> list[str]:
@@ -44,6 +54,29 @@ def _split_command_string(command: str, *, windows: bool | None = None) -> list[
     ]
 
 
+def _external_success_claims(cello_artifact_format: str) -> dict[str, Any]:
+    if cello_artifact_format == "cello21":
+        return {
+            "cello_claim_level": CELLO21_PREFLIGHT_CLAIM_LEVEL,
+            "cello_warning": (
+                "Cello 2.1 computational/toolchain preflight evidence was parsed. "
+                "This does not establish mapping success, buildability, biological "
+                "validity, or legacy equivalence."
+            ),
+            "mapping_status": CELLO21_PREFLIGHT_MAPPING_STATUS,
+            "cello_buildable": False,
+        }
+    return {
+        "cello_claim_level": "externally_mapped",
+        "cello_warning": (
+            "External Cello completed. Buildability still depends on the selected "
+            "UCF/library and expert review."
+        ),
+        "mapping_status": "mapped",
+        "cello_buildable": True,
+    }
+
+
 class CelloWrapper:
     def __init__(
         self,
@@ -57,7 +90,8 @@ class CelloWrapper:
         sensor_path: str | None = None,
         device_path: str | None = None,
         external_required: bool = False,
-        required_native_suffixes: tuple[str, ...] = STRICT_NATIVE_SUFFIXES,
+        required_native_suffixes: tuple[str, ...] | None = None,
+        cello_artifact_format: str = "cello_v2",
         attempt_budget: Any | None = None,
         semantic_validator: Any | None = None,
     ):
@@ -74,11 +108,23 @@ class CelloWrapper:
             if part_library_path
             else PartLibrary.demo()
         )
-        self.artifact_parser = CelloV2JsonParser(self.part_library)
+        if cello_artifact_format not in {"cello_v2", "cello21"}:
+            raise ValueError("cello_artifact_format must be 'cello_v2' or 'cello21'")
+        self.cello_artifact_format = cello_artifact_format
+        self.artifact_parser = (
+            Cello21SummaryParser()
+            if cello_artifact_format == "cello21"
+            else CelloV2JsonParser(self.part_library)
+        )
         self.timeout_seconds = timeout_seconds
         self.max_log_chars = max_log_chars
         self.external_required = external_required
-        self.required_native_suffixes = tuple(required_native_suffixes)
+        default_suffixes = (
+            CELLO21_NATIVE_SUFFIXES
+            if cello_artifact_format == "cello21"
+            else STRICT_NATIVE_SUFFIXES
+        )
+        self.required_native_suffixes = tuple(required_native_suffixes or default_suffixes)
         self.attempt_budget = attempt_budget
         self.semantic_validator = semantic_validator
 
@@ -418,15 +464,12 @@ class CelloWrapper:
             topology = {
                 "source": "external_cello_wrapper",
                 "cello_mode": "external",
-                "cello_claim_level": "externally_mapped",
-                "cello_warning": "External Cello completed. Buildability still depends on the selected UCF/library and expert review.",
                 "verilog_index": index,
                 "verilog": code,
                 "score": 0.0,
-                "mapping_status": "mapped",
                 "orthogonality_score": 1.0,
                 "cello_assignment_score": 0.0,
-                "cello_buildable": True,
+                **_external_success_claims(self.cello_artifact_format),
                 "cello_stdout": _truncate_error_log(
                     completed.stdout or "", self.max_log_chars
                 ),
@@ -438,6 +481,7 @@ class CelloWrapper:
                     "source_files": parse_result.source_files,
                     "warnings": parse_result.warnings,
                     "assignment_provenance": parse_result.assignment_provenance,
+                    "metadata": parse_result.metadata,
                 },
                 "part_library": {
                     "library_id": self.part_library.library_id,
@@ -455,6 +499,8 @@ class CelloWrapper:
         artifact_data: dict[str, Any],
         parse_result: Any,
     ) -> str | None:
+        if self.cello_artifact_format == "cello21":
+            return self._strict_cello21_success_error(artifact_data, parse_result)
         artifact_root = Path(str(artifact_data["cello_artifact_dir"]))
         files = [path for path in artifact_root.rglob("*") if path.is_file()]
         missing_suffixes = [
@@ -526,6 +572,41 @@ class CelloWrapper:
                 "Native assignment logic-node coverage mismatch: "
                 f"expected={sorted(expected_nodes)}, assigned={sorted(assigned_nodes)}"
             )
+        return None
+
+    def _strict_cello21_success_error(
+        self,
+        artifact_data: dict[str, Any],
+        parse_result: Any,
+    ) -> str | None:
+        artifact_root = Path(str(artifact_data["cello_artifact_dir"]))
+        files = [path for path in artifact_root.rglob("*") if path.is_file()]
+        missing_suffixes = [
+            suffix
+            for suffix in self.required_native_suffixes
+            if not any(path.name.endswith(suffix) and path.stat().st_size > 0 for path in files)
+        ]
+        if missing_suffixes:
+            return "Missing or empty required Cello 2.1 artifacts: " + ", ".join(missing_suffixes)
+        metadata = getattr(parse_result, "metadata", {})
+        if metadata.get("validated") is not True or metadata.get("mapping_status") != "MAPPING_PASS":
+            return "Cello 2.1 stable summary did not pass validation."
+        assignments = list(parse_result.assignments)
+        if not assignments:
+            return "Cello 2.1 stable summary exposes no assignments."
+        roles = {str(item.get("assignment_role") or "") for item in assignments}
+        if roles != {"input", "gate", "output"}:
+            return "Cello 2.1 assignments must cover input, gate, and output roles."
+        if parse_result.assignment_provenance != "cello21_mapping_summary":
+            return "Cello 2.1 assignments have unqualified provenance."
+        if any(
+            item.get("assignment_provenance") != "cello21_mapping_summary"
+            for item in assignments
+        ):
+            return "Every Cello 2.1 assignment must carry stable-summary provenance."
+        source_files = [Path(path) for path in parse_result.source_files]
+        if len(source_files) != 1 or source_files[0].name != "cello21_mapping_summary.json":
+            return "Cello 2.1 assignments must originate from exactly one stable summary."
         return None
 
     def _allowed_native_part_ids(self) -> set[str]:

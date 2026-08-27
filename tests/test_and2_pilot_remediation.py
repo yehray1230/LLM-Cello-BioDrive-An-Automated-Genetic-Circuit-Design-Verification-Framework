@@ -771,6 +771,7 @@ def test_runtime_dependency_closure_contains_direct_pilot_dependencies(
     assert {
         "functional_scorer.py",
         "cello_artifact_parser.py",
+        "cello21_artifact_parser.py",
         "cello_constraint_evaluator.py",
         "part_library.py",
         "demo_cello_v1.json",
@@ -787,7 +788,7 @@ def test_runtime_dependency_closure_contains_direct_pilot_dependencies(
         "src/schemas/__init__.py",
         "src/utils/lazy_exports.py",
     } <= relative_paths
-    assert len(base_paths) == 70
+    assert len(base_paths) == 72
     assert build_toolchain_identity(command)["immutable_reference"] is True
 
 
