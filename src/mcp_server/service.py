@@ -27,6 +27,7 @@ from mcp_server.artifact_writer import (
     write_text,
 )
 from mcp_server.chart_renderer import render_charts
+from mcp_server.cello21_program import Cello21ProgramBlocked, Cello21ProgramRunner
 from mcp_server.explainer import build_design_explanation, validate_explanation_options
 from mcp_server.result_access import (
     best_topology_from_result as _best_topology_from_result,
@@ -65,6 +66,9 @@ ERROR_DEPENDENCY = "dependency_error"
 ERROR_WORKFLOW = "workflow_error"
 ERROR_EXTERNAL_TOOL = "external_tool_error"
 ERROR_NOT_FOUND = "not_found"
+ERROR_CELLO21_PROGRAM_BLOCKED = "cello21_program_blocked"
+_CELLO_ARTIFACT_FORMATS = frozenset({"cello_v2", "cello21"})
+_LEGACY_RESUME_CELLO_ARTIFACT_FORMAT = "cello_v2"
 
 
 @dataclass
@@ -76,6 +80,7 @@ class WorkflowOptions:
     monte_carlo_samples: int = 1
     output_dir: str | None = None
     cello_command: str | list[str] | None = None
+    cello_artifact_format: str = "cello_v2"
     ucf_path: str | None = None
     sensor_path: str | None = None
     device_path: str | None = None
@@ -122,6 +127,32 @@ class NoOpODESimulator:
         return state
 
 
+def _gate_cello21_design_execution(
+    cello_artifact_format: str,
+    runner: Cello21ProgramRunner | None,
+) -> dict[str, Any] | None:
+    if cello_artifact_format not in {"cello_v2", "cello21"}:
+        return _error_response(
+            "cello_artifact_format must be cello_v2 or cello21.", ERROR_VALIDATION
+        )
+    if cello_artifact_format != "cello21":
+        return None
+    if runner is None:
+        return _error_response(
+            "Cello 2.1 design requires an explicit program runner; no provider or mapping action was started.",
+            ERROR_CELLO21_PROGRAM_BLOCKED,
+        )
+    try:
+        runner.policy.require("provider")
+        runner.preflight()
+    except Cello21ProgramBlocked as exc:
+        return _error_response(str(exc), ERROR_CELLO21_PROGRAM_BLOCKED)
+    return _error_response(
+        "Cello 2.1 provider accounting is not integrated with the multi-agent workflow; execution remains blocked.",
+        ERROR_CELLO21_PROGRAM_BLOCKED,
+    )
+
+
 def design_circuit_quick(
     user_intent: str,
     host_organism: str = "Escherichia coli",
@@ -145,6 +176,8 @@ def design_circuit_quick(
     provider_call_cap: int = 3,
     provider_lock_path: str | None = None,
     toolchain_lock_path: str | None = None,
+    cello_artifact_format: str = "cello_v2",
+    cello21_program_runner: Cello21ProgramRunner | None = None,
 ) -> dict[str, Any]:
     user_intent = str(user_intent or "").strip()
     if not user_intent:
@@ -174,6 +207,11 @@ def design_circuit_quick(
     monte_carlo_result = _coerce_min_int(monte_carlo_samples, "monte_carlo_samples")
     if monte_carlo_result["status"] == "error":
         return monte_carlo_result
+    cello21_gate = _gate_cello21_design_execution(
+        cello_artifact_format, cello21_program_runner
+    )
+    if cello21_gate is not None:
+        return cello21_gate
 
     options = WorkflowOptions(
         enable_rag=enable_rag,
@@ -183,6 +221,7 @@ def design_circuit_quick(
         monte_carlo_samples=monte_carlo_result["value"],
         output_dir=output_dir,
         cello_command=cello_command,
+        cello_artifact_format=cello_artifact_format,
         ucf_path=ucf_path,
         sensor_path=sensor_path,
         device_path=device_path,
@@ -335,6 +374,7 @@ def design_circuit_quick(
             translator=translator,
             cello_wrapper=CelloWrapper(
                 cello_command=options.cello_command,
+                cello_artifact_format=options.cello_artifact_format,
                 ucf_path=options.ucf_path,
                 sensor_path=options.sensor_path,
                 device_path=options.device_path,
@@ -545,6 +585,7 @@ def start_design_run(
     sensor_path: str | None = None,
     device_path: str | None = None,
     run_store: RunStore | None = None,
+    cello_artifact_format: str = "cello_v2",
 ) -> dict[str, Any]:
     user_intent = str(user_intent or "").strip()
     if not user_intent:
@@ -595,6 +636,7 @@ def start_design_run(
         "api_key": api_key,
         "output_dir": output_dir,
         "cello_command": cello_command,
+        "cello_artifact_format": cello_artifact_format,
         "ucf_path": ucf_path,
         "sensor_path": sensor_path,
         "device_path": device_path,
@@ -616,6 +658,7 @@ def start_design_run(
             api_key=api_key,
             output_dir=output_dir,
             cello_command=cello_command,
+            cello_artifact_format=cello_artifact_format,
             ucf_path=ucf_path,
             sensor_path=sensor_path,
             device_path=device_path,
@@ -995,12 +1038,53 @@ def submit_design_feedback(
     )
 
 
+def _resolve_resume_cello_artifact_format(
+    parent_status: dict[str, Any],
+    explicit_format: str | None,
+) -> tuple[str | None, dict[str, Any] | None]:
+    if explicit_format is not None:
+        selected = str(explicit_format).strip()
+        if selected in _CELLO_ARTIFACT_FORMATS:
+            return selected, None
+        return None, _error_response(
+            "The requested Cello artifact format is invalid.", ERROR_VALIDATION
+        )
+
+    manifest_path = parent_status.get("run_manifest_path")
+    if not manifest_path:
+        return None, _error_response(
+            "The parent run manifest required for resume is unavailable.",
+            ERROR_NOT_FOUND,
+        )
+    try:
+        manifest = json.loads(Path(str(manifest_path)).read_text(encoding="utf-8"))
+    except (OSError, TypeError, ValueError):
+        return None, _error_response(
+            "The parent run manifest required for resume is unreadable.",
+            ERROR_VALIDATION,
+        )
+    request = manifest.get("request") if isinstance(manifest, dict) else None
+    if not isinstance(request, dict):
+        return None, _error_response(
+            "The parent run manifest request is invalid.", ERROR_VALIDATION
+        )
+    if "cello_artifact_format" not in request:
+        return _LEGACY_RESUME_CELLO_ARTIFACT_FORMAT, None
+    inherited = request.get("cello_artifact_format")
+    if not isinstance(inherited, str) or inherited.strip() not in _CELLO_ARTIFACT_FORMATS:
+        return None, _error_response(
+            "The parent run Cello artifact format is invalid.", ERROR_VALIDATION
+        )
+    return inherited.strip(), None
+
+
 def resume_design_run(
     run_id: str,
     model_name: str | None = None,
     api_base: str | None = None,
     api_key: str | None = None,
     run_store: RunStore | None = None,
+    cello_artifact_format: str | None = None,
 ) -> dict[str, Any]:
     selected_store = run_store or DEFAULT_RUN_STORE
     parent_id = str(run_id or "").strip()
@@ -1014,6 +1098,12 @@ def resume_design_run(
     artifacts = result.get("artifacts", {})
     state_path = artifacts.get("state_json") if isinstance(artifacts, dict) else None
     status = selected_store.status(parent_id)
+    resolved_format, format_error = _resolve_resume_cello_artifact_format(
+        status, cello_artifact_format
+    )
+    if format_error is not None:
+        return format_error
+    assert resolved_format is not None
     feedback_path = Path(str(status.get("run_dir"))) / "human_feedback.json"
     if not state_path or not Path(str(state_path)).exists():
         return _error_response(
@@ -1054,6 +1144,7 @@ def resume_design_run(
         "model_name": model_name,
         "api_base": api_base,
         "api_key": api_key,
+        "cello_artifact_format": resolved_format,
     }
     child_id = f"run_{uuid.uuid4().hex[:12]}"
     started = selected_store.start(
@@ -1064,6 +1155,7 @@ def resume_design_run(
             model_name=model_name,
             api_base=api_base,
             api_key=api_key,
+            cello_artifact_format=resolved_format,
             initial_state=state,
             progress_callback=lambda stage, event_status, progress, message, details=None: (
                 selected_store.append_event(
@@ -1336,10 +1428,18 @@ def evaluate_verilog(
     output_dir: str | None = None,
     cello_command: str | None = None,
     ucf_path: str | None = None,
+    sensor_path: str | None = None,
+    device_path: str | None = None,
+    cello_artifact_format: str = "cello_v2",
+    cello21_program_runner: Cello21ProgramRunner | None = None,
 ) -> dict[str, Any]:
     verilog = str(verilog or "").strip()
     if not verilog:
         return _error_response("verilog is required.", ERROR_VALIDATION)
+    if cello_artifact_format not in {"cello_v2", "cello21"}:
+        return _error_response(
+            "cello_artifact_format must be cello_v2 or cello21.", ERROR_VALIDATION
+        )
     monte_carlo_result = _coerce_min_int(monte_carlo_samples, "monte_carlo_samples")
     if monte_carlo_result["status"] == "error":
         return monte_carlo_result
@@ -1354,11 +1454,25 @@ def evaluate_verilog(
     state.verilog_codes = [verilog]
 
     try:
-        state = CelloWrapper(
+        wrapper = CelloWrapper(
             cello_command=cello_command,
+            cello_artifact_format=cello_artifact_format,
             ucf_path=ucf_path,
+            sensor_path=sensor_path,
+            device_path=device_path,
             artifact_dir=Path(output_dir) / "cello_artifacts" if output_dir else None,
-        ).run(state)
+        )
+        if cello_artifact_format == "cello21":
+            if cello21_program_runner is None:
+                return _error_response(
+                    "Cello 2.1 mapping requires an explicit program runner.",
+                    ERROR_CELLO21_PROGRAM_BLOCKED,
+                )
+            state = cello21_program_runner.run_mapping_step(
+                "evaluate_verilog_mapping", lambda: wrapper.run(state)
+            )
+        else:
+            state = wrapper.run(state)
         if state.last_error:
             return _error_response(state.last_error, ERROR_EXTERNAL_TOOL)
         state = DataMinerAgent().run(state) if enable_ode else state
@@ -1375,6 +1489,8 @@ def evaluate_verilog(
         node.best_topology = best_topology
         node.sync_evaluation_metrics(best_topology)
         state.best_topology = best_topology
+    except Cello21ProgramBlocked as exc:
+        return _error_response(str(exc), ERROR_CELLO21_PROGRAM_BLOCKED)
     except Exception as exc:
         return _error_response(f"evaluation failed: {exc}", ERROR_WORKFLOW)
 

@@ -264,6 +264,8 @@ def test_web_settings_page_get(client, test_services):
     assert "金鑰與模型設定" in resp.text
     assert "Cello 與物理映射配置" in resp.text
     assert "Cello 工具偵測狀態" in resp.text
+    assert 'value="cello21"' in resp.text
+    assert "Cello 2.1 (research preview)" in resp.text
     assert "Escherichia coli" in resp.text
 
 
@@ -276,6 +278,7 @@ def test_web_settings_page_post_success(client, test_services):
             "api_key": "some-api-key",
             "api_base": "http://my-endpoint",
             "cello_command": "docker run -v C:\\ucf:/data cello",
+            "cello_artifact_format": "cello21",
             "ucf_path": "C:\\ucf\\Eco1C1G1T1.UCF.json",
             "sensor_path": "C:\\ucf\\Eco1C1G1T1.input.json",
             "device_path": "C:\\ucf\\Eco1C1G1T1.output.json",
@@ -294,6 +297,7 @@ def test_web_settings_page_post_success(client, test_services):
     assert settings["provider"] == "LiteLLM"
     assert settings["model_name"] == "custom-llm"
     assert settings["cello_command"] == "docker run -v C:\\ucf:/data cello"
+    assert settings["cello_artifact_format"] == "cello21"
     assert settings["ucf_path"] == "C:\\ucf\\Eco1C1G1T1.UCF.json"
     assert settings["sensor_path"] == "C:\\ucf\\Eco1C1G1T1.input.json"
     assert settings["device_path"] == "C:\\ucf\\Eco1C1G1T1.output.json"

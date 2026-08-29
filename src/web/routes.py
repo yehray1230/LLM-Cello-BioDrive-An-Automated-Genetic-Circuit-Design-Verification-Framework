@@ -66,6 +66,7 @@ def dashboard(
     cello_cmd = settings.get("cello_command") or None
     wrapper = CelloWrapper(
         cello_command=cello_cmd,
+        cello_artifact_format=settings.get("cello_artifact_format") or "cello_v2",
         ucf_path=settings.get("ucf_path") or None,
         sensor_path=settings.get("sensor_path") or None,
         device_path=settings.get("device_path") or None,
@@ -1405,6 +1406,7 @@ def _template(
         cello_cmd = settings.get("cello_command") or None
         wrapper = CelloWrapper(
             cello_command=cello_cmd,
+            cello_artifact_format=settings.get("cello_artifact_format") or "cello_v2",
             ucf_path=settings.get("ucf_path") or None,
             sensor_path=settings.get("sensor_path") or None,
             device_path=settings.get("device_path") or None,
@@ -2171,6 +2173,7 @@ def web_settings_page(
     cello_cmd = settings.get("cello_command") or None
     wrapper = CelloWrapper(
         cello_command=cello_cmd,
+        cello_artifact_format=settings.get("cello_artifact_format") or "cello_v2",
         ucf_path=settings.get("ucf_path") or None,
         sensor_path=settings.get("sensor_path") or None,
         device_path=settings.get("device_path") or None,
@@ -2207,6 +2210,9 @@ def web_save_settings(
     api_key: Annotated[str, Form()] = "",
     api_base: Annotated[str, Form()] = "",
     cello_command: Annotated[str, Form()] = "",
+    cello_artifact_format: Annotated[
+        str, Form(pattern="^(cello_v2|cello21)$")
+    ] = "cello_v2",
     ucf_path: Annotated[str, Form()] = "",
     sensor_path: Annotated[str, Form()] = "",
     device_path: Annotated[str, Form()] = "",
@@ -2223,6 +2229,7 @@ def web_save_settings(
         "api_key": api_key.strip(),
         "api_base": api_base.strip(),
         "cello_command": cello_command.strip(),
+        "cello_artifact_format": cello_artifact_format.strip(),
         "ucf_path": ucf_path.strip(),
         "sensor_path": sensor_path.strip(),
         "device_path": device_path.strip(),
@@ -2235,6 +2242,7 @@ def web_save_settings(
     cello_cmd = settings.get("cello_command") or None
     wrapper = CelloWrapper(
         cello_command=cello_cmd,
+        cello_artifact_format=settings.get("cello_artifact_format") or "cello_v2",
         ucf_path=settings.get("ucf_path") or None,
         sensor_path=settings.get("sensor_path") or None,
         device_path=settings.get("device_path") or None,
@@ -2275,6 +2283,7 @@ def web_clear_settings_api_key(
     cello_cmd = settings.get("cello_command") or None
     wrapper = CelloWrapper(
         cello_command=cello_cmd,
+        cello_artifact_format=settings.get("cello_artifact_format") or "cello_v2",
         ucf_path=settings.get("ucf_path") or None,
         sensor_path=settings.get("sensor_path") or None,
         device_path=settings.get("device_path") or None,

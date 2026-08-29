@@ -59,6 +59,12 @@
       <p class="muted" style="margin-bottom: 16px;">{{ _tr('設定本機 Cello 執行指令與預設 UCF 配置，讓多步驟電路設計能順暢執行物理對應與評估。', 'Configure the local Cello command and default UCF so multi-step circuit designs can perform physical mapping and evaluation.') }}</p>
 
       <div class="grid grid-2">
+        <label>{{ _tr('Cello 產物格式', 'Cello Artifact Format') }}
+          <select name="cello_artifact_format" id="setting-cello-artifact-format">
+            <option value="cello_v2" {% if settings.cello_artifact_format == 'cello_v2' %}selected{% endif %}>Cello v2 (legacy)</option>
+            <option value="cello21" {% if settings.cello_artifact_format == 'cello21' %}selected{% endif %}>Cello 2.1 (research preview)</option>
+          </select>
+        </label>
         <label>{{ _tr('Cello 可執行指令', 'Cello Command') }}
           <input name="cello_command" id="setting-cello-command" value="{{ settings.cello_command }}" placeholder="{{ _tr('例如：cello 或 docker run --rm cello', 'Example: cello or docker run --rm cello') }}">
         </label>

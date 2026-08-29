@@ -56,6 +56,9 @@ if FastMCP is not None:
         output_dir: str | None = None,
         cello_command: str | None = None,
         ucf_path: str | None = None,
+        sensor_path: str | None = None,
+        device_path: str | None = None,
+        cello_artifact_format: str = "cello_v2",
     ) -> dict[str, Any]:
         """Run a compact genetic circuit design workflow and write artifacts."""
         return design_circuit_quick(
@@ -71,7 +74,10 @@ if FastMCP is not None:
             api_key=api_key,
             output_dir=output_dir,
             cello_command=cello_command,
+            cello_artifact_format=cello_artifact_format,
             ucf_path=ucf_path,
+            sensor_path=sensor_path,
+            device_path=device_path,
         )
 
     @mcp.tool()
@@ -84,6 +90,9 @@ if FastMCP is not None:
         output_dir: str | None = None,
         cello_command: str | None = None,
         ucf_path: str | None = None,
+        sensor_path: str | None = None,
+        device_path: str | None = None,
+        cello_artifact_format: str = "cello_v2",
     ) -> dict[str, Any]:
         """Evaluate existing Cello-compatible Verilog without calling an LLM."""
         return evaluate_verilog(
@@ -94,7 +103,10 @@ if FastMCP is not None:
             monte_carlo_samples=monte_carlo_samples,
             output_dir=output_dir,
             cello_command=cello_command,
+            cello_artifact_format=cello_artifact_format,
             ucf_path=ucf_path,
+            sensor_path=sensor_path,
+            device_path=device_path,
         )
 
     @mcp.tool()
@@ -112,6 +124,9 @@ if FastMCP is not None:
         output_dir: str | None = None,
         cello_command: str | None = None,
         ucf_path: str | None = None,
+        sensor_path: str | None = None,
+        device_path: str | None = None,
+        cello_artifact_format: str = "cello_v2",
     ) -> dict[str, Any]:
         """Start a background genetic circuit design run and return a run_id."""
         return service_start_design_run(
@@ -127,7 +142,10 @@ if FastMCP is not None:
             api_key=api_key,
             output_dir=output_dir,
             cello_command=cello_command,
+            cello_artifact_format=cello_artifact_format,
             ucf_path=ucf_path,
+            sensor_path=sensor_path,
+            device_path=device_path,
         )
 
     @mcp.tool()
@@ -221,9 +239,16 @@ if FastMCP is not None:
         model_name: str | None = None,
         api_base: str | None = None,
         api_key: str | None = None,
+        cello_artifact_format: str | None = None,
     ) -> dict[str, Any]:
         """Create a child run that resumes a paused design from saved state."""
-        return service_resume_design_run(run_id, model_name, api_base, api_key)
+        return service_resume_design_run(
+            run_id,
+            model_name,
+            api_base,
+            api_key,
+            cello_artifact_format=cello_artifact_format,
+        )
 
     @mcp.tool()
     def get_design_ir(run_id: str, revision_id: str | None = None) -> dict[str, Any]:

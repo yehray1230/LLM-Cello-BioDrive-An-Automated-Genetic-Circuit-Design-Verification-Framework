@@ -669,6 +669,7 @@ def resume_run(
             run_id,
             model_name=request.model_name,
             api_base=request.api_base,
+            cello_artifact_format=request.cello_artifact_format,
         )
     except ValueError as exc:
         raise _bad_request("INVALID_RUN_ID", str(exc)) from exc

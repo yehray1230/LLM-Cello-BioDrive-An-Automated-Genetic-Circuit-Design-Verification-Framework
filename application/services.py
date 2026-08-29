@@ -1546,6 +1546,9 @@ class RunService:
         req_model = _optional_string(request.get("model_name"))
         req_base = _optional_string(request.get("api_base"))
         req_cello_cmd = _optional_string(request.get("cello_command"))
+        req_cello_artifact_format = _optional_string(
+            request.get("cello_artifact_format")
+        )
         req_ucf_path = _optional_string(request.get("ucf_path"))
         req_sensor_path = _optional_string(request.get("sensor_path"))
         req_device_path = _optional_string(request.get("device_path"))
@@ -1568,6 +1571,7 @@ class RunService:
             "model_name": req_model,
             "api_base": req_base,
             "cello_command": req_cello_cmd,
+            "cello_artifact_format": req_cello_artifact_format or "cello_v2",
             "ucf_path": req_ucf_path,
             "sensor_path": req_sensor_path,
             "device_path": req_device_path,
@@ -1584,6 +1588,13 @@ class RunService:
                 kwargs["api_key"] = raw_settings["api_key"]
             if not req_cello_cmd and raw_settings.get("cello_command"):
                 kwargs["cello_command"] = raw_settings["cello_command"]
+            if (
+                not req_cello_artifact_format
+                and raw_settings.get("cello_artifact_format")
+            ):
+                kwargs["cello_artifact_format"] = raw_settings[
+                    "cello_artifact_format"
+                ]
             if not req_ucf_path and raw_settings.get("ucf_path"):
                 kwargs["ucf_path"] = raw_settings["ucf_path"]
             if not req_sensor_path and raw_settings.get("sensor_path"):
@@ -1649,14 +1660,15 @@ class RunService:
         model_name: str | None = None,
         api_base: str | None = None,
         api_key: str | None = None,
+        cello_artifact_format: str | None = None,
     ) -> dict[str, Any]:
         req_model = model_name
         req_base = api_base
         req_key = api_key
-
         kwargs = {
             "run_id": _validated_run_id(run_id),
             "run_store": self.run_store,
+            "cello_artifact_format": cello_artifact_format,
         }
 
         if self.settings:
@@ -1674,7 +1686,6 @@ class RunService:
             kwargs["api_base"] = req_base
         if req_key is not None:
             kwargs["api_key"] = req_key
-
         return resume_design_run(**kwargs)
 
 

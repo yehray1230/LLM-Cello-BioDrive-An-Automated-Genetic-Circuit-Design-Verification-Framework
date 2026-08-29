@@ -810,3 +810,27 @@ def test_mcp_server_registers_expected_tools_without_real_mcp(monkeypatch) -> No
         "export_design",
         "summarize_mcp_design_state",
     }
+    captured = {}
+
+    def fake_design(**kwargs):
+        captured.update(kwargs)
+        return {"status": "error", "error_type": "cello21_program_blocked"}
+
+    monkeypatch.setattr(server_module, "design_circuit_quick", fake_design)
+    result = registered_tools["design_genetic_circuit_quick"](
+        "AND gate", cello_artifact_format="cello21"
+    )
+    assert result["error_type"] == "cello21_program_blocked"
+    assert captured["cello_artifact_format"] == "cello21"
+
+    captured.clear()
+
+    def fake_resume(*args, **kwargs):
+        captured["args"] = args
+        captured.update(kwargs)
+        return {"status": "queued"}
+
+    monkeypatch.setattr(server_module, "service_resume_design_run", fake_resume)
+    result = registered_tools["resume_design_run"]("run_parent")
+    assert result["status"] == "queued"
+    assert captured["cello_artifact_format"] is None

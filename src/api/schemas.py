@@ -295,6 +295,9 @@ class RunStartRequest(BaseModel):
     model_name: str | None = Field(default=None, max_length=256)
     api_base: str | None = Field(default=None, max_length=2048)
     cello_command: str | None = Field(default=None, max_length=4000)
+    cello_artifact_format: str | None = Field(
+        default=None, pattern="^(cello_v2|cello21)$"
+    )
     ucf_path: str | None = Field(default=None, max_length=2048)
     sensor_path: str | None = Field(default=None, max_length=2048)
     device_path: str | None = Field(default=None, max_length=2048)
@@ -313,6 +316,9 @@ class RunResumeRequest(BaseModel):
 
     model_name: str | None = Field(default=None, max_length=256)
     api_base: str | None = Field(default=None, max_length=2048)
+    cello_artifact_format: str | None = Field(
+        default=None, pattern="^(cello_v2|cello21)$"
+    )
 
 
 class SimulationComparisonRequest(BaseModel):
@@ -368,6 +374,9 @@ class SettingsUpdateRequest(BaseModel):
     api_key: str = Field(default="", max_length=2048)
     api_base: str = Field(default="", max_length=2048)
     cello_command: str = Field(default="", max_length=4000)
+    cello_artifact_format: str = Field(
+        default="cello_v2", pattern="^(cello_v2|cello21)$"
+    )
     ucf_path: str = Field(default="", max_length=2048)
     sensor_path: str = Field(default="", max_length=2048)
     device_path: str = Field(default="", max_length=2048)

@@ -8,6 +8,7 @@
   "monte_carlo_samples": 1,
   "output_dir": "outputs/mcp_runs",
   "cello_command": null,
+  "cello_artifact_format": "cello_v2",
   "ucf_path": null
 }
 

@@ -15,6 +15,7 @@ DEFAULT_SETTINGS = {
     "model_name": "gpt-5.4-mini",
     "api_base": "",
     "cello_command": "",
+    "cello_artifact_format": "cello_v2",
     "ucf_path": "",
     "sensor_path": "",
     "device_path": "",
@@ -54,6 +55,11 @@ class SettingsService:
                         val = DEFAULT_SETTINGS[key]
                 settings[key] = val
 
+        if settings["cello_artifact_format"] not in {"cello_v2", "cello21"}:
+            raise ValueError(
+                "cello_artifact_format must be 'cello_v2' or 'cello21'"
+            )
+
         # One-time migration from the legacy plaintext settings file.
         legacy_key = str(data.get("api_key") or "").strip()
         if legacy_key:
@@ -66,11 +72,19 @@ class SettingsService:
     def save_settings(self, settings: dict[str, Any]) -> None:
         """Save public settings separately from the API key."""
         self.load_settings()  # Migrate any legacy plaintext key before overwriting.
+        cello_artifact_format = str(
+            settings.get("cello_artifact_format") or "cello_v2"
+        ).strip()
+        if cello_artifact_format not in {"cello_v2", "cello21"}:
+            raise ValueError(
+                "cello_artifact_format must be 'cello_v2' or 'cello21'"
+            )
         public_settings = {
             "provider": str(settings.get("provider") or "OpenAI").strip(),
             "model_name": str(settings.get("model_name") or "gpt-5.4-mini").strip(),
             "api_base": str(settings.get("api_base") or "").strip(),
             "cello_command": str(settings.get("cello_command") or "").strip(),
+            "cello_artifact_format": cello_artifact_format,
             "ucf_path": str(settings.get("ucf_path") or "").strip(),
             "sensor_path": str(settings.get("sensor_path") or "").strip(),
             "device_path": str(settings.get("device_path") or "").strip(),

@@ -288,6 +288,7 @@ def test_run_api_contract_without_executing_llm(
             "status": "queued",
             "progress": 0.0,
             "request_model": request.get("model_name"),
+            "request_cello_artifact_format": request.get("cello_artifact_format"),
         },
     )
     monkeypatch.setattr(
@@ -323,6 +324,7 @@ def test_run_api_contract_without_executing_llm(
         json={
             "user_intent": "Express GFP when A is present.",
             "model_name": "test-model",
+            "cello_artifact_format": "cello21",
         },
     )
     status_response = client.get("/api/v1/runs/run_api_test")
@@ -330,8 +332,48 @@ def test_run_api_contract_without_executing_llm(
 
     assert started.status_code == 202
     assert started.json()["data"]["run_id"] == "run_api_test"
+    assert started.json()["data"]["request_cello_artifact_format"] == "cello21"
     assert status_response.json()["data"]["progress"] == 0.25
     assert events.json()["data"]["events"][0]["stage"] == "builder"
+
+
+def test_resume_api_preserves_explicit_cello21_format(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    services = client.app.state.test_services
+    captured = {}
+
+    def fake_resume(run_id, **kwargs):
+        captured["run_id"] = run_id
+        captured.update(kwargs)
+        return {"run_id": "run_child", "status": "queued"}
+
+    monkeypatch.setattr(services.runs, "resume", fake_resume)
+    response = client.post(
+        "/api/v1/runs/run_parent/resume",
+        json={"cello_artifact_format": "cello21"},
+    )
+    assert response.status_code == 202
+    assert captured["cello_artifact_format"] == "cello21"
+
+
+def test_resume_api_preserves_omitted_format_for_parent_resolution(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    services = client.app.state.test_services
+    captured = {}
+
+    def fake_resume(run_id, **kwargs):
+        captured["run_id"] = run_id
+        captured.update(kwargs)
+        return {"run_id": "run_child", "status": "queued"}
+
+    monkeypatch.setattr(services.runs, "resume", fake_resume)
+    response = client.post("/api/v1/runs/run_parent/resume", json={})
+    assert response.status_code == 202
+    assert captured["cello_artifact_format"] is None
 
 
 def test_run_api_rejects_path_traversal_ids(client: TestClient) -> None:
