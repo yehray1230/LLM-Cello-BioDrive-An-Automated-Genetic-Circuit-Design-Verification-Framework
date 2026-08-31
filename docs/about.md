@@ -5,6 +5,11 @@
 This document explains the problem, working hypothesis, inspectable prototype,
 and open questions that may benefit from review across several disciplines.
 
+> **Archive status / 封存狀態（2026-08-30）：** 本專案已依有限結案契約
+> `CLOSED_UNSUCCESSFUL_ARCHIVED`。最終完成的真實 provider-to-Cello
+> full-path 專案數為 0；下文的功能與研究方向是原型內容及歷史探索脈絡，
+> 不是仍在執行的產品 roadmap。詳見 [Archived Project Closeout](PROJECT_CLOSEOUT.md)。
+
 ---
 
 ## 1. 這是一個什麼專案？ (What is this project?)
@@ -59,9 +64,11 @@ and open questions that may benefit from review across several disciplines.
 
 ---
 
-## 4. 接下來的重大里程碑是什麼？ (What are the next major milestones?)
+## 4. 歷史與可選研究方向 (Historical and Optional Research Directions)
 
-根據專案升級路線圖（[future_roadmap.md](future_roadmap.md)），未來的核心開發任務分為以下幾個階段：
+以下項目保留原專案曾考慮的研究方向，但不再代表已排程或獲授權的下一步。
+任何重啟都需要新的研究問題、範圍、證據標準與執行契約。詳見
+[future roadmap](future_roadmap.md)。
 
 * **第一階段：基準校準與數據擬合**
   * 建立包含 20 個以上經典文獻（如 Cello 1.0 發表設計、Repressilator 等）的基準資料集，評估並消除評分系統的「偽陰性」（即因過於保守的懲罰項導致文獻中可行的設計被打低分）。

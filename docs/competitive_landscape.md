@@ -1,82 +1,101 @@
 # Positioning and Comparison Landscape
 
-Last reviewed: 2026-07-14
+Literature review date: 2026-07-27
+Current public-doc review: 2026-08-30
 
-## Purpose and Comparison Boundary
+> **Archive boundary:** The project is `CLOSED_UNSUCCESSFUL_ARCHIVED`. This
+> comparison is a historical positioning aid, not an active competitor roadmap
+> or a superiority benchmark. The final project completed zero real provider-
+> to-Cello full-path projects; see [Archived Project Closeout](PROJECT_CLOSEOUT.md).
 
-This document explains the project's positioning relative to Cello and CELLM.
-It compares public emphasis and reviewable artifacts; it is not a complete
-feature audit, performance benchmark, or claim that another system lacks a
-capability that its reviewed public materials do not discuss.
+## Purpose and comparison boundary
 
-Cello is also an upstream design-automation system used by this project, not
-merely a competitor. CELLM is the closer adjacent comparison because it adds
-natural-language and LLM-based interaction around Cello.
+This document compares public methods and inspectable artifacts. It is not a
+complete feature audit, a performance benchmark, or proof that an unreported
+capability does not exist.
 
-## Public Positioning Comparison
+Cello is an upstream design-automation system used by this project. CELLM is
+the closest genetic-circuit natural-language comparison. GCAD extends the
+current CAD landscape to mammalian genetic programs. CAPAS and the
+verification-first catalysis literature are direct comparisons for the
+evidence-governance thesis even though they are not circuit-design systems.
 
-| System | Publicly emphasized role | Relationship to this project | Safe interpretation |
+## Public positioning comparison
+
+| System/source | Publicly emphasized role | Relationship to this project | Safe interpretation |
 | --- | --- | --- | --- |
-| Cello | Converts a high-level Verilog logic specification into an abstract Boolean network, assigns characterized biological gates, constructs DNA sequences, and predicts circuit performance. | Upstream CAD and mapping foundation. | Cello is the stronger reference point for circuit synthesis and experimentally grounded gate libraries; this prototype does not claim to outperform it. |
-| CELLM | Combines Cello with LLMs and LangChain so users can create, analyze, and optimize genetic circuits from natural-language instructions. | Closest adjacent natural-language comparison. | Natural-language access and LLM-assisted orchestration are not sufficient differentiation by themselves. |
-| This prototype | Translates regulatory intent into candidates and evaluates them across deterministic, heuristic, and simplified-model paths. It additionally attaches an E-BOM and deterministic claim/license decisions to public evidence. | Evidence-governance and review layer around candidate generation and evaluation. | The defensible claim is improved inspectability of what may be said about an output—not superior biological performance or experimental validation. |
+| Cello 2.0 | Converts a Verilog logic specification through Boolean-network and biological gate-mapping stages to DNA sequence and predicted performance. | Upstream CAD and mapping foundation. | Cello is the stronger reference for circuit synthesis and characterized libraries; this prototype does not claim to outperform it. |
+| CELLM | Uses LLMs, LangChain, and Cello for natural-language creation, analysis, and optimization of genetic circuits. | Closest natural-language circuit comparator. | Natural-language access and LLM orchestration are not differentiation. |
+| GCAD | Searches mammalian genetic-program designs from specifications, parts/interactions, ODE models, and a genetic algorithm. | Current CAD comparator beyond Cello. | Genetic-circuit CAD is a broader and active field; this project is not a comprehensive CAD benchmark. |
+| CRISPR-GPT / GeneAgent / Virtual Lab | Agentic biological design, tool grounding, self-verification, or multi-agent scientific work. | Adjacent biological-agent systems. | Multi-agent design and self-verification are not unique and some adjacent systems have stronger external validation. |
+| PROV-O / RO-Crate / nanopublications / ECO | Machine-readable provenance, research-object packaging, assertion-level publication, and evidence typing. | Standards and conceptual foundations. | Generic provenance, claim-level evidence objects, and machine-readable research packaging are established. |
+| Verification-first autonomous catalysis | Proposes typed claims, admissible evidence, verifier, evidence ledger, uncertainty gate, and human escalation. | Direct conceptual overlap. | The broad verifier–ledger–gate architecture cannot be claimed as new here. |
+| CAPAS | Public deterministic, fail-closed scientific claim-admissibility gate with structured evidence, provenance blockers, licensing/reproducibility checks, and replayable hashes. | Direct implementation overlap. | The general deterministic claim gate cannot remain a stand-alone contribution. The reviewed claims are from its official page and were not independently reproduced here. |
+| This prototype | Applies a project-specific E-BOM schema and reportability rules to a genetic-circuit candidate workflow and a fixed public case. | Potential domain-specific implementation/case study. | The defensible route is a standards-aware genetic-circuit profile and fixed-case failure/reconstruction study, not general evidence-governance novelty. |
 
-## Differentiation Dimensions
+## Differentiation audit
 
-| Dimension | Cello | CELLM | This prototype |
-| --- | --- | --- | --- |
-| Natural-language entry | Not the primary interface described in the reviewed Cello sources. | Core public contribution. | Implemented as an entry layer, but not claimed as unique. |
-| Circuit synthesis | Core capability using logic synthesis, characterized gates, constraints, and performance prediction. | Uses Cello as the synthesis basis. | Delegates real mapping to external Cello or records mock/failed/not-run status explicitly. |
-| Claim-to-evidence manifest | Not established by the reviewed public sources. | Not established by the reviewed abstract and supporting-information description. | Machine-readable `evidence-bom@1.0.0` manifest in the public Case 01 snapshot. |
-| Deterministic claim states | Not established by the reviewed public sources. | Not established by the reviewed public sources. | `supported`, `limited`, `unsupported`, or `blocked`, with reason codes. |
-| License-aware evidence decision | Cello code and external biological resources retain their own licenses and terms. | Not established as a claim-decision mechanism by the reviewed public sources. | Evidence rights metadata participates in a deterministic gate; unresolved or restricted rights can limit or block a claim. |
-| Biological validation boundary | Published Cello work includes experimentally characterized gates and reported constructed circuits. | Must be interpreted within the evidence reported by the CELLM paper. | Current repository evidence supports computational-workflow and screening claims only; no wet-lab validation is claimed. |
+| Proposed dimension | P1 finding | Permitted wording |
+| --- | --- | --- |
+| Natural-language entry | Established by CELLM and adjacent biological agents. | Implementation detail only. |
+| Multi-agent orchestration | Established in biological and general scientific-agent systems. | Architecture detail only. |
+| Machine-readable provenance | Established by PROV-O and RO-Crate. | State which standards or concepts are reused/mapped. |
+| Claim-level evidence objects | Established by nanopublications, ECO, and newer claim-evidence systems. | Describe the repository-specific profile and fields. |
+| Deterministic fail-closed claim gate | Directly overlaps CAPAS; conceptually overlaps verification-first catalysis. | Describe local conformance behavior, not novelty. |
+| Rights-aware eligibility | CAPAS publicly includes licensing blockers; generic rights metadata is also established. | Describe exact local rules and limitations; never claim legal compliance. |
+| Genetic-circuit evidence hierarchy | No exact reviewed intersection was found, but bounded absence is not uniqueness evidence. | A domain-specific composition tested on fixed Case 01. |
+| Biological performance | Current repository has no wet-lab or accepted external-comparator evidence. One historical Cello 2.1 result is mapping-only. | Explicit limitation only. |
 
-“Not established” means only that the reviewed source did not provide enough
-evidence for this comparison. It must not be rewritten as “does not exist.”
+## Current bounded project description
 
-## Recommended Project Description
-
-> An evidence-governed AI workflow for genetic-circuit design: every
-> reportable claim can be linked to named evidence, biological context,
-> provenance, and license status, then deterministically classified as
-> supported, limited, unsupported, or blocked.
+> A research-preview implementation of a genetic-circuit-specific evidence
+> profile, evaluated on a fixed public case for reconstructable reportability
+> decisions, explicit blockers, and preserved computational, external-tool,
+> sequence, real-data, wet-lab, and rights boundaries.
 
 Short form:
 
-> Evidence-governed candidate generation and evaluation for genetic-circuit
-> design.
+> An inspectable evidence-profile case study for genetic-circuit candidate
+> workflows.
 
-The licensing component should be described as **license-aware evidence
-provenance**, not “evidence licensing.” It records rights and controls claim
-eligibility; it does not relicense third-party material or guarantee legal
-compliance.
+The term E-BOM may remain the local profile name, but it must not imply that a
+universal evidence bill of materials or deterministic scientific claim gate was
+invented here.
 
-## Claims to Avoid
+## Claims to avoid
 
-- “More trustworthy than Cello or CELLM” without a comparative user study or
-  benchmark.
-- “Produces biologically valid” or “ready-to-build” circuits.
-- “Solves hallucination.” The implemented checks expose selected inconsistency
-  and evidence gaps; they do not eliminate model error.
-- “License compliant” as an unconditional guarantee. Prefer “records rights
-  metadata and gates unresolved or restricted evidence uses.”
-- “First” or “unique” without a systematic and current literature review.
-- Treating multi-agent orchestration as the central differentiator.
+- first or unique machine-readable evidence contract;
+- first or unique deterministic/fail-closed scientific claim gate;
+- more trustworthy or more inspectable than another system without a
+  predeclared comparative study;
+- biologically valid, ready-to-build, externally mapped, or wet-lab validated;
+- solves hallucination;
+- license compliant as an unconditional guarantee;
+- treating multi-agent orchestration, provenance, abstention, self-verification,
+  or research-object packaging as stand-alone novelty;
+- treating the bounded P1 negative search as proof that no exact competitor
+  exists.
 
-## Project Evidence
+## Project evidence
 
+- [Public scope](PUBLIC_SCOPE.md)
 - [Evidence Governance and E-BOM Specification](evidence_governance_spec.md)
 - [Case 01 public evidence](evidence/case_01/README.md)
 - [Case 01 machine-readable E-BOM](evidence/case_01/evidence_manifest.json)
 - [Project limitations](limitations.md)
 - [Third-party notices and license boundaries](../THIRD_PARTY_NOTICES.md)
 
-## External Sources Reviewed
+## Key external sources
 
+- Nielsen et al., [Genetic circuit design automation](https://doi.org/10.1126/science.aac7341), *Science* (2016).
 - Jones et al., [Genetic circuit design automation with Cello 2.0](https://doi.org/10.1038/s41596-021-00675-2), *Nature Protocols* (2022).
-- CIDAR Lab, [Cello source repository](https://github.com/CIDARLAB/cello).
-- Abello Castillo and Gutiérrez Pescarmona, [CELLM: Bridging Natural Language Processing and Synthetic Genetic Circuit Design with AI](https://doi.org/10.1021/acssynbio.5c00391), *ACS Synthetic Biology* (2025).
+- Abello Castillo and Gutiérrez Pescarmona, [CELLM](https://doi.org/10.1021/acssynbio.5c00391), *ACS Synthetic Biology* (2025).
+- Dreyer et al., [GCAD](https://doi.org/10.1021/acssynbio.5c00670), *ACS Synthetic Biology* (2026).
+- Qu et al., [CRISPR-GPT](https://doi.org/10.1038/s41551-025-01463-z), *Nature Biomedical Engineering* (published online 2025; volume 2026).
+- W3C, [PROV-O](https://www.w3.org/TR/prov-o/).
+- Soiland-Reyes et al., [Packaging research artefacts with RO-Crate](https://doi.org/10.3233/DS-210053), *Data Science* (2022).
+- Liu and Ou, [Verification-first autonomous catalysis](https://doi.org/10.1038/s44387-026-00111-4), *npj Artificial Intelligence* (2026).
+- [CAPAS deterministic scientific claim gate](https://capas.krenniq.com/) (official implementation page; not peer-reviewed in this review).
 
-Because software and research claims can change, recheck these sources before
-using this comparison in outreach, a paper, or a release announcement.
+Before using this comparison for a publication or release decision, refresh the
+full bibliography and recheck the linked primary sources.

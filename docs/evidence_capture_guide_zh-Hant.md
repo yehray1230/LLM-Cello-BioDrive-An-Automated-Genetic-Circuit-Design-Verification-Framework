@@ -1,5 +1,11 @@
 # 真實測試、截圖與螢幕錄影證據採集指南
 
+> **文件狀態：Archived hypothetical protocol。** 專案已於 2026-08-30
+> `CLOSED_UNSUCCESSFUL_ARCHIVED`，且沒有完成真實 provider-to-Cello full-path
+> 專案。本文件保留的是未來執行時可採用的證據採集模板，不代表外部 Cello、
+> Gemini 或完整 UI 流程曾依此完成。任何文中的「completed」畫面或公開敘述都
+> 是條件式範例，不是目前專案證據。
+
 本指南用於建立可放在 README、專案網站、作品集或研究預覽頁面的公開證據。目標不是只展示漂亮圖片，而是讓讀者能沿著同一個 run ID，從使用者操作一路追查到 Cello、ODE、評分與原始 artifact。
 
 ## 1. 證據層級

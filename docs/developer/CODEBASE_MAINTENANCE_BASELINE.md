@@ -7,6 +7,11 @@
 
 **Behavior changes / 行為變更:** None
 
+> **Archive note / 封存註記（2026-08-30）：** This remains a historical
+> maintenance snapshot. The project is `CLOSED_UNSUCCESSFUL_ARCHIVED`; phrases
+> such as “next phase” or “approved” below describe decisions within the old
+> maintenance sequence and do not authorize new implementation.
+
 ## 1. Purpose / 目的
 
 This document records the first maintenance baseline for identifying code-growth,
@@ -321,7 +326,7 @@ routes or UI code.
 | `docs/workflow.md` | Runtime sequence, inputs/outputs, repair routing, interpretation, export decisions | Describes behavior but not the files/tests that must change together |
 | `src/api/README.md` | Endpoint surface, persistence, phase contracts, credentials | Does not map API contracts to Web/MCP/export consumers |
 | `docs/model_assumptions.md` | Scientific assumptions and claim boundaries | Not a software change-impact guide |
-| `docs/developer/MVP_TEST_PLAN.md` | Broad test gates, claim matrix, runbooks, and accumulated verification evidence | Stable strategy and historical execution records are mixed in one growing file |
+| `docs/developer/MVP_TEST_PLAN.md` (local-only) | Broad test gates, claim matrix, runbooks, and accumulated verification evidence | Stable strategy and historical execution records are mixed in one growing file; it is not part of the public GitHub surface |
 | `docs/resource_competition_model_spec.md` | Current resource-model contract | New and still part of the uncommitted working slice; maintenance ownership is not yet registered |
 
 Repository-wide searches found no dedicated architecture-decision record set,

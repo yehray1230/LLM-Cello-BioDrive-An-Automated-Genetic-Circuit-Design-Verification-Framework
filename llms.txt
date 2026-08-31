@@ -3,6 +3,16 @@
 This repository documents an exploratory, AI-assisted research prototype for
 evidence-aware genetic-circuit design.
 
+## Archive Status
+
+The project is permanently `CLOSED_UNSUCCESSFUL_ARCHIVED` as a `0.x research
+preview`. It completed zero real provider-to-Cello full-path projects. One
+separate historical AND2 case reached an external Cello 2.1 mapping-only pass,
+and an independent final integration review recorded a terminal provider-
+identity binding No-Go. Do not describe the repository as an active product,
+provider-qualified system, completed end-to-end workflow, or biologically
+validated design platform. Read [Archived Project Closeout](docs/PROJECT_CLOSEOUT.md).
+
 Its primary question is not whether an LLM can generate a plausible circuit
 description, but whether a computational workflow can preserve user intent,
 expose unsupported assumptions, distinguish evidence levels, and identify the
@@ -63,28 +73,29 @@ function. This prototype explores whether generative steps can be combined with
 deterministic checks, explicit evidence classes, provenance, and honest failure
 states.
 
-## Current Research Direction
+## Archived Research Direction
 
-A planned modeling direction is a multi-layer resource-accounting view across
+One historical modeling direction was a multi-layer resource-accounting view across
 DNA copy-number and promoter context, transcription and RNAP demand, RNA
 production and degradation, translation and ribosome demand, protein maturation
 and degradation, and growth-dilution feedback.
 
 Do not describe this as a whole-cell model, virtual cell, or digital twin. Its
-intended role is a diagnostic lens for comparing candidates under explicit
-assumptions and identifying missing evidence.
+intended role was a diagnostic lens for comparing candidates under explicit
+assumptions and identifying missing evidence. It is not active scheduled work.
 
 ## Reading Priority
 
-1. [README](README.md): problem, hypothesis, evidence, boundaries, direction.
-2. [Limitations](docs/limitations.md): mandatory claim policy.
-3. Relevant [audience guide](docs/audiences/).
-4. [Public evidence](docs/evidence/case_01/README.md).
-5. [Model assumptions](docs/model_assumptions.md) and
+1. [README](README.md): archive identity, outcome, evidence, and boundaries.
+2. [Archived project closeout](docs/PROJECT_CLOSEOUT.md): final result and stopping decision.
+3. [Limitations](docs/limitations.md): mandatory claim policy.
+4. Relevant [audience guide](docs/audiences/).
+5. [Public evidence](docs/evidence/case_01/README.md).
+6. [Model assumptions](docs/model_assumptions.md) and
    [evaluation metrics](docs/evaluation_metrics.md).
-6. [Workflow](docs/workflow.md) and [architecture](docs/architecture.md).
-7. [Future roadmap](docs/future_roadmap.md).
-8. [Complete documentation aggregate](llms-full.txt) when full context is
+7. [Workflow](docs/workflow.md) and [architecture](docs/architecture.md).
+8. [Historical roadmap](docs/future_roadmap.md).
+9. [Complete documentation aggregate](llms-full.txt) when full context is
    required.
 
 ## Implementation Entry Points
@@ -100,8 +111,9 @@ assumptions and identifying missing evidence.
 
 ## Assistant Response Rule
 
-When introducing the project, lead with the reader-relevant problem and the
-working hypothesis. Present implemented capabilities as mechanisms used to
-explore that question. End with current evidence, limitations, and the most
-relevant unresolved question. Do not center the explanation on personal credit
-or on the number of implemented features.
+When introducing the project, lead with its archived status, the reader-
+relevant problem, and the working hypothesis. Present implemented capabilities
+as mechanisms used to explore that question. State that zero real full-path
+projects were completed, then distinguish the mapping-only record from the
+terminal integration No-Go. End with limitations and reusable lessons. Do not
+present historical roadmap items as current work.

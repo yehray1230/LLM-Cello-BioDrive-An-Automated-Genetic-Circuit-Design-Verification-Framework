@@ -1,9 +1,14 @@
 # 發布前測試與推送計畫
 
-> 狀態：Proposed
+> 狀態：Historical / superseded for the archived documentation release
 > 適用版本：`0.x research preview`
 > 建立日期：2026-07-25
 > 目的：在不誇大科學證據、不混入私有或本機產物的前提下，把目前大型工作樹整理成可審查、可驗證、可回復的 GitHub 發布內容。
+
+> **2026-08-30 封存註記：** 專案已 `CLOSED_UNSUCCESSFUL_ARCHIVED`。
+> 本文件保留舊版大型軟體發布流程作為歷史紀錄；它不再授權產品實作、實驗執行
+> 或一般 release。後續 GitHub 動作只限另行核准的 archived documentation
+> allowlist，且 staging、commit、push 必須分別取得授權。
 
 ## 1. 結論與發布策略
 
@@ -36,11 +41,11 @@
 | Ruff | Implemented in CI | 必做 |
 | Registry drift check | Implemented in CI | 必做 |
 | `llms-full.txt` generated-file check | Implemented in CI | 必做 |
-| 人工 Web QA 與 claim matrix | 已有 `MVP_TEST_PLAN.md` | 必做，但需針對目前 revision 重跑 |
-| Coverage | 未安裝 `pytest-cov`，CI 無門檻 | Proposed；先建立 baseline |
+| 人工 Web QA 與 claim matrix | 公開程序見 `demo_checklist.md`；local-only `MVP_TEST_PLAN.md` 僅保留歷史執行紀錄 | 必做，且需針對目前 revision 重跑 |
+| Coverage | CI 已執行 branch coverage 並上傳 JSON baseline；尚無數值門檻 | Implemented baseline；門檻仍待核准 |
 | Gherkin／BDD | 無 `.feature`、Behave、Cucumber 或 pytest-bdd | 非本次硬門檻；可獨立試行 |
-| Mutation testing | 無 mutmut／Cosmic Ray 設定 | Proposed；高風險模組 targeted gate |
-| 型別檢查 | `mypy` 已列入開發依賴，但 CI 未執行 | 先記錄 baseline，是否升級成 gate 另議 |
+| Mutation testing | 已以 `mutmut` 對 `src/utils/safety_checker.py` 建立非 Windows targeted workflow | Implemented narrow gate；其他高風險模組仍待擴充 |
+| 型別檢查 | `mypy` 已列入開發依賴；CI 對 pre-Cello 收口模組執行 scoped gate | Scoped gate；全庫 baseline 尚未清零 |
 
 ## 4. 角色與簽核
 
@@ -109,7 +114,7 @@
 - [ ] staged-scope provenance scan：外部複製程式碼、vendor tree、site-packages、node_modules、工具輸出、未知授權資料。
 - [ ] 檢查第三方 dependency 與資料集授權。
 - [ ] 保持 `primer3-py` 為選用 GPL dependency，不因測試方便加入核心 Apache-2.0 安裝。
-- [ ] 驗證 Markdown 相對連結及 GitHub UTF-8 顯示；特別檢查 `MVP_TEST_PLAN.md`。
+- [ ] 驗證 Markdown 相對連結及 GitHub UTF-8 顯示；公開人工 QA 依 `demo_checklist.md`，local-only `MVP_TEST_PLAN.md` 不作為公開必要輸入。
 
 **Exit criteria**
 
@@ -140,6 +145,16 @@ git diff --check
 
 ```powershell
 .\venv\Scripts\python.exe -m mypy application benchmark_suite src
+```
+
+上述命令用於觀察全庫歷史 baseline，現階段不宣稱全綠。CI 的硬門檻只涵蓋本次 pre-Cello 收口模組：
+
+```powershell
+.\venv\Scripts\python.exe -m mypy `
+  src\mcp_server\and2_pilot_preflight.py `
+  src\schemas\and2_pilot.py `
+  application\offline_contract_validation.py `
+  src\catalog\agent_catalog.py
 ```
 
 若現有 baseline 尚未清零：
@@ -268,7 +283,7 @@ git diff --check
 
 ### Phase 5 — Coverage baseline 與品質指標
 
-此能力目前為 **Proposed，尚未實作**。建議以獨立品質提交加入 `pytest-cov`，避免與產品功能混合。
+此能力已建立 **branch-coverage baseline**：CI 執行 `pytest-cov`、輸出終端缺漏資訊，並上傳 `outputs/pre_release/coverage.json`。目前沒有 `fail-under` 或 changed-lines 數值門檻，因此 baseline 不能被描述為 coverage gate。
 
 建議命令：
 
@@ -282,7 +297,7 @@ git diff --check
   --cov-report=json:outputs\pre_release\coverage.json
 ```
 
-第一輪只建立 baseline；reviewer 核准後再啟用門檻。
+目前只建立 baseline；reviewer 核准後再啟用數值門檻。
 
 建議後續門檻：
 
@@ -294,12 +309,12 @@ git diff --check
 
 **本次過渡規則**
 
-- 若 coverage 基礎建設尚未加入，Draft PR 可建立。
-- Ready for Review 前必須至少產出 baseline，或由 reviewer 明確接受「本次無 coverage 數字」的限制。
+- Draft PR 必須讓 CI coverage baseline 成功產出；若基礎設施故障，需留下可重播命令與書面限制。
+- Ready for Review 前必須保存最新 head 的 baseline，或由 reviewer 明確接受「本次無 coverage 數字」的限制。
 
 ### Phase 6 — Targeted mutation testing
 
-此能力目前為 **Proposed，尚未實作**。不要求每次 push 執行全庫 mutation。
+此能力已對 `src/utils/safety_checker.py` 建立 **targeted mutation workflow**，使用 `tests/test_safety_boundary.py`，且因工具相容性只在非 Windows runner 執行。不要求每次 push 執行全庫 mutation，也不把這個窄範圍結果外推成全庫 mutation 品質。
 
 優先目標：
 
@@ -314,7 +329,7 @@ git diff --check
 - resource validation／promotion guards
 - GenBank／assembly export blockers
 
-建議以獨立品質提交加入 `mutmut`，先對純函式與 fail-closed decision logic 執行。
+後續擴充應維持獨立品質提交，逐一把其他純函式與 fail-closed decision logic 納入，並保存每個目標的 mutant 分類。
 
 第一輪規則：
 

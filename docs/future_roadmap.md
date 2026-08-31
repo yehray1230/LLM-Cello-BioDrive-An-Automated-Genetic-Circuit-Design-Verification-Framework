@@ -1,5 +1,12 @@
-# Future Research Directions for Evidence-Aware Genetic Circuit Design
-# 證據感知基因電路設計的未來研究方向
+# Historical and Optional Research Directions for Evidence-Aware Genetic Circuit Design
+# 證據感知基因電路設計的歷史與可選研究方向
+
+> **Status / 狀態：Archived, not active（2026-08-30）.** The project is
+> `CLOSED_UNSUCCESSFUL_ARCHIVED`. This document preserves ideas that were
+> considered during development; it is not an active implementation plan,
+> execution authority, publication plan, or commitment to resume the project.
+> Any future work requires a new governing contract. See
+> [Archived Project Closeout](PROJECT_CLOSEOUT.md).
 
 This document records open research and engineering directions for testing the
 evidence-aware design hypothesis more rigorously. It is not a claim that every
@@ -13,32 +20,38 @@ or biologically predictive tool.
 
 ## 1. Executive Summary / 執行摘要
 
-The current prototype connects LLM-dependent and deterministic computational
-modules to produce reviewable candidate representations. Existing evidence
-primarily supports software-contract and computational-screening claims.
+The archived prototype connects LLM-dependent and deterministic computational
+modules to produce reviewable candidate representations. Final evidence
+supports software-contract and computational-screening claims, one separate
+historical mapping-only case, and a documented terminal integration No-Go. It
+does not include a successful real provider-to-Cello full-path project.
 
 The most important research gaps concern **experimental calibration**,
 **biophysical context modeling**, **robustness characterization**,
 **interoperability**, and whether the workflow communicates uncertainty in a
 way that matches expert reasoning.
 
-### Current implementation boundary (acceptance review: 2026-07-22)
+### Current public boundary / 目前公開邊界
 
-Phases 0 through 10 contain substantial research-preview implementations and focused test evidence. Repository-wide integration acceptance is pending the frozen AGC-2 gate, and each claim below remains limited to its stated evidence boundary:
+The phase 0 through 10 roadmap has partial research-preview implementations and
+focused test evidence across multiple areas; this does not mean every phase or
+cross-phase acceptance gate is complete. The public repository should be read
+as a software and computational workflow preview, not as a completed biological
+validation package. Public claims remain limited to:
 
-- **Phase 0 & 1 (Benchmark & Fitting)**: Literature-curated fixtures, plate-reader ingestion, fitting, governed exports, and calibration metrics are implemented previews. Record-level source locators and a protocol-defined real-data pilot remain open.
-- **Phase 2, 2b, 2c, 2d (Biophysical Modeling)**: Host, layout, temporal, resource, stochastic, retroactivity, and operon-coupling computations have focused test coverage. They remain computational screening models; EXP-023 conservatively retains the coarse default and does not constitute a real-data validation result.
-- **Phase 3 (Academic Standards & Interoperability)**: Standards exporters, round trips, sequence analysis, and optional-tool adapters are implemented previews. External-tool compatibility still requires tool-by-tool clean-environment evidence.
-- **Phase 4 & 4b (Agent Reasoning & Self-Healing)**: Explainability, audit, scoring, and reversible repair paths are implemented previews pending a frozen repaired-versus-unrepaired acceptance benchmark.
-- **Phase 5 & 6 (Hybrid Routing & Evaluation Harness)**: The EXP-011 pilot executed, but both configurations scored 0/15 and the saved evidence is incomplete. It is not accepted as a quality or cost improvement; a new frozen revision with paired repeats is required.
-- **Phase 7 & 7b (Governance & Science Integration)**: Provenance schemas, private boundaries, snapshots, and provider-neutral contracts are implemented previews. Live-provider qualification remains open.
-- **Phase 8 (Safety & Biosafety Boundary)**: Safety and export controls have focused test evidence but remain pending repository integration and dependency-environment revalidation.
-- **Phase 9 (Adapter Architecture)**: Ten adapters are registered with capability and fallback behavior. This is an adapter preview, not blanket production compatibility.
-- **Phase 10 (Publication Package)**: Three case-study package paths are implemented previews. Publication readiness requires a clean-room rebuild and claim-to-evidence audit.
+- implemented software behavior, deterministic checks, and evidence-governance
+  contracts;
+- computational screening under named assumptions;
+- documented limitations, provenance, and reproducibility procedures.
+
+The unresolved research gaps include provider-qualified integration,
+external-tool interoperability, calibrated biological evidence,
+clean-environment reproducibility, and independent review of any new result
+package. These are archived open questions rather than scheduled work.
 
 All ODE simulation readouts, SSA trajectories, retroactivity indices, and readiness scores remain computational screening heuristics under the `research_only` claim boundary and do not constitute wet-lab experimental validation.
 
-本專案目前成功利用多智能體（Reflexion 迴圈）與確定性計算工具，將自然語言轉化為基因電路候選方案。為了達到學術發表與濕實驗室應用的高標準，未來的升級應著重於**實驗校準**、**生物物理環境建模**、**魯棒性表徵**以及**標準生物學格式的互操作性**。
+本專案已封存；下列**實驗校準**、**生物物理環境建模**、**魯棒性表徵**與**標準生物學格式互操作性**保留為歷史研究構想，而非已排程的升級。
 
 ---
 
@@ -56,7 +69,7 @@ graph TD
 
 ### Phase 1: Benchmark Calibration & Wet-Lab Data Fitting / 第一階段：基準校準與實驗數據擬合
 
-To ensure that the scoring metric is biologically meaningful, we must benchmark the tool against established genetic circuits and allow parameter customization.
+A future project investigating biological meaning would need to benchmark the tool against established genetic circuits and predeclare how parameters may be customized.
 
 為確保評分指標符合真實生物學現狀，系統必須與已發表的電路進行對照，並提供參數擬合功能。
 
@@ -153,7 +166,7 @@ To prevent rewriting complex biophysical and mathematical algorithms from scratc
 ### 1. Data Fitting & Parametrization / 數據擬合與參數化
 *   **`lmfit`**
     *   **Mapped Feature / 對接功能**: Hill equation curve fitting for wet-lab data (Phase 1).
-    *   **Advantage / 優勢**: Provides robust parameter constraints (e.g., forcing Hill coefficient $n > 0$, bounding expression levels) and outputs comprehensive fit confidence intervals, superior to standard SciPy optimization.
+    *   **Potential use / 潛在用途**: Provides explicit parameter constraints (e.g., forcing Hill coefficient $n > 0$, bounding expression levels) and fit-confidence reporting. No comparative study was performed here, so this is not a superiority claim over SciPy or another optimizer.
     *   **對接功能**：對濕實驗室數據進行 Hill 方程式曲線擬合。能設定嚴格的參數範圍约束，並自動輸出信賴區間。
 
 ### 2. Biophysical Modeling & Simulation / 生物物理建模與模擬
@@ -190,7 +203,10 @@ To prevent rewriting complex biophysical and mathematical algorithms from scratc
 
 ---
 
-## 4. Prioritized Implementation Checklist / 優先開發清單
+## 4. Historical Prioritization Sketch / 歷史優先順序草案
+
+The ordering below records a former planning hypothesis. No item is currently
+authorized or scheduled.
 
 To guide the next steps of implementation, we suggest prioritizing tasks by balancing academic impact and development complexity:
 

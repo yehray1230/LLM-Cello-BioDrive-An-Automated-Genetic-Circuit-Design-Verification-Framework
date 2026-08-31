@@ -16,6 +16,14 @@ revision. It is an exploratory, AI-assisted implementation of that idea—not a
 virtual cell, a complete biological CAD platform, or an experimentally
 validated circuit-design system.
 
+> **Archived research preview:** This repository is a permanently archived
+> `0.x research preview`, not an actively developed biological CAD product. Its
+> public evidence covers inspectable software behavior, deterministic contracts,
+> the Case 01 evidence-governance snapshot, and a bounded historical closeout.
+> The project completed **zero real provider-to-Cello full-path projects** and
+> provides no biological, wet-lab, buildability, production, or publication
+> validation.
+
 ## What Makes This Prototype Different
 
 Natural-language input, multi-agent orchestration, and Cello-compatible output
@@ -97,12 +105,42 @@ The repository includes deterministic regression coverage, versioned scoring
 profiles, content-addressed benchmark metadata, explicit claim-boundary
 policies, and a sanitized public snapshot for the fixed Case 01 demonstration.
 
+The final bounded closeout also preserves two narrower findings:
+
+- one separate historical AND2 case reached a computational external Cello 2.1
+  mapping pass with one attempt, no retry, zero provider calls, and USD 0
+  provider cost; it is mapping-only evidence, not an integrated project;
+- an independent integration review found that the canonical service path did
+  not enforce the accepted Gemini provider, transport, and reported-model
+  identity. The two-revision budget was exhausted, so provider qualification
+  and the planned real-project portfolio were not attempted.
+
+See the [public project closeout](docs/PROJECT_CLOSEOUT.md) for the outcome,
+evidence classes, stopping decision, and reusable lessons.
+
 - [Case 01 public evidence](docs/evidence/case_01/README.md)
 - [Case 01 machine-readable E-BOM](docs/evidence/case_01/evidence_manifest.json)
 - [Demo summary](demo_cases/DEMO_SUMMARY.md)
 - [Evaluation metrics](docs/evaluation_metrics.md)
 - [Model assumptions](docs/model_assumptions.md)
-- [MVP verification plan and execution record](docs/developer/MVP_TEST_PLAN.md)
+- [Public result scope](docs/PUBLIC_SCOPE.md)
+- [Archived project closeout](docs/PROJECT_CLOSEOUT.md)
+
+## Public Result Scope
+
+The GitHub-facing result surface is intentionally limited to evidence that can
+be inspected and reproduced from the public tree:
+
+- Case 01 public evidence and deterministic E-BOM governance checks;
+- software contracts, deterministic checks, workflow, and provenance tests;
+- computational preview behavior under named assumptions.
+
+The public closeout summarizes the historical mapping-only record and terminal
+integration No-Go without publishing the underlying local control packages.
+EXP-024/Cello raw artifacts, preprint material, generated outputs, external
+toolchain runtime files, and local run directories remain outside the default
+GitHub surface. See the [public scope](docs/PUBLIC_SCOPE.md) for the exact
+boundary.
 
 ### One-Minute Evidence Governance Proof
 
@@ -217,6 +255,8 @@ audience-aware routing while preserving a universal project identity.
 | File | Purpose |
 | --- | --- |
 | [Quickstart](QUICKSTART.md) | Install, test, and run the local interfaces |
+| [Public result scope](docs/PUBLIC_SCOPE.md) | What is and is not part of the GitHub-facing result surface |
+| [Archived project closeout](docs/PROJECT_CLOSEOUT.md) | Final outcome, evidence boundary, stopping decision, and lessons |
 | [Limitations](docs/limitations.md) | Safe claims, non-goals, evidence requirements |
 | [Architecture](docs/architecture.md) | Components and responsibilities |
 | [Workflow](docs/workflow.md) | Execution, repair, mock, and fallback behavior |
@@ -225,7 +265,7 @@ audience-aware routing while preserving a universal project identity.
 | [Evidence governance specification](docs/evidence_governance_spec.md) | E-BOM, claim decisions, license gates, and interoperability boundaries |
 | [Positioning and comparison landscape](docs/competitive_landscape.md) | Source-backed comparison with Cello and CELLM |
 | [AI reviewer guide](docs/ai_reviewer_guide.md) | Repository review protocol |
-| [Evidence capture guide (Traditional Chinese)](docs/evidence_capture_guide_zh-Hant.md) | Real-run screenshots, recording script, metadata, and claim boundaries |
+| [Evidence capture guide (Traditional Chinese)](docs/evidence_capture_guide_zh-Hant.md) | Future-run capture procedure; not evidence that an external run has occurred |
 | [Future roadmap](docs/future_roadmap.md) | Open research and engineering directions |
 
 ## Development Provenance

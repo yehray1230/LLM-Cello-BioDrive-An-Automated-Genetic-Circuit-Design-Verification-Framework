@@ -29,6 +29,27 @@ outputs/
 /.pnpm-store/
 常用指令.txt
 
+# Local-only research packages and generated outputs
+# These paths remain on disk but are not GitHub upload candidates by default.
+/cello-run/
+/output/
+/benchmark_suite/cello_mapping_v1/
+/benchmark_suite/protocols/exp024_*.json
+/preprint/
+/docs/PROJECT_STATE.md
+/docs/developer/MVP_TEST_PLAN.md
+
+# Local-only experiment control scripts and goal-validator tests
+/src/scripts/run_exp024_*.py
+/src/scripts/validate_*_goal.py
+/src/scripts/validate_exp024_*.py
+/src/scripts/validate_pre_experiment_activation_review.py
+/tests/test_exp024_*.py
+/tests/test_run_exp024_*.py
+/tests/test_validate_exp024_*.py
+/tests/test_validate_*_goal.py
+/tests/test_validate_pre_experiment_activation_review.py
+
 # IDE/editor files
 # Separate local website repository; do not add it as an accidental gitlink.
 /research-preview-site/

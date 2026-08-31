@@ -6,13 +6,31 @@ supervisors, collaborators, or potential research contacts.
 
 Short version:
 
-> This project generates and evaluates computational candidate designs for
-> regulatory logic circuits. It does not yet produce complete, buildable,
-> experimentally validated genetic circuits.
+> This archived project implemented a research-preview workflow for generating
+> and evaluating computational regulatory-logic candidates. It completed zero
+> real provider-to-Cello full-path projects and did not produce a complete,
+> buildable, experimentally validated genetic circuit.
 
 ## Current Stage
 
-The project is a `0.x research preview`.
+The project is a permanently archived `0.x research preview`. It reached
+`CLOSED_UNSUCCESSFUL_ARCHIVED` on 2026-08-30 after an independent final
+closeout. This status records a bounded stopping decision, not scientific or
+production acceptance.
+
+## Recorded Closeout Result
+
+- Real provider-to-Cello full-path projects completed: **0**.
+- Provider qualification attempts in the final closeout: **0**.
+- Provider calls and observed/billed provider cost: **0 calls; USD 0**.
+- Historical external-tool evidence: **one separate AND2 Cello 2.1
+  mapping-only case**, not an integrated project or repeatability result.
+- Terminal integration finding: the canonical service boundary did not enforce
+  the frozen Gemini provider, transport, and reported-model identity after the
+  two permitted implementation revisions were consumed.
+
+See [Archived Project Closeout](PROJECT_CLOSEOUT.md) for the sanitized evidence
+summary and stopping rationale.
 
 It is appropriate to present it as:
 
@@ -48,8 +66,9 @@ The current prototype can:
 - surface failure modes such as logic mismatch, weak simulated robustness,
   excessive complexity, missing evidence, or likely Cello/part-assignment
   problems;
-- support optional external Cello execution when a real Cello command and
-  compatible UCF/library data are configured;
+- contain an optional external Cello execution boundary when a real command and
+  compatible UCF/library data are configured; the final canonical integrated
+  path was not provider-qualified or demonstrated end to end;
 - label mock, failed, and externally mapped Cello outputs separately;
 - evaluate sequence-level constraints when sequence data is available;
 - produce conservative planning artifacts such as BOM, GenBank, SBOL3, and
@@ -77,9 +96,9 @@ The current prototype cannot:
 - replace rigorous thermodynamic RNA-folding packages, calibrated host-cell
   models, or empirical characterization.
 
-These limitations are expected for the current stage. The system should be
-treated as a computational design-assistance prototype, not as an automated
-biological-design platform.
+These limitations define the archived result. The system should be treated as
+a computational design-assistance exploration, not as an automated
+biological-design platform or an active product roadmap.
 
 ## Safe Claims
 
